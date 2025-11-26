@@ -12,7 +12,7 @@ use Illuminate\Support\Str;
 class User extends Authenticatable // implements MustVerifyEmail
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, HasTwoFactorAuthentication;
+    use HasFactory, HasTwoFactorAuthentication, Notifiable;
 
     /**
      * The attributes that are mass assignable.

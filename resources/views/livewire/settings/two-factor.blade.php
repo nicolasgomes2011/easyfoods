@@ -95,10 +95,11 @@ new class extends Component {
     }
 }; ?>
 
-<div>
-    <flux:heading size="xl">Two-Factor Authentication</flux:heading>
-    <flux:subheading class="mb-6">Add additional security to your account using two-factor authentication.</flux:subheading>
+<section class="w-full">
+    @include('partials.settings-heading')
 
+    <x-settings.layout heading="Two-Factor Authentication" subheading="Add additional security to your account using two-factor authentication">
+        <div>
     @if (session('status'))
         <div class="mb-4 p-4 rounded-lg bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-200">
             {{ session('status') }}
@@ -208,4 +209,6 @@ new class extends Component {
             @endif
         </div>
     @endif
-</div>
+        </div>
+    </x-settings.layout>
+</section>

@@ -11,13 +11,13 @@ trait HasTwoFactorAuthentication
      */
     public function generateTwoFactorSecret(): string
     {
-        $google2fa = new Google2FA();
-        
+        $google2fa = new Google2FA;
+
         $secret = $google2fa->generateSecretKey();
-        
+
         $this->two_factor_secret = encrypt($secret);
         $this->save();
-        
+
         return $secret;
     }
 
@@ -26,10 +26,10 @@ trait HasTwoFactorAuthentication
      */
     public function getTwoFactorSecret(): ?string
     {
-        if (!$this->two_factor_secret) {
+        if (! $this->two_factor_secret) {
             return null;
         }
-        
+
         return decrypt($this->two_factor_secret);
     }
 
@@ -58,13 +58,13 @@ trait HasTwoFactorAuthentication
      */
     public function verifyTwoFactorCode(string $code): bool
     {
-        $google2fa = new Google2FA();
+        $google2fa = new Google2FA;
         $secret = $this->getTwoFactorSecret();
-        
-        if (!$secret) {
+
+        if (! $secret) {
             return false;
         }
-        
+
         return $google2fa->verifyKey($secret, $code);
     }
 
@@ -74,14 +74,14 @@ trait HasTwoFactorAuthentication
     public function generateRecoveryCodes(): array
     {
         $codes = [];
-        
+
         for ($i = 0; $i < 8; $i++) {
             $codes[] = strtoupper(bin2hex(random_bytes(5)));
         }
-        
+
         $this->two_factor_recovery_codes = encrypt(json_encode($codes));
         $this->save();
-        
+
         return $codes;
     }
 
@@ -90,10 +90,10 @@ trait HasTwoFactorAuthentication
      */
     public function getRecoveryCodes(): ?array
     {
-        if (!$this->two_factor_recovery_codes) {
+        if (! $this->two_factor_recovery_codes) {
             return null;
         }
-        
+
         return json_decode(decrypt($this->two_factor_recovery_codes), true);
     }
 
@@ -103,22 +103,22 @@ trait HasTwoFactorAuthentication
     public function verifyRecoveryCode(string $code): bool
     {
         $codes = $this->getRecoveryCodes();
-        
-        if (!$codes) {
+
+        if (! $codes) {
             return false;
         }
-        
+
         $code = strtoupper($code);
-        
+
         if (in_array($code, $codes)) {
             // Remove the used recovery code
             $codes = array_values(array_diff($codes, [$code]));
             $this->two_factor_recovery_codes = encrypt(json_encode($codes));
             $this->save();
-            
+
             return true;
         }
-        
+
         return false;
     }
 
@@ -128,14 +128,14 @@ trait HasTwoFactorAuthentication
     public function getTwoFactorQrCodeUrl(): ?string
     {
         $secret = $this->getTwoFactorSecret();
-        
-        if (!$secret) {
+
+        if (! $secret) {
             return null;
         }
-        
-        $google2fa = new Google2FA();
+
+        $google2fa = new Google2FA;
         $appName = config('app.name', 'Laravel');
-        
+
         return $google2fa->getQRCodeUrl(
             $appName,
             $this->email,
