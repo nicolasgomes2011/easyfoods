@@ -7,6 +7,16 @@ use PragmaRX\Google2FA\Google2FA;
 trait HasTwoFactorAuthentication
 {
     /**
+     * Number of recovery codes to generate.
+     */
+    private const RECOVERY_CODE_COUNT = 8;
+
+    /**
+     * Number of bytes for each recovery code.
+     */
+    private const RECOVERY_CODE_BYTES = 5;
+
+    /**
      * Generate a new two-factor authentication secret.
      */
     public function generateTwoFactorSecret(): string
@@ -75,8 +85,8 @@ trait HasTwoFactorAuthentication
     {
         $codes = [];
 
-        for ($i = 0; $i < 8; $i++) {
-            $codes[] = strtoupper(bin2hex(random_bytes(5)));
+        for ($i = 0; $i < self::RECOVERY_CODE_COUNT; $i++) {
+            $codes[] = strtoupper(bin2hex(random_bytes(self::RECOVERY_CODE_BYTES)));
         }
 
         $this->two_factor_recovery_codes = encrypt(json_encode($codes));

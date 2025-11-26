@@ -125,6 +125,7 @@ new class extends Component {
                         
                         <div class="flex justify-center mb-4">
                             <div class="bg-white p-4 rounded-lg">
+                                {{-- QR code URL is generated internally by getTwoFactorQrCodeUrl() method, safe from XSS --}}
                                 {!! QrCode::size(200)->generate($qrCodeUrl) !!}
                             </div>
                         </div>
