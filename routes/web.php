@@ -2,6 +2,8 @@
 
 use Illuminate\Support\Facades\Route;
 use Livewire\Volt\Volt;
+use App\Livewire\Auth\LoginForm;
+
 
 Route::get('/', function () {
     return view('welcome');
@@ -19,5 +21,8 @@ Route::middleware(['auth'])->group(function () {
     Volt::route('settings/two-factor', 'settings.two-factor')->name('settings.two-factor');
     Volt::route('settings/appearance', 'settings.appearance')->name('settings.appearance');
 });
+
+
+
 
 require __DIR__ . '/auth.php';
