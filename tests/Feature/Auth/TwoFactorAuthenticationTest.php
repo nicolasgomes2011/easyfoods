@@ -2,9 +2,11 @@
 
 namespace Tests\Feature\Auth;
 
+use App\Livewire\Auth\LoginForm;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Session;
+use Livewire\Livewire;
 use Livewire\Volt\Volt as LivewireVolt;
 use Tests\TestCase;
 
@@ -14,25 +16,25 @@ class TwoFactorAuthenticationTest extends TestCase
 
     public function test_two_factor_challenge_screen_can_be_rendered(): void
     {
-        $response = $this->get('/two-factor-challenge');
+        // Session required to access this screen
+        Session::put('two_factor_login_id', User::factory()->create()->id);
 
-        $response->assertStatus(200);
+        $this->get('/two-factor-challenge')->assertStatus(200);
     }
 
     public function test_user_with_two_factor_enabled_is_redirected_to_challenge(): void
     {
         $user = User::factory()->create();
 
-        // Enable 2FA
         $secret = $user->generateTwoFactorSecret();
         $user->enableTwoFactorAuthentication();
 
-        $response = LivewireVolt::test('auth.login')
+        Livewire::test(LoginForm::class)
             ->set('email', $user->email)
             ->set('password', 'password')
-            ->call('login');
+            ->call('login')
+            ->assertRedirect(route('two-factor.challenge', absolute: false));
 
-        $response->assertRedirect(route('two-factor.challenge', absolute: false));
         $this->assertGuest();
     }
 
@@ -40,12 +42,10 @@ class TwoFactorAuthenticationTest extends TestCase
     {
         $user = User::factory()->create();
 
-        $response = LivewireVolt::test('auth.login')
+        Livewire::test(LoginForm::class)
             ->set('email', $user->email)
             ->set('password', 'password')
-            ->call('login');
-
-        $response
+            ->call('login')
             ->assertHasNoErrors()
             ->assertRedirect(route('dashboard', absolute: false));
 
@@ -56,23 +56,20 @@ class TwoFactorAuthenticationTest extends TestCase
     {
         $user = User::factory()->create();
 
-        // Enable 2FA
         $secret = $user->generateTwoFactorSecret();
         $user->enableTwoFactorAuthentication();
 
-        // Simulate login session
         Session::put('two_factor_login_id', $user->id);
         Session::put('two_factor_remember', false);
 
-        // Generate a valid code
         $google2fa = new \PragmaRX\Google2FA\Google2FA;
         $validCode = $google2fa->getCurrentOtp($secret);
 
-        $response = LivewireVolt::test('auth.two-factor-challenge')
+        LivewireVolt::test('auth.two-factor-challenge')
             ->set('code', $validCode)
-            ->call('verify');
+            ->call('verify')
+            ->assertRedirect(route('dashboard', absolute: false));
 
-        $response->assertRedirect(route('dashboard', absolute: false));
         $this->assertAuthenticated();
         $this->assertFalse(Session::has('two_factor_login_id'));
     }
@@ -81,18 +78,16 @@ class TwoFactorAuthenticationTest extends TestCase
     {
         $user = User::factory()->create();
 
-        // Enable 2FA
         $user->generateTwoFactorSecret();
         $user->enableTwoFactorAuthentication();
 
-        // Simulate login session
         Session::put('two_factor_login_id', $user->id);
 
-        $response = LivewireVolt::test('auth.two-factor-challenge')
+        LivewireVolt::test('auth.two-factor-challenge')
             ->set('code', '000000')
-            ->call('verify');
+            ->call('verify')
+            ->assertHasErrors(['code']);
 
-        $response->assertHasErrors(['code']);
         $this->assertGuest();
     }
 
@@ -100,25 +95,22 @@ class TwoFactorAuthenticationTest extends TestCase
     {
         $user = User::factory()->create();
 
-        // Enable 2FA
         $user->generateTwoFactorSecret();
         $recoveryCodes = $user->generateRecoveryCodes();
         $user->enableTwoFactorAuthentication();
 
-        // Simulate login session
         Session::put('two_factor_login_id', $user->id);
         Session::put('two_factor_remember', false);
 
-        $response = LivewireVolt::test('auth.two-factor-challenge')
+        LivewireVolt::test('auth.two-factor-challenge')
             ->set('useRecoveryCode', true)
             ->set('code', $recoveryCodes[0])
-            ->call('verify');
+            ->call('verify')
+            ->assertRedirect(route('dashboard', absolute: false));
 
-        $response->assertRedirect(route('dashboard', absolute: false));
         $this->assertAuthenticated();
         $this->assertFalse(Session::has('two_factor_login_id'));
 
-        // Verify the recovery code was removed
         $user->refresh();
         $remainingCodes = $user->getRecoveryCodes();
         $this->assertCount(7, $remainingCodes);
@@ -129,20 +121,18 @@ class TwoFactorAuthenticationTest extends TestCase
     {
         $user = User::factory()->create();
 
-        // Enable 2FA
         $user->generateTwoFactorSecret();
         $user->generateRecoveryCodes();
         $user->enableTwoFactorAuthentication();
 
-        // Simulate login session
         Session::put('two_factor_login_id', $user->id);
 
-        $response = LivewireVolt::test('auth.two-factor-challenge')
+        LivewireVolt::test('auth.two-factor-challenge')
             ->set('useRecoveryCode', true)
             ->set('code', 'INVALIDCODE')
-            ->call('verify');
+            ->call('verify')
+            ->assertHasErrors(['code']);
 
-        $response->assertHasErrors(['code']);
         $this->assertGuest();
     }
 
@@ -150,24 +140,19 @@ class TwoFactorAuthenticationTest extends TestCase
     {
         $user = User::factory()->create();
 
-        // Enable 2FA
         $user->generateTwoFactorSecret();
         $recoveryCodes = $user->generateRecoveryCodes();
         $user->enableTwoFactorAuthentication();
 
-        // Use the first recovery code
         $this->assertTrue($user->verifyRecoveryCode($recoveryCodes[0]));
-
-        // Try to use the same code again
         $this->assertFalse($user->verifyRecoveryCode($recoveryCodes[0]));
     }
 
     public function test_two_factor_challenge_redirects_to_login_if_no_session(): void
     {
-        $response = LivewireVolt::test('auth.two-factor-challenge')
+        LivewireVolt::test('auth.two-factor-challenge')
             ->set('code', '123456')
-            ->call('verify');
-
-        $response->assertRedirect(route('login', absolute: false));
+            ->call('verify')
+            ->assertRedirect(route('login', absolute: false));
     }
 }

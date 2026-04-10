@@ -1,685 +1,493 @@
 # task.md
 
-## Contexto do projeto
+## Context
 
-Este projeto será um software web para gestão de pedidos de comida, desenvolvido com **Laravel + Livewire**, com foco principal em permitir que **restaurantes tenham melhor controle operacional dos pedidos** e, ao mesmo tempo, oferecer uma **área para os clientes realizarem seus pedidos** de forma simples, rápida e intuitiva.
+We are building a **web application for restaurant management**, focused on **internal operation, service flow, and decision support**.
 
-O sistema deve ser pensado como um produto profissional, com base sólida, arquitetura organizada, domínio bem modelado, regras de negócio claras e código preparado para crescer.
+This product is **not** a marketplace and must **not** be modeled as an iFood clone.
 
-A prioridade inicial **não é construir um marketplace completo estilo iFood**, mas sim um sistema robusto que possa atender um restaurante ou evoluir para um modelo SaaS multi-restaurante no futuro.
+The central goal is to help the restaurant operate better by organizing:
 
----
+- menu/catalog management
+- order flow
+- dining room / table control
+- kitchen workload
+- customer records and history
+- operational capacity
+- estimated waiting time
+- real-time operational visibility
 
-## Objetivo geral
+The current project already has a base interface from the **Laravel Starter Kit**, including a default sidebar and a placeholder dashboard. This needs to be replaced with a navigation structure that reflects the real product.
 
-Construir a base completa do sistema desde o zero, com:
-
-* arquitetura Laravel profissional
-* interface administrativa para o restaurante
-* interface de pedidos para o cliente
-* fluxo operacional de pedidos bem definido
-* modelagem de dados consistente
-* separação clara entre domínio, interface e regras de negócio
-* base pronta para escalar futuramente
-
----
-
-## Stack obrigatória
-
-O projeto deve ser construído com:
-
-* **Laravel**
-* **Livewire**
-* **Blade**
-* **Alpine.js** apenas como suporte leve de interatividade
-* **Tailwind CSS** para a interface
-* banco de dados relacional com migrations bem estruturadas
-* testes automatizados para fluxos críticos
-
-Evitar dependências excessivas no início.
+The system should evolve as an **operational SaaS/admin panel** for restaurants.
 
 ---
 
-## Direção arquitetural obrigatória
+## Important execution note
 
-O projeto deve seguir princípios de arquitetura limpa e organização por domínio.
+Before implementing anything, you must use the existing project skills as guidance for structure, architecture, and scope decisions.
 
-### Regras principais
+Relevant skills that should guide your reasoning and implementation include, at minimum:
 
-* Não concentrar regra de negócio em componentes Livewire
-* Não criar componentes gigantes com múltiplas responsabilidades
-* Não colocar lógica complexa diretamente em Blade
-* Não usar strings soltas para status importantes
-* Não misturar fluxo de pedido com fluxo de pagamento
-* Não misturar regra operacional com detalhe visual
-* Não deixar cálculo de preço dependente apenas do frontend
-* Não criar estrutura improvisada orientada apenas por telas
+- `.claude/skills/product-discovery/SKILL.md`
+- `.claude/skills/laravel-architecture/SKILL.md`
+- `.claude/skills/livewire-ui-patterns/SKILL.md`
+- `.claude/skills/database-modeling/SKILL.md`
+- `.claude/skills/order-flow-design/SKILL.md`
+- `.claude/skills/restaurant-backoffice/SKILL.md`
+- `.claude/skills/customer-ordering-flow/SKILL.md`
+- `.claude/skills/payment-and-checkout/SKILL.md`
+- `.claude/skills/notifications-and-realtime/SKILL.md`
+- `.claude/skills/testing-and-quality/SKILL.md`
+- `.claude/skills/task-breakdown/SKILL.md`
+- `.claude/skills/coding-standards/SKILL.md`
 
-### Estrutura esperada
+You must **read and use those skills before proposing or changing the application structure**.
 
-Organizar o projeto com foco em domínio de negócio, não apenas por páginas.
-
-O sistema deve ser dividido em contextos como:
-
-* Restaurants / Stores
-* Customers
-* Catalog
-* Cart
-* Orders
-* Checkout
-* Payments
-* Delivery
-* Notifications
-* Reports
-* Admin / Settings
-* Auth / Permissions
-
-Deve haver uso consistente de:
-
-* Models
-* Actions / Services
-* Enums
-* Policies
-* Form Requests ou validações organizadas
-* Jobs
-* Events / Listeners
-* Livewire Components com responsabilidade clara
+Do not ignore them.
+Do not make assumptions that conflict with them.
+If there is a conflict between this file and the project skills, reconcile it explicitly and document the decision.
 
 ---
 
-## Escopo do produto
+## Objective of this task
 
-O sistema possui dois grandes lados:
+Redesign the current admin navigation and define the first real version of the restaurant dashboard.
 
-### 1. Área do cliente
+The immediate goal is to replace the generic starter-kit sidebar with a menu architecture aligned with the product.
 
-A área do cliente é onde o pedido nasce.
-
-Ela deve permitir que o cliente:
-
-* visualize o cardápio do restaurante
-* navegue por categorias
-* veja detalhes dos produtos
-* adicione itens ao carrinho
-* personalize itens com adicionais, observações e variações
-* informe endereço ou escolha retirada
-* escolha forma de pagamento
-* finalize o pedido
-* acompanhe o status do pedido
-* visualize pedidos anteriores
-
-### 2. Área do restaurante
-
-A área do restaurante é o centro operacional.
-
-Ela deve permitir que o restaurante:
-
-* gerencie cardápio, categorias e produtos
-* controle disponibilidade de itens
-* visualize pedidos em tempo real
-* confirme pedidos
-* altere status dos pedidos
-* acompanhe fila de produção
-* organize retirada e entrega
-* configure horários, taxas e áreas de entrega
-* cadastre equipe e permissões
-* visualize relatórios operacionais e gerenciais
-* altere configurações da loja sem depender de desenvolvedor
+This task is **not yet about implementing the full business logic of the platform**.
+It is about creating the correct **information architecture**, **module boundaries**, **navigation**, and **dashboard structure** so the rest of the product can be built on top of a solid foundation.
 
 ---
 
-## Visão do MVP
+## Product direction
 
-O Claude deve construir primeiro um **MVP profissional e funcional**, sem tentar implementar tudo de uma vez.
+This system is intended to support the restaurant in day-to-day operation.
 
-### O MVP deve conter obrigatoriamente
+The product should cover, progressively:
 
-#### Área pública / cliente
+1. **Operational control**
+   - orders
+   - order queue
+   - production flow
+   - dining room occupancy
+   - service bottlenecks
 
-* página inicial da loja
-* listagem de categorias
-* listagem de produtos
-* detalhes do produto
-* seleção de adicionais e observações
-* carrinho
-* checkout
-* escolha entre entrega e retirada
-* cálculo básico de entrega
-* seleção de forma de pagamento
-* criação de pedido
-* tela de acompanhamento de pedido
+2. **Menu and service structure**
+   - categories
+   - products
+   - add-ons
+   - variations
+   - item availability
+   - prep time per item
 
-#### Área administrativa / restaurante
+3. **Customer management**
+   - customer registry
+   - order history
+   - notes/preferences
+   - frequency / recurrence visibility
 
-* login
-* dashboard inicial
-* gerenciamento de categorias
-* gerenciamento de produtos
-* gerenciamento de adicionais
-* gerenciamento de pedidos
-* alteração manual de status do pedido
-* configurações básicas da loja
-* configuração de horários de funcionamento
-* configuração de taxa/área de entrega
-* gerenciamento básico de usuários internos
+4. **Operational intelligence**
+   - estimated waiting time
+   - peak hours
+   - average preparation time
+   - kitchen capacity constraints
+   - occupancy / service load indicators
 
-#### Núcleo de negócio
-
-* fluxo de status do pedido
-* fluxo de status do pagamento
-* cálculo de subtotal
-* cálculo de adicionais
-* cálculo de taxa de entrega
-* cálculo de desconto futuro preparado, mesmo que ainda simples
-* persistência de snapshot de preço no pedido
-* histórico de status do pedido
-
-#### Base técnica
-
-* migrations organizadas
-* seeders iniciais
-* factories
-* testes dos fluxos críticos
-* autorização por papéis/permissões
-* logs adequados para ações importantes
+5. **Management support**
+   - reports
+   - performance indicators
+   - sales insights
+   - future settings and operational parameters
 
 ---
 
-## O que NÃO deve entrar agora
+## Strategic product principle
 
-Para evitar overengineering, deixar fora da primeira fase:
+This application should behave more like a mix of:
 
-* marketplace completo com vários restaurantes públicos competindo entre si
-* app mobile nativo
-* sistema complexo de comissão
-* repasse financeiro avançado
-* loyalty program complexo
-* múltiplos gateways simultâneos logo no início
-* BI avançado
-* multi-idioma completo
-* integrações grandes antes do núcleo estar estável
-* microserviços
-* arquitetura excessivamente complexa sem necessidade real
+- restaurant backoffice
+- operations dashboard
+- dining room / kitchen coordination panel
+- customer/order control center
 
-O projeto deve nascer simples, sólido e extensível.
+And less like:
 
----
+- public ordering marketplace
+- consumer marketplace app
+- app aggregator
 
-## Como o sistema deve ser pensado
-
-O software deve resolver problemas reais do restaurante.
-
-### Problemas operacionais que o sistema deve atacar
-
-* demora ou confusão no recebimento de pedidos
-* erros de comunicação entre cliente e restaurante
-* dificuldade para controlar status do pedido
-* falta de organização na cozinha ou produção
-* dificuldade para atualizar cardápio
-* dependência manual para acompanhar operação
-* baixa visibilidade sobre pedidos, horários de pico e ticket médio
-
-### Como o sistema deve agilizar os pedidos
-
-* permitir pedido digital direto pelo cliente
-* reduzir atrito no checkout
-* exibir pedidos em painel operacional claro
-* permitir atualização rápida do status
-* manter histórico e rastreabilidade
-* evitar retrabalho e erros de anotação
-* organizar visualmente a fila de pedidos
-* facilitar reconfiguração do cardápio e disponibilidade
+The architecture should reflect that distinction from the beginning.
 
 ---
 
-## Fluxo operacional do pedido
+## Current state
 
-O fluxo de pedidos é um dos pontos mais importantes do projeto.
+The current screen is still essentially the Laravel Starter Kit default dashboard, with:
 
-Ele deve ser modelado de forma explícita, consistente e auditável.
+- generic sidebar
+- generic dashboard cards/skeleton blocks
+- no domain-driven navigation
+- no restaurant-oriented information hierarchy
 
-### Status de pedido sugeridos
-
-Criar enums e regras formais para status, sem strings soltas.
-
-Fluxo inicial sugerido:
-
-* `draft`
-* `pending_confirmation`
-* `confirmed`
-* `in_preparation`
-* `ready_for_pickup`
-* `out_for_delivery`
-* `delivered`
-* `completed`
-* `canceled`
-
-O Claude pode adaptar esse fluxo, mas deve justificar mudanças e manter coerência com retirada, entrega e operação do restaurante.
-
-### Regras importantes
-
-* um pedido não deve mudar de status sem validação
-* mudanças de status devem ser auditáveis
-* status do pedido e status do pagamento devem ser independentes
-* um pedido pode exigir confirmação antes de entrar em preparo
-* pedidos para retirada e entrega podem ter etapas diferentes
-* o sistema deve permitir rastrear o histórico de mudanças
+This must be replaced.
 
 ---
 
-## Fluxo de pagamento
+## Expected outcome
 
-O sistema deve tratar pagamento como um domínio separado.
+At the end of this task, the project should have a clear and defensible proposal for:
 
-### Status de pagamento sugeridos
+1. main navigation architecture
+2. menu grouping
+3. submenu structure
+4. dashboard composition
+5. MVP module prioritization
+6. future-ready modular expansion path
 
-* `pending`
-* `authorized`
-* `paid`
-* `failed`
-* `refunded`
-* `partially_refunded`
-* `canceled`
-
-### Regras obrigatórias
-
-* não confiar apenas nos totais do frontend
-* recalcular totais no backend
-* armazenar snapshot de preço no pedido
-* tratar pagamento e pedido como fluxos separados
-* permitir expansão futura para integração com gateway
-* deixar estrutura preparada para webhook ou conciliação futura
+If implementation is started in this task, it should focus on the structural/UI layer only, not on completing all domain rules.
 
 ---
 
-## Modelagem de domínio esperada
+# Phase 1 — Functional architecture definition
 
-O Claude deve começar modelando corretamente o domínio do sistema.
+## Your first deliverable
 
-### Entidades mínimas esperadas
+Before changing files, produce a concise but solid functional proposal containing:
 
-#### Restaurante e operação
+### 1. Final sidebar navigation tree
 
-* Restaurant
-* Branch ou unidade, se fizer sentido já deixar preparado
-* OperatingHour
-* DeliveryZone
-* StoreSetting
+Organize the system into clear groups.
 
-#### Usuários e acesso
+Recommended high-level grouping:
 
-* User
-* Role / Permission
-* Customer
-* CustomerAddress
+- **Operation**
+- **Management**
+- **Configuration**
 
-#### Catálogo
+Within those groups, propose the best menu architecture for this product.
 
-* Category
-* Product
-* ProductVariant
-* ProductAddon ou AddonGroup
-* ProductAddonOption
-* ProductAvailability
+The minimum expected menus should be evaluated around the following domains:
 
-#### Carrinho e pedido
+- Dashboard
+- Orders
+- Dining Room / Tables
+- Kitchen
+- Menu
+- Customers
+- Operational Capacity / Wait Time
+- Reports
+- Settings
 
-* Cart
-* CartItem
-* Order
-* OrderItem
-* OrderStatusHistory
+You may improve the naming if you find a clearer, more scalable vocabulary.
 
-#### Pagamento
+### 2. Short description for each menu
 
-* Payment
-* PaymentAttempt ou estrutura equivalente se necessário
+Each menu/submenu should have a short explanation covering:
 
-#### Comunicação e operação
+- what it is responsible for
+- why it belongs in the system
+- whether it belongs to MVP or future phase
 
-* Notification
-* talvez OrderTimeline / ActivityLog se fizer sentido
+### 3. Dashboard proposal
 
-### Observações de modelagem
+Define what the initial dashboard should display.
 
-* preços dos itens do pedido devem ser gravados no momento da compra
-* adicionais devem registrar valores no pedido
-* mudanças futuras de produto não podem quebrar pedidos antigos
-* endereços do cliente devem ser tratados corretamente
-* dados operacionais importantes precisam de índice
-* a modelagem deve considerar futura evolução para multi-restaurante
+The dashboard should prioritize **live operational visibility**, not generic admin widgets.
 
----
+At minimum, evaluate widgets/sections like:
 
-## Organização de código esperada
+- open orders
+- orders in preparation
+- ready orders
+- occupied tables
+- average prep time
+- estimated wait time
+- order volume today
+- revenue today
+- current bottlenecks / alerts
+- recent urgent items
+- kitchen workload snapshot
+- dining room occupancy snapshot
 
-O Claude deve propor e implementar uma organização clara de diretórios e responsabilidades.
+### 4. MVP vs future breakdown
 
-### Exemplo de direção esperada
+Separate:
 
-* `app/Models`
-* `app/Enums`
-* `app/Actions`
-* `app/Services`
-* `app/Policies`
-* `app/Jobs`
-* `app/Events`
-* `app/Listeners`
-* `app/Livewire`
-* `app/Support` se realmente necessário
-* `database/migrations`
-* `database/seeders`
-* `database/factories`
-* `tests/Feature`
-* `tests/Unit`
+- what must exist in the first usable version
+- what can remain as future expansion
 
-### Regras de implementação
-
-* Actions/Services devem conter regras relevantes de negócio
-* Models devem focar em persistência, relações e escopos úteis
-* Enums devem centralizar status e valores fixos
-* Policies devem controlar acesso administrativo
-* Jobs devem processar tarefas assíncronas
-* Events/Listeners devem desacoplar efeitos secundários
-* Livewire deve ser usado com responsabilidade clara por tela/contexto
+This is required so the product does not become bloated too early.
 
 ---
 
-## Interface do cliente
+# Phase 2 — Menu architecture to be implemented
 
-A área do cliente deve ser simples, objetiva e com foco em conversão.
+After defining the architecture, the sidebar should be rebuilt around a structure close to this, unless a better version is justified.
 
-### Páginas e experiências mínimas
+## Suggested baseline navigation
 
-* home da loja
-* cardápio
-* produtos por categoria
-* detalhes do produto
-* carrinho
-* checkout
-* confirmação do pedido
-* acompanhamento do pedido
-* histórico do cliente, se possível no MVP
+### Group: Operation
 
-### Diretrizes de UX
+- **Dashboard**
+- **Orders**
+  - All orders
+  - New order
+  - In progress
+  - History
+- **Dining Room**
+  - Tables
+  - Waiting list
+  - Reservations *(future, optional)*
+- **Kitchen**
+  - Preparation queue
+  - Stations / sectors *(future, optional)*
+- **Operational Capacity**
+  - Wait time estimation
+  - Capacity rules *(future or advanced)*
 
-* mobile first
-* poucas etapas
-* valores claros
-* taxa de entrega visível
-* ações de adicionar/remover fáceis
-* personalização de itens intuitiva
-* feedback visual claro
-* evitar formulários longos e desnecessários
+### Group: Management
 
----
+- **Menu**
+  - Categories
+  - Products
+  - Add-ons
+  - Variations / combos *(depending on modeling approach)*
+  - Availability
+- **Customers**
+  - Customer list
+  - Customer history
+  - Notes / preferences *(future if necessary)*
+- **Reports**
+  - Sales
+  - Most ordered items
+  - Peak hours
+  - Operational performance
 
-## Interface administrativa do restaurante
+### Group: Configuration
 
-A área interna deve priorizar operação.
+- **Settings**
+  - Restaurant profile
+  - Opening hours
+  - Users and roles
+  - Operational parameters
+  - Integrations *(future)*
+  - Notifications *(future)*
 
-### Módulos mínimos
-
-* dashboard
-* pedidos
-* categorias
-* produtos
-* adicionais
-* horários de funcionamento
-* áreas/taxas de entrega
-* usuários internos
-* configurações da loja
-
-### Diretrizes
-
-* rapidez operacional
-* clareza dos status
-* pouco clique para ações comuns
-* formulários organizados
-* filtros úteis na listagem de pedidos
-* foco em uso diário real
-
----
-
-## Regras de autorização
-
-O sistema deve possuir autorização desde o início.
-
-### Papéis mínimos sugeridos
-
-* admin
-* manager
-* attendant
-* kitchen
-* delivery
-* customer
-
-O Claude pode ajustar, mas deve implementar uma estratégia clara de acesso.
-
-### Exemplos de separação
-
-* admin: acesso total
-* manager: gestão operacional ampla
-* attendant: gestão de pedidos e atendimento
-* kitchen: visualização operacional da produção
-* delivery: visualização de pedidos em rota, se existir
-* customer: apenas sua própria área
+This is a baseline, not a prison.
+You may refine it, merge items, or split them if you justify the decision clearly.
 
 ---
 
-## Requisitos de tempo real e notificações
+# Phase 3 — Dashboard design principles
 
-O sistema deve ser projetado para comportamento responsivo.
+The new dashboard must not be a decorative admin landing page.
+It should behave like an operational control panel.
 
-### Cenários importantes
+## Dashboard priorities
 
-* novo pedido chegando no painel do restaurante
-* alteração de status do pedido
-* atualização para o cliente acompanhar o pedido
-* futura possibilidade de alertas sonoros, WhatsApp, e-mail ou browser notification
+The dashboard should answer questions like:
 
-### Direção inicial
+- What is happening right now?
+- Where is the bottleneck?
+- How overloaded is the kitchen?
+- How many orders are pending?
+- How long is the estimated wait for new orders?
+- How many tables are occupied?
+- Is the restaurant under normal load or stress?
 
-No MVP, pode ser usado polling ou estratégia simples, mas a arquitetura deve ficar pronta para evolução futura.
+## Recommended dashboard structure
 
-### Regras
+### Top summary cards
+Use concise operational KPIs such as:
 
-* notificações não devem nascer acopladas ao componente visual
-* preferir eventos, jobs e listeners quando necessário
-* evitar duplicidade de notificações
-* garantir rastreabilidade em ações importantes
+- Open orders
+- In preparation
+- Ready for delivery / serving
+- Occupied tables
+- Average prep time
+- Estimated wait time
+- Revenue today
 
----
+### Middle section
+Operational detail blocks, such as:
 
-## Relatórios mínimos esperados futuramente, com base já preparada
+- order volume by hour
+- kitchen queue summary
+- latest critical orders
+- delayed orders
+- occupancy snapshot
+- service load indicator
 
-Mesmo que nem todos os relatórios sejam feitos agora, o sistema deve nascer preparado para isso.
+### Lower section
+Support panels such as:
 
-Exemplos:
-
-* quantidade de pedidos por período
-* ticket médio
-* produtos mais vendidos
-* pedidos cancelados
-* tempo médio de preparo
-* horários de pico
-* desempenho operacional
-
-Deixar a estrutura preparada para essas leituras.
-
----
-
-## Estratégia de implementação
-
-O projeto deve ser construído por etapas, com entregas pequenas e consistentes.
-
-### Ordem sugerida de execução
-
-#### Fase 1 — Fundação do projeto
-
-* instalar e configurar Laravel + Livewire + Tailwind
-* preparar autenticação
-* definir estrutura base
-* definir enums e padrões
-* definir autorização
-* criar layout base
-* preparar seeders e dados iniciais
-
-#### Fase 2 — Modelagem do domínio
-
-* criar migrations principais
-* criar models e relações
-* criar factories
-* criar seeders de base
-* garantir integridade e índices
-
-#### Fase 3 — Catálogo
-
-* categorias
-* produtos
-* adicionais
-* disponibilidade
-* telas administrativas correspondentes
-
-#### Fase 4 — Cliente e carrinho
-
-* navegação do cardápio
-* detalhes do produto
-* carrinho
-* personalização
-* fluxo de checkout inicial
-
-#### Fase 5 — Pedidos
-
-* criação do pedido
-* itens do pedido
-* snapshot de valores
-* status do pedido
-* histórico
-* painel operacional do restaurante
-
-#### Fase 6 — Pagamentos
-
-* modelagem de pagamento
-* lógica interna de checkout
-* preparação para integração futura
-* status e consistência
-
-#### Fase 7 — Operação e experiência
-
-* atualização de status
-* acompanhamento do cliente
-* refinamento do painel de pedidos
-* configuração da loja
-
-#### Fase 8 — Testes e refinamento
-
-* testes de fluxos críticos
-* revisão de arquitetura
-* revisão de queries
-* validação de permissões
-* hardening do projeto
+- best selling items today
+- alerts / anomalies
+- low availability items *(future if stock is modeled)*
+- recent customer activity *(optional)*
 
 ---
 
-## Qualidade de código exigida
+# Phase 4 — UX and architecture constraints
 
-O Claude deve manter padrão profissional.
+The solution must follow these constraints:
 
-### Regras obrigatórias
+## Navigation and usability
 
-* nomes claros
-* métodos pequenos e objetivos
-* classes com responsabilidade clara
-* validações explícitas
-* queries eficientes
-* evitar N+1
-* evitar duplicação de regra
-* não criar métodos gigantes como `save()` fazendo tudo
-* status com enum
-* erros tratados de forma clara
-* código legível acima de código “esperto”
+- The sidebar must remain clean and understandable.
+- Avoid stuffing too many first-level menu items.
+- Prefer grouping by operational context.
+- Use clear labels, not abstract admin names.
+- Design for a restaurant manager or staff member who needs quick orientation.
 
----
+## Product architecture
 
-## Testes obrigatórios
+- Think modularly.
+- Menu structure should reflect future modules without forcing all of them into MVP.
+- Do not overfit the structure to the current placeholder UI.
+- The architecture should work whether the frontend is Blade + Livewire or evolves later.
 
-O projeto deve possuir testes para os fluxos críticos.
+## Technical direction
 
-### Prioridades de teste
+- Respect Laravel conventions.
+- Respect the project coding standards skill.
+- Prefer maintainable component boundaries.
+- If you implement menu config, prefer a structure that can evolve cleanly.
 
-* criação de pedido
-* cálculo de total
-* cálculo com adicionais
-* cálculo de taxa de entrega
-* separação entre status do pedido e status do pagamento
-* mudança válida de status
-* bloqueio de mudança inválida de status
-* autorização de áreas administrativas
-* CRUD crítico do catálogo
+## Scope control
+
+- Do not attempt to build the whole ERP in this task.
+- Focus on information architecture and dashboard structure first.
+- Any UI implementation should be enough to establish direction, not to fake a finished system.
 
 ---
 
-## Entregáveis esperados do Claude
+# Phase 5 — Expected implementation work
 
-O Claude não deve apenas “gerar código”. Ele deve estruturar o projeto.
+After presenting the functional proposal, proceed with the structural implementation.
 
-### Para cada fase, espera-se:
+## Minimum implementation target
 
-* implementação da feature
-* explicação objetiva do que foi criado
-* arquivos criados e alterados
-* justificativa técnica curta quando necessário
-* observações de arquitetura
-* riscos ou pontos pendentes
-* próximos passos sugeridos
+Implement enough of the UI structure so that the project visibly stops looking like the Laravel Starter Kit default and starts looking like a restaurant operations product.
 
----
+### This includes
 
-## Comportamento esperado durante a execução
+- updating the sidebar menu
+- renaming/reorganizing menu groups
+- creating placeholder routes/pages/components where necessary
+- updating the dashboard content structure
+- replacing generic cards with restaurant-oriented blocks/placeholders
+- ensuring the navigation reflects the chosen architecture
 
-Ao trabalhar neste projeto, o Claude deve agir como um engenheiro senior com foco em Laravel + Livewire.
+### This does not require
 
-### Deve:
+- complete CRUDs
+- complete database modeling
+- final report logic
+- real-time processing
+- final estimation engine
 
-* pensar antes de sair criando arquivos
-* respeitar a arquitetura definida
-* propor melhorias quando encontrar incoerências
-* quebrar trabalho em etapas pequenas
-* manter consistência de nomenclatura
-* preservar clareza do domínio
-* justificar decisões quando houver tradeoff relevante
-
-### Não deve:
-
-* improvisar arquitetura fraca
-* espalhar regra de negócio em Livewire
-* gerar sistema “mockado” sem domínio real
-* misturar implementação com gambiarra
-* acoplar demais UI e regra
-* criar estrutura confusa só para entregar rápido
+Use placeholders where needed, but meaningful placeholders aligned with the domain.
 
 ---
 
-## Primeira entrega que deve ser feita agora
+# Implementation guidance
 
-Comece pela **fundação do projeto**, entregando:
+## Preferred execution order
 
-1. estrutura base do projeto
-2. proposta final de organização de diretórios
-3. definição inicial das entidades principais
-4. enums iniciais de status
-5. estratégia de autenticação e autorização
-6. migrations iniciais prioritárias
-7. seeders iniciais
-8. planejamento técnico da ordem de implementação
+1. Read the project skills
+2. Analyze current layout/sidebar/dashboard structure
+3. Propose final navigation tree
+4. Validate menu grouping and MVP boundaries internally
+5. Implement sidebar restructuring
+6. Replace dashboard skeleton with restaurant-focused dashboard structure
+7. Create placeholder destinations for main modules if needed
+8. Summarize what was done and what remains
 
-Antes de avançar para telas complexas, garantir que a base do domínio esteja correta.
+## When creating placeholders
+
+Do not create meaningless “empty pages”.
+Each placeholder page should indicate its future domain clearly.
+
+Examples:
+- Orders page should already suggest filters/status areas
+- Kitchen page should suggest queue/station flow
+- Tables page should suggest occupancy/map/list direction
+- Menu page should suggest categories/products/add-ons structure
 
 ---
 
-## Resultado esperado
+# Deliverables required from you
 
-Ao final da primeira fase, o projeto deve estar com base sólida o suficiente para começar a implementar catálogo, carrinho, checkout e fluxo de pedidos sem retrabalho estrutural.
+At the end of the task, provide:
 
-Este projeto deve nascer como um sistema profissional, organizado, extensível e coerente com boas práticas de Laravel e Livewire.
+## 1. Functional proposal summary
+A concise summary of:
+- final navigation tree
+- menu purpose
+- MVP vs future modules
+- dashboard structure
+
+## 2. Implementation summary
+A list of:
+- files created
+- files changed
+- why each change was made
+
+## 3. Architectural notes
+Explain briefly:
+- why the chosen structure is appropriate for a restaurant control system
+- how it supports future growth
+- what was intentionally left out of MVP
+
+---
+
+# Non-goals
+
+To avoid scope drift, do not treat these as required for this task unless they become necessary for structural coherence:
+
+- public customer-facing ordering app
+- marketplace integration
+- payment gateway implementation
+- inventory/stock control in depth
+- fiscal/tax modules
+- full reservation engine
+- delivery routing system
+- advanced loyalty program
+- AI optimization engine
+- production-grade forecasting
+
+They may exist later, but they are not the current objective.
+
+---
+
+# Product quality bar
+
+The result should feel like the beginning of a serious SaaS/admin system for restaurants.
+
+That means:
+
+- coherent information architecture
+- good naming
+- realistic operational thinking
+- structured MVP boundaries
+- clean UI direction
+- clear domain intent
+
+Do not deliver something generic.
+Do not keep starter-kit semantics if they no longer fit.
+Do not create a dashboard that could belong to any random admin panel.
+
+This needs to look and feel specifically like a restaurant operations platform.
+
+---
+
+# Final instruction
+
+Use the project skills.
+Think like a product architect, not just a code generator.
+Make explicit decisions.
+Keep the solution clean, modular, and extensible.
+Prioritize operational clarity.

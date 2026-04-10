@@ -2,9 +2,10 @@
 
 namespace Tests\Feature\Auth;
 
+use App\Livewire\Auth\LoginForm;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Livewire\Volt\Volt as LivewireVolt;
+use Livewire\Livewire;
 use Tests\TestCase;
 
 class AuthenticationTest extends TestCase
@@ -13,46 +14,60 @@ class AuthenticationTest extends TestCase
 
     public function test_login_screen_can_be_rendered(): void
     {
-        $response = $this->get('/login');
-
-        $response->assertStatus(200);
+        $this->get('/login')->assertStatus(200);
     }
 
     public function test_users_can_authenticate_using_the_login_screen(): void
     {
         $user = User::factory()->create();
 
-        $response = LivewireVolt::test('auth.login')
+        Livewire::test(LoginForm::class)
             ->set('email', $user->email)
             ->set('password', 'password')
-            ->call('login');
-
-        $response
+            ->call('login')
             ->assertHasNoErrors()
             ->assertRedirect(route('dashboard', absolute: false));
 
         $this->assertAuthenticated();
     }
 
-    public function test_users_can_not_authenticate_with_invalid_password(): void
+    public function test_users_cannot_authenticate_with_invalid_password(): void
     {
         $user = User::factory()->create();
 
-        $this->post('/login', [
-            'email' => $user->email,
-            'password' => 'wrong-password',
-        ]);
+        Livewire::test(LoginForm::class)
+            ->set('email', $user->email)
+            ->set('password', 'wrong-password')
+            ->call('login')
+            ->assertHasErrors(['email']);
 
         $this->assertGuest();
+    }
+
+    public function test_email_is_required(): void
+    {
+        Livewire::test(LoginForm::class)
+            ->set('email', '')
+            ->set('password', 'password')
+            ->call('login')
+            ->assertHasErrors(['email' => 'required']);
+    }
+
+    public function test_password_is_required(): void
+    {
+        Livewire::test(LoginForm::class)
+            ->set('email', 'user@example.com')
+            ->set('password', '')
+            ->call('login')
+            ->assertHasErrors(['password' => 'required']);
     }
 
     public function test_users_can_logout(): void
     {
         $user = User::factory()->create();
 
-        $response = $this->actingAs($user)->post('/logout');
+        $this->actingAs($user)->post('/logout');
 
         $this->assertGuest();
-        $response->assertRedirect('/');
     }
 }

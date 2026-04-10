@@ -3,7 +3,7 @@
 <head>
     @include('partials.head')
 </head>
-<body class="min-h-screen bg-white dark:bg-zinc-800">
+<body class="min-h-screen bg-zinc-950">
 <main class="min-h-screen flex items-center justify-center p-6">
     {{ $slot }}
 </main>

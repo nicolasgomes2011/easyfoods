@@ -24,6 +24,11 @@ use App\Livewire\Auth\LoginForm;
 
 Route::get('/login', LoginForm::class)->name('login')->middleware('guest');
 
+Route::middleware('guest')->group(function () {
+    Volt::route('two-factor-challenge', 'auth.two-factor-challenge')
+        ->name('two-factor.challenge');
+});
+
 // Mostrar formulário "esqueci a senha"
 Route::get('/forgot-password', function () {
     return view('auth.forgot-password'); // você cria essa view
