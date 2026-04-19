@@ -1,4 +1,3 @@
 <x-layouts.admin>
-    <flux:heading size="xl">Produtos</flux:heading>
-    <flux:subheading>Gerencie os produtos do cardápio.</flux:subheading>
+    <livewire:catalog.product-list />
 </x-layouts.admin>

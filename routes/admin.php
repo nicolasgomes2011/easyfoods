@@ -8,7 +8,8 @@ Route::middleware(['auth', 'role:admin,manager,attendant,kitchen,delivery'])
     ->name('admin.')
     ->group(function () {
 
-        Route::get('/', fn () => redirect()->route('dashboard'));
+        Route::get('/', fn () => redirect()->route('admin.dashboard'));
+        Route::get('/dashboard', fn () => view('admin.dashboard'))->name('dashboard');
 
         // ── PEDIDOS ──────────────────────────────────────────────────────────
         Route::prefix('orders')->name('orders.')->group(function () {
