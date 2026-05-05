@@ -22,3 +22,23 @@ yarn-error.log
 /.nova
 /.vscode
 /.zed
+
+# Preferências pessoais — Windows
+Thumbs.db
+desktop.ini
+$RECYCLE.BIN/
+
+# Preferências pessoais — editores e temporários
+*.swp
+*.swo
+*~
+*.suo
+*.user
+*.orig
+
+# Variantes de .env (qualquer sufixo local)
+.env.local
+.env.*.local
+
+# Arquivos de dados de exemplo (podem conter senhas/dados sensíveis)
+/database/data/
