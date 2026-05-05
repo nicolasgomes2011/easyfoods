@@ -38,7 +38,7 @@ class OrderSeeder extends Seeder
         ];
 
         foreach ($scenarios as $scenario) {
-            $this->createOrder($restaurant, $customers->random(), $products->random(2), $scenario);
+            $this->createOrder($restaurant, $customers->random(), $products->random(min(2, $products->count())), $scenario);
         }
     }
 
