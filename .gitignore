@@ -42,3 +42,7 @@ $RECYCLE.BIN/
 
 # Arquivos de dados de exemplo (podem conter senhas/dados sensíveis)
 /database/data/
+
+# Documentação e configuração local do Claude Code
+/.claude/
+/.docs/
