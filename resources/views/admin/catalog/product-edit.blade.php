@@ -1,3 +1,3 @@
 <x-layouts.admin>
-    <flux:heading size="xl">Editar Produto</flux:heading>
+    <livewire:catalog.product-form :product="$product" />
 </x-layouts.admin>

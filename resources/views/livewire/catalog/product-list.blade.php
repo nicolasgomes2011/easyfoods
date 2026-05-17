@@ -4,7 +4,8 @@
             <h1 class="text-xl font-bold text-white">Produtos</h1>
             <p class="text-sm text-zinc-400 mt-0.5">{{ $this->products->count() }} produto(s) no cardápio</p>
         </div>
-        <a href="#" class="text-sm text-white bg-orange-500 hover:bg-orange-600 rounded-lg px-3 py-1.5 transition">
+        <a href="{{ route('admin.catalog.products.create') }}" wire:navigate
+           class="text-sm text-white bg-orange-500 hover:bg-orange-600 rounded-lg px-3 py-1.5 transition">
             + Novo produto
         </a>
     </div>

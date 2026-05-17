@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Product;
 use Illuminate\Support\Facades\Route;
 use Livewire\Volt\Volt;
 
@@ -13,10 +14,10 @@ Route::middleware(['auth', 'role:admin,manager,attendant,kitchen,delivery'])
 
         // ── PEDIDOS ──────────────────────────────────────────────────────────
         Route::prefix('orders')->name('orders.')->group(function () {
-            Route::get('/',             fn () => view('admin.orders.index'))->name('index');
-            Route::get('/in-progress',  fn () => view('admin.orders.in-progress'))->name('in-progress');
-            Route::get('/history',      fn () => view('admin.orders.history'))->name('history');
-            Route::get('/{order}',      fn () => view('admin.orders.show'))->name('show');
+            Volt::route('/',            'orders.index')->name('index');
+            Volt::route('/in-progress', 'orders.in-progress')->name('in-progress');
+            Volt::route('/history',     'orders.history')->name('history');
+            Volt::route('/{order}',     'orders.show')->name('show');
         });
 
         // ── COZINHA ───────────────────────────────────────────────────────────
@@ -33,8 +34,9 @@ Route::middleware(['auth', 'role:admin,manager,attendant,kitchen,delivery'])
 
         // ── CARDÁPIO — admin/manager only ─────────────────────────────────────
         Route::middleware('role:admin,manager')->prefix('catalog')->name('catalog.')->group(function () {
-            Route::get('/products',           fn () => view('admin.catalog.products'))->name('products');
-            Route::get('/products/{product}', fn () => view('admin.catalog.product-edit'))->name('products.edit');
+            Route::get('/products',                  fn () => view('admin.catalog.products'))->name('products');
+            Route::get('/products/create',           fn () => view('admin.catalog.product-create'))->name('products.create');
+            Route::get('/products/{product}',        fn (Product $product) => view('admin.catalog.product-edit', compact('product')))->name('products.edit');
             Route::get('/categories',         fn () => view('admin.catalog.categories'))->name('categories');
             Volt::route('/addons',            'catalog.addons')->name('addons');
         });
