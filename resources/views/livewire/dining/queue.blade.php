@@ -2,9 +2,7 @@
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 
-new #[Layout('components.layouts.app')] class extends Component {
-    // Fase MVP: fila de espera para alocação de mesa
-}; ?>
+new #[Layout('components.layouts.app')] class extends Component {}; ?>
 
 <div>
     <div class="flex items-center justify-between mb-6">
@@ -12,64 +10,21 @@ new #[Layout('components.layouts.app')] class extends Component {
             <h1 class="text-xl font-bold text-white">Fila de Espera</h1>
             <p class="text-sm text-zinc-400 mt-0.5">Clientes aguardando mesa disponível</p>
         </div>
-        <div class="flex gap-2">
-            <a href="{{ route('admin.dining.tables') }}" wire:navigate
-               class="text-sm text-zinc-300 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-lg px-3 py-1.5 transition">
-                Ver mesas
-            </a>
-            <button class="text-sm text-white bg-orange-500 hover:bg-orange-600 rounded-lg px-3 py-1.5 transition">
-                + Adicionar à fila
-            </button>
-        </div>
+        <a href="{{ route('admin.dining.tables') }}" wire:navigate
+           class="text-sm text-zinc-300 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-lg px-3 py-1.5 transition">
+            Ver mesas
+        </a>
     </div>
 
-    <div class="grid grid-cols-3 gap-3 mb-6">
-        @foreach([
-            ['label' => 'Na fila agora', 'value' => '—'],
-            ['label' => 'Espera média',  'value' => '— min'],
-            ['label' => 'Atendidos hoje','value' => '—'],
-        ] as $s)
-        <div class="bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-center">
-            <p class="text-2xl font-bold text-white tabular-nums">{{ $s['value'] }}</p>
-            <p class="text-xs text-zinc-400 mt-1">{{ $s['label'] }}</p>
+    <div class="bg-zinc-900 border border-zinc-800 rounded-xl px-5 py-16 text-center">
+        <div class="size-12 rounded-xl bg-zinc-800 flex items-center justify-center mx-auto mb-4">
+            <svg class="size-6 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+            </svg>
         </div>
-        @endforeach
-    </div>
-
-    <div class="bg-zinc-900 border border-zinc-800 rounded-xl">
-        <div class="px-5 py-4 border-b border-zinc-800">
-            <h2 class="text-sm font-semibold text-white">Aguardando</h2>
-        </div>
-        <div class="divide-y divide-zinc-800/70">
-            @foreach([
-                ['pos' => 1, 'name' => 'Família Silva',  'party' => 4, 'wait' => '12 min', 'priority' => false],
-                ['pos' => 2, 'name' => 'João M.',        'party' => 2, 'wait' => '8 min',  'priority' => false],
-                ['pos' => 3, 'name' => 'Ana P. (+id.)',  'party' => 3, 'wait' => '5 min',  'priority' => true],
-            ] as $entry)
-            <div class="flex items-center justify-between px-5 py-4 hover:bg-zinc-800/40 transition">
-                <div class="flex items-center gap-4">
-                    <span class="size-8 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-sm font-bold text-zinc-300">
-                        {{ $entry['pos'] }}
-                    </span>
-                    <div>
-                        <p class="text-sm font-medium text-white flex items-center gap-2">
-                            {{ $entry['name'] }}
-                            @if($entry['priority'])
-                            <span class="text-xs text-blue-400 bg-blue-400/10 rounded-full px-2 py-0.5">Prioritário</span>
-                            @endif
-                        </p>
-                        <p class="text-xs text-zinc-500">{{ $entry['party'] }} pessoas · aguardando {{ $entry['wait'] }}</p>
-                    </div>
-                </div>
-                <div class="flex gap-2">
-                    <button class="text-xs text-green-400 bg-green-400/10 hover:bg-green-400/20 rounded-lg px-3 py-1.5 transition">Alocar mesa</button>
-                    <button class="text-xs text-zinc-400 hover:text-red-400 bg-zinc-800 rounded-lg px-3 py-1.5 transition">Remover</button>
-                </div>
-            </div>
-            @endforeach
-        </div>
-        <div class="px-5 py-3 border-t border-zinc-800">
-            <p class="text-xs text-zinc-600 italic">Módulo de fila de espera — a ser implementado com modelo dedicado (WaitingList).</p>
-        </div>
+        <p class="text-white font-medium mb-1">Módulo de fila de espera</p>
+        <p class="text-zinc-500 text-sm max-w-sm mx-auto">
+            O gerenciamento de fila de espera para mesas está previsto para uma próxima fase do sistema.
+        </p>
     </div>
 </div>
