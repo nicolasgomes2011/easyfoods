@@ -49,3 +49,14 @@ Avoid:
 - Repeated rule logic across components
 - Massive save() methods doing everything
 - Silent failures
+
+## Definition of Done (DoD) — mandatory for every change
+
+A change is NOT done until ALL of these are true:
+
+1. **The real surface was tested.** For any UI/route/component change: an HTTP request was made against the real URL (`curl --cookie ...` or browser) and returned `STATUS=200` with no `Undefined`/`ErrorException` in the body, plus expected content was confirmed present.
+2. **`php artisan view:clear` was run before testing.** Stale compiled blades cause false PASS/FAIL.
+3. **Automated test exists or was created.** If no test covered the surface, create one before closing — feature test (`->actingAs($user)->get('/route')->assertOk()->assertSeeLivewire(...)`) plus Livewire component test (`Livewire::test(...)->assertSee(...)`). Component tests alone do NOT prove the route works.
+4. **No declaration of "pronto" / "fixed" without captured evidence.** Concrete observation > confidence.
+
+This applies on every change, no exceptions. Use [[debug-livewire]] and [[testing-and-quality]] for the detailed procedures.
