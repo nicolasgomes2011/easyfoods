@@ -21,25 +21,25 @@
     $kpis = [
         [
             'label' => 'Pedidos abertos',
-            'value' => $openCount ?? 0,
+            'value' => $openCount,
             'sub'   => 'aguardando confirmação',
             'dot'   => 'bg-yellow-400',
         ],
         [
             'label' => 'Em preparo',
-            'value' => $inPreparationCount ?? 0,
+            'value' => $inPreparationCount,
             'sub'   => 'na cozinha agora',
             'dot'   => 'bg-orange-400',
         ],
         [
             'label' => 'Prontos',
-            'value' => $readyCount ?? 0,
+            'value' => $readyCount,
             'sub'   => 'aguardando retirada',
             'dot'   => 'bg-green-400',
         ],
         [
             'label' => 'Pedidos hoje',
-            'value' => $todayOrderCount ?? 0,
+            'value' => $todayOrderCount,
             'sub'   => 'excluindo cancelados',
             'dot'   => 'bg-blue-400',
         ],
@@ -51,7 +51,7 @@
         ],
         [
             'label' => 'Faturamento hoje',
-            'value' => 'R$ ' . number_format($todayRevenue ?? 0, 2, ',', '.'),
+            'value' => 'R$ ' . number_format($todayRevenue, 2, ',', '.'),
             'sub'   => 'em pedidos entregues/concluídos',
             'dot'   => 'bg-zinc-400',
         ],

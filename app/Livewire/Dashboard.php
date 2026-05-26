@@ -133,6 +133,17 @@ class Dashboard extends Component
 
     public function render()
     {
-        return view('livewire.dashboard');
+        return view('livewire.dashboard', [
+            'openCount'          => $this->openCount,
+            'inPreparationCount' => $this->inPreparationCount,
+            'readyCount'         => $this->readyCount,
+            'todayOrderCount'    => $this->todayOrderCount,
+            'avgPrepMinutes'     => $this->avgPrepMinutes,
+            'todayRevenue'       => $this->todayRevenue,
+            'recentOrders'       => $this->recentOrders,
+            'kitchenQueue'       => $this->kitchenQueue,
+            'topItemsToday'      => $this->topItemsToday,
+            'alerts'             => $this->alerts,
+        ]);
     }
 }
