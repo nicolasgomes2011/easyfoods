@@ -6,10 +6,10 @@ use App\Enums\OrderStatus;
 use App\Models\Order;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Computed;
-use Livewire\Attributes\Poll;
+use Livewire\Attributes\Layout;
 use Livewire\Component;
 
-#[Poll(30000)]
+#[Layout('components.layouts.app')]
 class Dashboard extends Component
 {
     #[Computed]
@@ -133,7 +133,6 @@ class Dashboard extends Component
 
     public function render()
     {
-        return view('livewire.dashboard')
-            ->layout('components.layouts.app');
+        return view('livewire.dashboard');
     }
 }

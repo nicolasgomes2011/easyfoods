@@ -1,4 +1,4 @@
-<div>
+<div wire:poll.30s>
     {{-- ── Page header ─────────────────────────────────────────────────── --}}
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-8">
         <div>
@@ -21,25 +21,25 @@
     $kpis = [
         [
             'label' => 'Pedidos abertos',
-            'value' => $openCount,
+            'value' => $openCount ?? 0,
             'sub'   => 'aguardando confirmação',
             'dot'   => 'bg-yellow-400',
         ],
         [
             'label' => 'Em preparo',
-            'value' => $inPreparationCount,
+            'value' => $inPreparationCount ?? 0,
             'sub'   => 'na cozinha agora',
             'dot'   => 'bg-orange-400',
         ],
         [
             'label' => 'Prontos',
-            'value' => $readyCount,
+            'value' => $readyCount ?? 0,
             'sub'   => 'aguardando retirada',
             'dot'   => 'bg-green-400',
         ],
         [
             'label' => 'Pedidos hoje',
-            'value' => $todayOrderCount,
+            'value' => $todayOrderCount ?? 0,
             'sub'   => 'excluindo cancelados',
             'dot'   => 'bg-blue-400',
         ],
@@ -51,7 +51,7 @@
         ],
         [
             'label' => 'Faturamento hoje',
-            'value' => 'R$ ' . number_format($todayRevenue, 2, ',', '.'),
+            'value' => 'R$ ' . number_format($todayRevenue ?? 0, 2, ',', '.'),
             'sub'   => 'em pedidos entregues/concluídos',
             'dot'   => 'bg-zinc-400',
         ],

@@ -1,3 +1,3 @@
-<x-layouts.admin>
-    <flux:heading size="xl">Configurações da Loja</flux:heading>
-</x-layouts.admin>
+﻿<x-layouts.app>
+    <flux:heading size="xl">ConfiguraÃ§Ãµes da Loja</flux:heading>
+</x-layouts.app>

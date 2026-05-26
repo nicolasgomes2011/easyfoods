@@ -37,19 +37,6 @@
                 </div>
 
                 <div>
-                    <label class="block text-sm text-zinc-300 mb-1.5">Slug</label>
-                    <input
-                        wire:model="slug"
-                        type="text"
-                        placeholder="x-burguer-classico"
-                        class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-400 placeholder-zinc-600 focus:outline-none focus:border-orange-500 transition font-mono"
-                    />
-                    @error('slug')
-                        <p class="text-xs text-red-400 mt-1">{{ $message }}</p>
-                    @enderror
-                </div>
-
-                <div>
                     <label class="block text-sm text-zinc-300 mb-1.5">Descrição</label>
                     <textarea
                         wire:model="description"
@@ -68,11 +55,22 @@
                 <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-5 space-y-5">
                     <p class="text-xs font-medium text-zinc-500 uppercase tracking-wider">Configurações</p>
 
-                    <div>
-                        <label class="block text-sm text-zinc-300 mb-1.5">
-                            Categoria <span class="text-red-400">*</span>
-                        </label>
+                    <div x-data="{ adding: false }">
+                        <div class="flex items-center justify-between mb-1.5">
+                            <label class="block text-sm text-zinc-300">
+                                Categoria <span class="text-red-400">*</span>
+                            </label>
+                            <button
+                                type="button"
+                                x-show="!adding"
+                                x-on:click="adding = true"
+                                x-on:category-created.window="adding = false"
+                                class="text-xs text-orange-400 hover:text-orange-300 transition"
+                            >+ Nova categoria</button>
+                        </div>
+
                         <select
+                            x-show="!adding"
                             wire:model="category_id"
                             class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-300 focus:outline-none focus:border-orange-500 transition"
                         >
@@ -81,6 +79,32 @@
                                 <option value="{{ $cat->id }}">{{ $cat->name }}</option>
                             @endforeach
                         </select>
+
+                        <div x-show="adding" x-cloak class="flex gap-2">
+                            <input
+                                wire:model="newCategoryName"
+                                x-ref="newCatInput"
+                                x-on:category-created.window="adding = false"
+                                x-init="$watch('adding', v => v && $nextTick(() => $refs.newCatInput.focus()))"
+                                type="text"
+                                placeholder="Nome da categoria"
+                                class="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500 transition"
+                            />
+                            <button
+                                type="button"
+                                wire:click="createCategory"
+                                class="px-3 py-2 text-sm text-white bg-orange-500 hover:bg-orange-600 rounded-lg transition"
+                            >Criar</button>
+                            <button
+                                type="button"
+                                x-on:click="adding = false; $wire.set('newCategoryName', '')"
+                                class="px-3 py-2 text-sm text-zinc-400 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-lg transition"
+                            >✕</button>
+                        </div>
+
+                        @error('newCategoryName')
+                            <p class="text-xs text-red-400 mt-1">{{ $message }}</p>
+                        @enderror
                         @error('category_id')
                             <p class="text-xs text-red-400 mt-1">{{ $message }}</p>
                         @enderror

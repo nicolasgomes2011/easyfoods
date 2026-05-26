@@ -3,7 +3,30 @@
     "allow": [
       "Bash(composer install:*)",
       "Bash(where composer:*)",
-      "Bash(php artisan:*)"
+      "Bash(php artisan:*)",
+      "Bash(npm install:*)",
+      "Bash(\"/c/Program Files/nodejs/npm.cmd\" --version)",
+      "Bash(\"/c/Program Files/nodejs/node.exe\" --version)",
+      "Bash(cmd //c \"npm --version\")",
+      "Bash(cmd //c \"node --version\")",
+      "Bash(cmd:*)",
+      "Bash(powershell.exe:*)",
+      "Bash(\"/c/Users/gomes/.config/herd/bin/herd.bat\" --version)",
+      "Bash(npm run:*)",
+      "Bash(where node:*)",
+      "Read(//c/Program Files/**)",
+      "Read(//c/Users/gomes/AppData/Roaming/**)",
+      "Bash(powershell:*)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\gomes\\\\OneDrive\\\\Documentos\\\\Projetos\\\\EasyFoods\" -Force)",
+      "Bash(Select-Object Name, Mode)",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\gomes\\\\OneDrive\\\\Documentos\\\\Projetos\\\\EasyFoods\" -Directory)",
+      "Bash(Select-Object Name)",
+      "Skill(commit)",
+      "Skill(commit:*)",
+      "Bash(git commit *)",
+      "Bash(composer dump-autoload *)"
     ]
   }
 }

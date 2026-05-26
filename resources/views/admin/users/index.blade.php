@@ -1,4 +1,4 @@
-<x-layouts.admin>
-    <flux:heading size="xl">Usuários</flux:heading>
+﻿<x-layouts.app>
+    <flux:heading size="xl">UsuÃ¡rios</flux:heading>
     <flux:subheading>Gerencie a equipe do restaurante.</flux:subheading>
-</x-layouts.admin>
+</x-layouts.app>

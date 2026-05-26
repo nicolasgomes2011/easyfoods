@@ -1,3 +1,3 @@
-<x-layouts.admin>
-    <flux:heading size="xl">Horários de Funcionamento</flux:heading>
-</x-layouts.admin>
+﻿<x-layouts.app>
+    <flux:heading size="xl">HorÃ¡rios de Funcionamento</flux:heading>
+</x-layouts.app>

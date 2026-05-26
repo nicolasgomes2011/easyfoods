@@ -1,4 +1,4 @@
-<x-layouts.admin>
+﻿<x-layouts.app>
     <flux:heading size="xl">Pedidos</flux:heading>
-    <flux:subheading>Gestão de pedidos em tempo real.</flux:subheading>
-</x-layouts.admin>
+    <flux:subheading>GestÃ£o de pedidos em tempo real.</flux:subheading>
+</x-layouts.app>

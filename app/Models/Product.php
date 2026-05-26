@@ -16,7 +16,6 @@ class Product extends Model
         'restaurant_id',
         'category_id',
         'name',
-        'slug',
         'description',
         'image',
         'price',

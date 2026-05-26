@@ -1,3 +1,3 @@
-<x-layouts.admin>
+﻿<x-layouts.app>
     <livewire:catalog.product-list />
-</x-layouts.admin>
+</x-layouts.app>

@@ -37,6 +37,12 @@ class ProductList extends Component
         return ProductAvailabilityStatus::cases();
     }
 
+    public function delete(int $productId): void
+    {
+        Product::findOrFail($productId)->delete();
+        unset($this->products);
+    }
+
     public function render()
     {
         return view('livewire.catalog.product-list');
