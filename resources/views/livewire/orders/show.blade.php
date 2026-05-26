@@ -1,16 +1,54 @@
 <?php
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
+use App\Actions\Orders\TransitionOrderStatus;
 use App\Enums\DeliveryType;
 use App\Enums\OrderStatus;
 use App\Models\Order;
+use Illuminate\Support\Facades\Gate;
 
 new #[Layout('components.layouts.app')] class extends Component {
     public Order $order;
 
+    public bool $showCancelForm = false;
+    public string $cancelReason = '';
+    public ?string $statusMessage = null;
+
     public function mount(Order $order): void
     {
         $this->order = $order->load(['items.addons', 'statusHistory', 'payment', 'customer']);
+    }
+
+    public function confirm(TransitionOrderStatus $action): void
+    {
+        Gate::authorize('updateStatus', $this->order);
+
+        $action->execute($this->order, OrderStatus::Confirmed, auth()->user());
+
+        $this->reloadOrder();
+        $this->statusMessage = 'Pedido confirmado.';
+    }
+
+    public function cancel(TransitionOrderStatus $action): void
+    {
+        Gate::authorize('cancel', $this->order);
+
+        $this->validate(
+            ['cancelReason' => ['required', 'string', 'min:3', 'max:500']],
+            [],
+            ['cancelReason' => 'motivo'],
+        );
+
+        $action->execute($this->order, OrderStatus::Canceled, auth()->user(), $this->cancelReason);
+
+        $this->reset('showCancelForm', 'cancelReason');
+        $this->reloadOrder();
+        $this->statusMessage = 'Pedido cancelado.';
+    }
+
+    private function reloadOrder(): void
+    {
+        $this->order = $this->order->fresh(['items.addons', 'statusHistory', 'payment', 'customer']);
     }
 }; ?>
 
@@ -51,7 +89,73 @@ new #[Layout('components.layouts.app')] class extends Component {
                 </p>
             </div>
         </div>
+
+        {{-- Actions --}}
+        <div class="flex items-center gap-2">
+            @can('updateStatus', $this->order)
+                @if($this->order->status === OrderStatus::PendingConfirmation)
+                <button
+                    wire:click="confirm"
+                    wire:loading.attr="disabled"
+                    wire:target="confirm"
+                    class="inline-flex items-center gap-1.5 text-sm font-medium text-green-400 bg-green-400/10 hover:bg-green-400/15 border border-green-400/20 rounded-lg px-3.5 py-2 transition disabled:opacity-50">
+                    <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                    </svg>
+                    Confirmar pedido
+                </button>
+                @endif
+            @endcan
+
+            @can('cancel', $this->order)
+                @if($this->order->isCancelable())
+                <button
+                    wire:click="$toggle('showCancelForm')"
+                    class="inline-flex items-center gap-1.5 text-sm font-medium text-red-400 bg-red-400/10 hover:bg-red-400/15 border border-red-400/20 rounded-lg px-3.5 py-2 transition">
+                    Cancelar
+                </button>
+                @endif
+            @endcan
+        </div>
     </div>
+
+    {{-- Feedback --}}
+    @if($statusMessage)
+    <div class="mb-4 rounded-xl border border-green-500/30 bg-green-500/10 px-4 py-3 text-sm text-green-300">
+        {{ $statusMessage }}
+    </div>
+    @endif
+
+    {{-- Cancel form --}}
+    @if($showCancelForm)
+    <div class="mb-6 rounded-xl border border-red-500/30 bg-red-500/5 p-5">
+        <h2 class="text-sm font-semibold text-white mb-1">Cancelar pedido</h2>
+        <p class="text-xs text-zinc-400 mb-3">Informe o motivo do cancelamento (obrigatório).</p>
+        <textarea
+            wire:model="cancelReason"
+            rows="3"
+            placeholder="Ex: cliente desistiu, produto em falta..."
+            class="w-full bg-zinc-900 border border-zinc-700 text-white placeholder-zinc-500 text-sm rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-red-500"></textarea>
+        @error('cancelReason')
+        <p class="text-xs text-red-400 mt-1.5">{{ $message }}</p>
+        @enderror
+        <div class="flex items-center gap-2 mt-3">
+            <button
+                wire:click="cancel"
+                wire:loading.attr="disabled"
+                wire:target="cancel"
+                class="inline-flex items-center text-sm font-medium text-white bg-red-600 hover:bg-red-500 rounded-lg px-3.5 py-2 transition disabled:opacity-50">
+                Confirmar cancelamento
+            </button>
+            <button
+                type="button"
+                wire:click="$set('showCancelForm', false)"
+                class="text-sm text-zinc-400 hover:text-white px-3 py-2 transition">
+                Voltar
+            </button>
+        </div>
+    </div>
+    @endif
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
