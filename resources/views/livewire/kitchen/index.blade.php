@@ -6,6 +6,8 @@ use Livewire\Volt\Component;
 use App\Enums\OrderStatus;
 use App\Enums\DeliveryType;
 use App\Models\Order;
+use App\Actions\Orders\TransitionOrderStatus;
+use Illuminate\Support\Facades\Gate;
 
 new #[Layout('components.layouts.app')] #[Poll(30000)] class extends Component {
 
@@ -37,6 +39,27 @@ new #[Layout('components.layouts.app')] #[Poll(30000)] class extends Component {
             ->with('items')
             ->orderBy('created_at')
             ->get();
+    }
+
+    public function startPreparing(int $orderId): void
+    {
+        $this->applyTransition($orderId, OrderStatus::InPreparation);
+    }
+
+    public function markReady(int $orderId): void
+    {
+        $this->applyTransition($orderId, OrderStatus::ReadyForPickup);
+    }
+
+    private function applyTransition(int $orderId, OrderStatus $to): void
+    {
+        $order = Order::findOrFail($orderId);
+
+        Gate::authorize('transitionInKitchen', $order);
+
+        app(TransitionOrderStatus::class)->execute($order, $to, auth()->user());
+
+        unset($this->queueOrders, $this->waitingCount, $this->inPreparationCount, $this->readyCount);
     }
 }; ?>
 
@@ -120,7 +143,25 @@ new #[Layout('components.layouts.app')] #[Poll(30000)] class extends Component {
                 <span class="text-xs text-zinc-500 tabular-nums">
                     R$ {{ number_format($order->total, 2, ',', '.') }}
                 </span>
-                <span class="text-xs text-zinc-600 italic">ações em breve</span>
+                @can('transitionInKitchen', $order)
+                    @if($order->status === OrderStatus::Confirmed)
+                    <button
+                        wire:click="startPreparing({{ $order->id }})"
+                        wire:loading.attr="disabled"
+                        wire:target="startPreparing({{ $order->id }})"
+                        class="inline-flex items-center gap-1.5 text-xs font-semibold text-orange-400 bg-orange-400/10 hover:bg-orange-400/15 border border-orange-400/20 rounded-lg px-3 py-1.5 transition disabled:opacity-50">
+                        Iniciar preparo
+                    </button>
+                    @elseif($order->status === OrderStatus::InPreparation)
+                    <button
+                        wire:click="markReady({{ $order->id }})"
+                        wire:loading.attr="disabled"
+                        wire:target="markReady({{ $order->id }})"
+                        class="inline-flex items-center gap-1.5 text-xs font-semibold text-green-400 bg-green-400/10 hover:bg-green-400/15 border border-green-400/20 rounded-lg px-3 py-1.5 transition disabled:opacity-50">
+                        Marcar pronto
+                    </button>
+                    @endif
+                @endcan
             </div>
         </div>
         @endforeach

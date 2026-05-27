@@ -35,4 +35,13 @@ class OrderPolicy
 
         return $user->hasAnyRole(UserRole::Admin, UserRole::Manager, UserRole::Attendant);
     }
+
+    public function transitionInKitchen(User $user, Order $order): bool
+    {
+        if ($order->isInFinalState()) {
+            return false;
+        }
+
+        return $user->hasAnyRole(UserRole::Admin, UserRole::Manager, UserRole::Attendant, UserRole::Kitchen);
+    }
 }
