@@ -87,6 +87,17 @@
                         Cozinha
                     </flux:navlist.item>
 
+                    @if(auth()->user()?->hasAnyRole(\App\Enums\UserRole::Admin, \App\Enums\UserRole::Manager, \App\Enums\UserRole::Delivery))
+                    <flux:navlist.item
+                        icon="truck"
+                        :href="route('admin.driver.index')"
+                        :current="request()->routeIs('admin.driver.*')"
+                        wire:navigate
+                    >
+                        Entregas
+                    </flux:navlist.item>
+                    @endif
+
                 </flux:navlist.group>
 
                 {{-- ── GESTÃO ───────────────────────────────── --}}

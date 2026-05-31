@@ -25,6 +25,11 @@ Route::middleware(['auth', 'role:admin,manager,attendant,kitchen,delivery'])
             Volt::route('/', 'kitchen.index')->name('index');
         });
 
+        // ── ENTREGAS ─────────────────────────────────────────────────────────
+        Route::middleware('role:admin,manager,delivery')->prefix('driver')->name('driver.')->group(function () {
+            Volt::route('/', 'driver.index')->name('index');
+        });
+
         // ── SALÃO ─────────────────────────────────────────────────────────────
         Route::prefix('dining')->name('dining.')->group(function () {
             Route::get('/', fn () => redirect()->route('admin.dining.tables'));
