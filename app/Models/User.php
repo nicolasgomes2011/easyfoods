@@ -19,6 +19,7 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
+        'is_active',
         'two_factor_secret',
         'two_factor_recovery_codes',
         'two_factor_enabled',
@@ -37,6 +38,7 @@ class User extends Authenticatable
             'email_verified_at'  => 'datetime',
             'password'           => 'hashed',
             'two_factor_enabled' => 'boolean',
+            'is_active'          => 'boolean',
             'role'               => UserRole::class,
         ];
     }

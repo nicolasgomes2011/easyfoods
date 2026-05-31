@@ -17,6 +17,11 @@ class RoleMiddleware
             abort(403, 'Acesso não autorizado.');
         }
 
+        if (isset($user->is_active) && ! $user->is_active) {
+            auth()->logout();
+            return redirect()->route('login')->withErrors(['email' => 'Sua conta foi desativada.']);
+        }
+
         $allowed = array_map(
             fn (string $r) => UserRole::from($r),
             $roles

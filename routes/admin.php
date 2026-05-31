@@ -62,7 +62,7 @@ Route::middleware(['auth', 'role:admin,manager,attendant,kitchen,delivery'])
 
         // ── USUÁRIOS — admin only ─────────────────────────────────────────────
         Route::middleware('role:admin')->prefix('users')->name('users.')->group(function () {
-            Route::get('/', fn () => view('admin.users.index'))->name('index');
+            Volt::route('/', 'users.index')->name('index');
         });
 
     });
