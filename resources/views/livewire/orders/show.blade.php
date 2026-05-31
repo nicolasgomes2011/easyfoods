@@ -39,11 +39,31 @@ new #[Layout('components.layouts.app')] class extends Component {
             ['cancelReason' => 'motivo'],
         );
 
+        $wasPending = $this->order->status === OrderStatus::PendingConfirmation;
+
         $action->execute($this->order, OrderStatus::Canceled, auth()->user(), $this->cancelReason);
 
         $this->reset('showCancelForm', 'cancelReason');
         $this->reloadOrder();
-        $this->statusMessage = 'Pedido cancelado.';
+        $this->statusMessage = $wasPending ? 'Pedido rejeitado.' : 'Pedido cancelado.';
+    }
+
+    public function complete(TransitionOrderStatus $action): void
+    {
+        Gate::authorize('updateStatus', $this->order);
+
+        abort_unless($this->canComplete(), 403);
+
+        $action->execute($this->order, OrderStatus::Completed, auth()->user());
+
+        $this->reloadOrder();
+        $this->statusMessage = 'Pedido concluído.';
+    }
+
+    public function canComplete(): bool
+    {
+        return $this->order->status === OrderStatus::Delivered
+            || ($this->order->status === OrderStatus::ReadyForPickup && ! $this->order->isDelivery());
     }
 
     private function reloadOrder(): void
@@ -105,6 +125,19 @@ new #[Layout('components.layouts.app')] class extends Component {
                     Confirmar pedido
                 </button>
                 @endif
+
+                @if($this->canComplete())
+                <button
+                    wire:click="complete"
+                    wire:loading.attr="disabled"
+                    wire:target="complete"
+                    class="inline-flex items-center gap-1.5 text-sm font-medium text-green-400 bg-green-400/10 hover:bg-green-400/15 border border-green-400/20 rounded-lg px-3.5 py-2 transition disabled:opacity-50">
+                    <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                    </svg>
+                    Concluir
+                </button>
+                @endif
             @endcan
 
             @can('cancel', $this->order)
@@ -112,7 +145,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                 <button
                     wire:click="$toggle('showCancelForm')"
                     class="inline-flex items-center gap-1.5 text-sm font-medium text-red-400 bg-red-400/10 hover:bg-red-400/15 border border-red-400/20 rounded-lg px-3.5 py-2 transition">
-                    Cancelar
+                    {{ $this->order->status === OrderStatus::PendingConfirmation ? 'Rejeitar' : 'Cancelar' }}
                 </button>
                 @endif
             @endcan
@@ -129,8 +162,8 @@ new #[Layout('components.layouts.app')] class extends Component {
     {{-- Cancel form --}}
     @if($showCancelForm)
     <div class="mb-6 rounded-xl border border-red-500/30 bg-red-500/5 p-5">
-        <h2 class="text-sm font-semibold text-white mb-1">Cancelar pedido</h2>
-        <p class="text-xs text-zinc-400 mb-3">Informe o motivo do cancelamento (obrigatório).</p>
+        <h2 class="text-sm font-semibold text-white mb-1">{{ $this->order->status === OrderStatus::PendingConfirmation ? 'Rejeitar pedido' : 'Cancelar pedido' }}</h2>
+        <p class="text-xs text-zinc-400 mb-3">Informe o motivo (obrigatório).</p>
         <textarea
             wire:model="cancelReason"
             rows="3"

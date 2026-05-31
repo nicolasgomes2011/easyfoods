@@ -106,6 +106,11 @@ class OrderStatusTest extends TestCase
         $this->assertTrue(OrderStatus::ReadyForPickup->canTransitionTo(OrderStatus::Delivered));
     }
 
+    public function test_ready_for_pickup_can_be_completed(): void
+    {
+        $this->assertTrue(OrderStatus::ReadyForPickup->canTransitionTo(OrderStatus::Completed));
+    }
+
     public function test_out_for_delivery_can_go_to_delivered(): void
     {
         $this->assertTrue(OrderStatus::OutForDelivery->canTransitionTo(OrderStatus::Delivered));

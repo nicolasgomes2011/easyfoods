@@ -51,7 +51,7 @@ enum OrderStatus: string
             self::PendingConfirmation => [self::Confirmed, self::Canceled],
             self::Confirmed           => [self::InPreparation, self::Canceled],
             self::InPreparation       => [self::ReadyForPickup, self::Canceled],
-            self::ReadyForPickup      => [self::OutForDelivery, self::Delivered, self::Canceled],
+            self::ReadyForPickup      => [self::OutForDelivery, self::Delivered, self::Completed, self::Canceled],
             self::OutForDelivery      => [self::Delivered, self::Canceled],
             self::Delivered           => [self::Completed],
             self::Completed           => [],
