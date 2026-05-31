@@ -35,8 +35,13 @@
 
     <div class="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
         @if($this->products->isEmpty())
-            <div class="px-5 py-12 text-center">
-                <p class="text-zinc-500 text-sm">Nenhum produto encontrado.</p>
+            <div class="px-5 py-16 text-center">
+                <p class="text-zinc-400 text-sm font-medium">Nenhum produto encontrado.</p>
+                <p class="text-zinc-600 text-xs mt-1">O cardápio está vazio. Adicione o primeiro produto.</p>
+                <a href="{{ route('admin.catalog.products.create') }}" wire:navigate
+                   class="inline-block mt-4 text-sm text-white bg-orange-500 hover:bg-orange-600 rounded-lg px-4 py-2 transition">
+                    + Novo produto
+                </a>
             </div>
         @else
             <table class="w-full text-sm">

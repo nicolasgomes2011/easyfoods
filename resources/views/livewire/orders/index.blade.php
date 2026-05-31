@@ -103,7 +103,13 @@ new #[Layout('components.layouts.app')] class extends Component {
     <div class="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
         @if($this->orders->isEmpty())
         <div class="px-5 py-16 text-center">
-            <p class="text-zinc-500 text-sm">Nenhum pedido encontrado.</p>
+            @if($search || $status || $date)
+                <p class="text-zinc-400 text-sm font-medium">Nenhum pedido encontrado para os filtros selecionados.</p>
+                <p class="text-zinc-600 text-xs mt-1">Tente ajustar os filtros acima.</p>
+            @else
+                <p class="text-zinc-400 text-sm font-medium">Nenhum pedido registrado ainda.</p>
+                <p class="text-zinc-600 text-xs mt-1">Os pedidos dos clientes aparecerão aqui.</p>
+            @endif
         </div>
         @else
         <div class="overflow-x-auto">

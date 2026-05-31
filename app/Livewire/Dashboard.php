@@ -109,14 +109,20 @@ class Dashboard extends Component
         $result = [];
 
         $delayed = Order::byStatus(OrderStatus::InPreparation)
-            ->where('updated_at', '<=', now()->subMinutes(30))
-            ->get(['number', 'updated_at']);
+            ->join('order_status_histories as osh', function ($join) {
+                $join->on('osh.order_id', '=', 'orders.id')
+                    ->where('osh.to_status', '=', OrderStatus::InPreparation->value);
+            })
+            ->where('osh.changed_at', '<=', now()->subMinutes(30))
+            ->orderBy('osh.changed_at')
+            ->get(['orders.number', 'osh.changed_at as prep_started_at']);
 
         foreach ($delayed as $order) {
+            $minutes = (int) now()->diffInMinutes($order->prep_started_at);
             $result[] = [
                 'level'   => 'error',
                 'title'   => "Pedido #{$order->number} atrasado",
-                'message' => 'Mais de 30 min em preparo sem atualização de status.',
+                'message' => "Há {$minutes} min em preparo.",
             ];
         }
 
