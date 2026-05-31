@@ -5,7 +5,10 @@ use Livewire\Attributes\Poll;
 use Livewire\Volt\Component;
 use App\Enums\OrderStatus;
 use App\Enums\DeliveryType;
+use App\Enums\WaiterCallStatus;
 use App\Models\Order;
+use App\Models\Restaurant;
+use App\Models\WaiterCall;
 use App\Actions\Orders\TransitionOrderStatus;
 use Illuminate\Support\Facades\Gate;
 
@@ -61,9 +64,51 @@ new #[Layout('components.layouts.app')] #[Poll(30000)] class extends Component {
 
         unset($this->queueOrders, $this->waitingCount, $this->inPreparationCount, $this->readyCount);
     }
+
+    #[Computed]
+    public function pendingWaiterCalls()
+    {
+        $restaurant = Restaurant::first();
+        if (! $restaurant) return collect();
+        return WaiterCall::with('diningTable')
+            ->where('restaurant_id', $restaurant->id)
+            ->where('status', WaiterCallStatus::Pending->value)
+            ->orderBy('called_at')
+            ->get();
+    }
+
+    public function acknowledgeWaiterCall(int $callId): void
+    {
+        WaiterCall::where('id', $callId)->update([
+            'status'          => WaiterCallStatus::Acknowledged->value,
+            'acknowledged_at' => now(),
+        ]);
+        unset($this->pendingWaiterCalls);
+    }
 }; ?>
 
 <div>
+    {{-- Waiter call alerts --}}
+    @if($this->pendingWaiterCalls->isNotEmpty())
+    <div class="mb-5 space-y-2">
+        @foreach($this->pendingWaiterCalls as $call)
+        <div class="flex items-center justify-between bg-yellow-400/10 border border-yellow-400/30 rounded-xl px-4 py-3">
+            <div class="flex items-center gap-2">
+                <span class="size-2 rounded-full bg-yellow-400 animate-pulse"></span>
+                <span class="text-sm font-medium text-yellow-300">
+                    Mesa {{ $call->diningTable?->number ?? '?' }} está chamando o garçom
+                </span>
+                <span class="text-xs text-yellow-500">{{ $call->called_at->diffForHumans() }}</span>
+            </div>
+            <button wire:click="acknowledgeWaiterCall({{ $call->id }})"
+                    class="text-xs text-yellow-400 hover:text-yellow-300 bg-yellow-400/10 hover:bg-yellow-400/20 rounded-lg px-2.5 py-1.5 transition">
+                Atender
+            </button>
+        </div>
+        @endforeach
+    </div>
+    @endif
+
     {{-- Header --}}
     <div class="flex items-center justify-between mb-6">
         <div>

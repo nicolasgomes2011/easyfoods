@@ -84,15 +84,61 @@ The restaurant needs to configure and operate.
 
 ## Phase 3 — Customer Ordering
 
-The customer needs to be able to browse, customize, and place an order.
+The customer browses the menu, customizes items, and places an order from their phone or a tablet at the table. The system supports three order types: **dine-in** (mesa com QR / tablet), **delivery**, and **pickup**. No account required — guest checkout with name + phone only.
 
-- [ ] Public storefront / menu listing
-- [ ] Product detail with customization
-- [ ] Cart (add, update, remove, persist)
-- [ ] Checkout flow (dine-in table selection or delivery address)
-- [ ] Server-side total recalculation
-- [ ] Order placement → `pending_confirmation`
-- [ ] Order confirmation screen
+### 3.1 — Foundation (prerequisites)
+- [ ] `DeliveryType::DineIn` enum case (label "Mesa", no address, no delivery fee)
+- [ ] `accepts_dine_in` boolean flag on `restaurants` table + Restaurant model
+- [ ] Migration: `uuid` column on `dining_tables` (used in QR code link — prevents table enumeration)
+- [ ] Migration: `dining_table_id` (FK nullable) + `table_number` snapshot on `orders`
+- [ ] Migration: `dining_table_id` (FK nullable) + `delivery_type` intent on `carts`
+- [ ] Migration: `token` (UUID unique) on `orders` — public tracking link, no ID exposure
+- [ ] Migration: `waiter_calls` table (`restaurant_id`, `dining_table_id`, `status` pending/acknowledged, `called_at`, `acknowledged_at`)
+- [ ] Customer-facing layout (`resources/views/components/layouts/customer.blade.php`) — mobile-first, no sidebar, open/closed header
+
+### 3.2 — Storefront & Menu
+- [ ] Public route `GET /r/{restaurant:slug}` → `storefront.menu` (no auth)
+- [ ] Restaurant header: name, logo, open/closed status + hours
+- [ ] Category navigation: sticky tabs, smooth-scroll to section
+- [ ] Product grid per category: image, name, price, "Adicionar" button
+- [ ] Unavailable products greyed out with label (never hidden)
+- [ ] Quick search (client-side Alpine filter, no reload)
+- [ ] Empty state when restaurant has no products
+
+### 3.3 — Product Detail & Cart
+- [ ] Product detail modal: full description, addon groups, variants, quantity selector
+- [ ] Real-time price update as addons are selected
+- [ ] Required addon groups block add-to-cart until selected
+- [ ] Cart (session-based for guests): add, update qty, remove item, order notes
+- [ ] Floating cart button with item count + total (always visible)
+- [ ] Cart drawer/overlay: item list, totals, "Ir para checkout" CTA
+- [ ] Clear cart with confirmation
+
+### 3.4 — Dine-In via QR / Tablet
+- [ ] QR code link: `GET /mesa/{table:uuid}` → stores `table_id` in session → redirects to storefront
+- [ ] Storefront auto-detects table session → sets order type to DineIn, shows table number
+- [ ] Kiosk mode: `?kiosk=1` URL param locks order type to DineIn, hides delivery/pickup option
+- [ ] "Chamar Garçom" button (shown only in dine-in session): creates `waiter_call` record
+- [ ] Restaurant panel (balcão): waiter call alert widget polling 30s, with table number + acknowledge action
+
+### 3.5 — Checkout
+- [ ] Order type selector: Dine-in / Delivery / Pickup (conditioned by `accepts_*` flags on restaurant)
+- [ ] Dine-in: shows table number from session (read-only)
+- [ ] Delivery: address form (street, number, complement, neighborhood, city, zip)
+- [ ] Pickup: no address needed
+- [ ] Guest info: name + phone (optional for dine-in, required for delivery)
+- [ ] Order notes field
+- [ ] Server-side validation at placement: total recalculated, products verified available, restaurant must be open, required addons selected
+- [ ] `PlaceOrder` action: creates order with `pending_confirmation`, writes `order_status_histories`, sets `order.token`, clears cart
+- [ ] Order confirmation screen: order number + link to tracking
+
+### 3.6 — Order Tracking (Customer)
+- [ ] Public tracking route: `GET /r/{slug}/pedido/{order:token}` (no auth)
+- [ ] Status steps visualization: Recebido → Confirmado → Em preparo → Pronto → Entregue
+- [ ] Each completed step shows exact timestamp
+- [ ] Live countdown: "Pronto às HH:MM" (polling 10s via Livewire)
+- [ ] Delay message when ETA shifts: "Está demorando um pouco mais, novo horário: HH:MM"
+- [ ] Shareable link (guest-safe, no login required)
 
 ## Phase 4 — Kitchen & Order Flow (Restaurant Operations)
 
@@ -103,19 +149,19 @@ Orders flow from customer to kitchen to delivery.
 - [x] In-progress view (Volt `orders.in-progress`)
 - [x] History view (Volt `orders.history`)
 - [x] Order detail view (Volt `orders.show`)
-- [ ] Confirm incoming order (`pending_confirmation` → `confirmed`) action
-- [ ] Cancel order with required reason
-- [ ] Reject order with required reason
-- [ ] Mark order as completed
+- [x] Confirm incoming order (`pending_confirmation` → `confirmed`) — `TransitionOrderStatus` action
+- [x] Cancel order with required reason — `TransitionOrderStatus` action
+- [x] Reject order (`pending_confirmation` → `canceled`) — labeled "Reject" in UI
+- [x] Mark order as completed (dine-in: `ready_for_pickup` → `completed`; delivery: `delivered` → `completed`)
 - [ ] Add / remove items on open dine-in orders
-- [ ] Audio + visual alert for new orders
+- [ ] Audio + visual alert for new incoming orders
 - [ ] Auto-expire confirmation window
 
 ### Kitchen Panel
 - [x] Kitchen queue with status counters (Volt `kitchen.index`)
 - [x] Polling refresh (30s)
-- [ ] Mark order as `in_preparation` action
-- [ ] Mark order as `ready` action
+- [x] Mark order as `in_preparation` — `TransitionOrderStatus` action (kitchen role)
+- [x] Mark order as `ready` (`ready_for_pickup`) — `TransitionOrderStatus` action (kitchen role)
 - [ ] Per-order live countdown timer
 - [ ] Item-level checklist (check off each item)
 - [ ] Audio alert on new order

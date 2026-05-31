@@ -1,20 +1,21 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Livewire\Volt\Volt;
 
 // Public storefront — no auth required
 Route::prefix('store')->name('store.')->group(function () {
-    Route::get('/',                        fn () => view('store.home'))->name('home');
-    Route::get('/menu',                    fn () => view('store.menu'))->name('menu');
-    Route::get('/menu/{category:slug}',    fn () => view('store.menu'))->name('menu.category');
-    Route::get('/product/{product:slug}',  fn () => view('store.product'))->name('product');
-    Route::get('/cart',                    fn () => view('store.cart'))->name('cart');
+    Route::get('/',                      fn () => view('store.home'))->name('home');
+    Volt::route('/menu',                 'store.menu')->name('menu');
+    Volt::route('/menu/{category:slug}', 'store.menu')->name('menu.category');
+    Route::get('/product/{product:slug}', fn () => view('store.product'))->name('product');
+    Volt::route('/cart',                 'store.cart')->name('cart');
 });
 
 // Checkout + order tracking — auth optional (session-based for guests)
 Route::prefix('store')->name('store.')->group(function () {
-    Route::get('/checkout',                fn () => view('store.checkout'))->name('checkout');
-    Route::get('/order/{order:number}',    fn () => view('store.order-tracking'))->name('order.tracking');
+    Volt::route('/checkout',             'store.checkout')->name('checkout');
+    Volt::route('/order/{order}',        'store.order-tracking')->name('order.tracking');
 });
 
 // Customer account area

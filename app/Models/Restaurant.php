@@ -29,6 +29,7 @@ class Restaurant extends Model
         'is_active',
         'accepts_delivery',
         'accepts_pickup',
+        'accepts_dine_in',
         'min_order_minutes',
         'max_order_minutes',
     ];
@@ -38,6 +39,7 @@ class Restaurant extends Model
         'is_active'        => 'boolean',
         'accepts_delivery' => 'boolean',
         'accepts_pickup'   => 'boolean',
+        'accepts_dine_in'  => 'boolean',
     ];
 
     public function operatingHours(): HasMany
@@ -63,6 +65,16 @@ class Restaurant extends Model
     public function products(): HasMany
     {
         return $this->hasMany(Product::class);
+    }
+
+    public function diningTables(): HasMany
+    {
+        return $this->hasMany(DiningTable::class)->orderBy('number');
+    }
+
+    public function waiterCalls(): HasMany
+    {
+        return $this->hasMany(WaiterCall::class);
     }
 
     public function orders(): HasMany

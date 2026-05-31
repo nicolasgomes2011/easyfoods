@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\DeliveryType;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -15,6 +16,12 @@ class Cart extends Model
         'restaurant_id',
         'customer_id',
         'session_id',
+        'dining_table_id',
+        'delivery_type',
+    ];
+
+    protected $casts = [
+        'delivery_type' => DeliveryType::class,
     ];
 
     public function restaurant(): BelongsTo
@@ -25,6 +32,11 @@ class Cart extends Model
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    public function diningTable(): BelongsTo
+    {
+        return $this->belongsTo(DiningTable::class);
     }
 
     public function items(): HasMany

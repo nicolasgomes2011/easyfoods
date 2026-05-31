@@ -9,15 +9,28 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Str;
 
 class Order extends Model
 {
     use HasFactory;
 
+    protected static function boot(): void
+    {
+        parent::boot();
+
+        static::creating(function (self $order) {
+            $order->token ??= (string) Str::uuid();
+        });
+    }
+
     protected $fillable = [
         'number',
+        'token',
         'restaurant_id',
         'customer_id',
+        'dining_table_id',
+        'table_number',
         'status',
         'delivery_type',
         'delivery_address_street',
@@ -63,6 +76,11 @@ class Order extends Model
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    public function diningTable(): BelongsTo
+    {
+        return $this->belongsTo(DiningTable::class);
     }
 
     public function items(): HasMany
