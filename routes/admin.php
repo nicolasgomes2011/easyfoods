@@ -10,7 +10,7 @@ Route::middleware(['auth', 'role:admin,manager,attendant,kitchen,delivery'])
     ->group(function () {
 
         Route::get('/', fn () => redirect()->route('admin.dashboard'));
-        Route::get('/dashboard', fn () => view('admin.dashboard'))->name('dashboard');
+        Route::get('/dashboard', \App\Livewire\Dashboard::class)->name('dashboard');
 
         // ── PEDIDOS ──────────────────────────────────────────────────────────
         Route::prefix('orders')->name('orders.')->group(function () {
@@ -37,7 +37,7 @@ Route::middleware(['auth', 'role:admin,manager,attendant,kitchen,delivery'])
             Route::get('/products',                  fn () => view('admin.catalog.products'))->name('products');
             Route::get('/products/create',           fn () => view('admin.catalog.product-create'))->name('products.create');
             Route::get('/products/{product}',        fn (Product $product) => view('admin.catalog.product-edit', compact('product')))->name('products.edit');
-            Route::get('/categories',         fn () => view('admin.catalog.categories'))->name('categories');
+            Volt::route('/categories',        'catalog.categories')->name('categories');
             Volt::route('/addons',            'catalog.addons')->name('addons');
         });
 
@@ -53,11 +53,11 @@ Route::middleware(['auth', 'role:admin,manager,attendant,kitchen,delivery'])
 
         // ── CONFIGURAÇÕES — admin/manager only ───────────────────────────────
         Route::middleware('role:admin,manager')->prefix('settings')->name('settings.')->group(function () {
-            Route::get('/',         fn () => redirect()->route('admin.settings.store'))->name('index');
-            Route::get('/store',    fn () => view('admin.settings.store'))->name('store');
-            Route::get('/hours',    fn () => view('admin.settings.hours'))->name('hours');
-            Route::get('/delivery', fn () => view('admin.settings.delivery'))->name('delivery');
-            Route::get('/payments', fn () => view('admin.settings.payments'))->name('payments');
+            Route::get('/', fn () => redirect()->route('admin.settings.store'))->name('index');
+            Volt::route('/store',    'settings.store')->name('store');
+            Volt::route('/hours',    'settings.hours')->name('hours');
+            Volt::route('/delivery', 'settings.delivery')->name('delivery');
+            Volt::route('/payments', 'settings.payments')->name('payments');
         });
 
         // ── USUÁRIOS — admin only ─────────────────────────────────────────────
