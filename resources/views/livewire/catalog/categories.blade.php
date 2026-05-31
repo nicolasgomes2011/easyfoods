@@ -3,6 +3,7 @@ use Livewire\Attributes\Layout;
 use Livewire\Attributes\Computed;
 use Livewire\Volt\Component;
 use App\Models\Category;
+use App\Models\Restaurant;
 use Illuminate\Support\Str;
 
 new #[Layout('components.layouts.app')] class extends Component {
@@ -25,7 +26,8 @@ new #[Layout('components.layouts.app')] class extends Component {
     #[Computed]
     public function categories()
     {
-        return Category::withCount('products')->orderBy('sort_order')->orderBy('name')->get();
+        return Category::where('restaurant_id', Restaurant::query()->value('id'))
+            ->withCount('products')->orderBy('sort_order')->orderBy('name')->get();
     }
 
     public function openCreate(): void
@@ -57,11 +59,12 @@ new #[Layout('components.layouts.app')] class extends Component {
             ]);
         } else {
             Category::create([
-                'name'        => $this->name,
-                'slug'        => Str::slug($this->name),
-                'description' => $this->description ?: null,
-                'is_active'   => $this->isActive,
-                'sort_order'  => Category::max('sort_order') + 1,
+                'restaurant_id' => Restaurant::query()->value('id'),
+                'name'          => $this->name,
+                'slug'          => Str::slug($this->name),
+                'description'   => $this->description ?: null,
+                'is_active'     => $this->isActive,
+                'sort_order'    => Category::max('sort_order') + 1,
             ]);
         }
 

@@ -4,6 +4,7 @@ namespace App\Livewire;
 
 use App\Enums\OrderStatus;
 use App\Models\Order;
+use App\Models\Restaurant;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -12,28 +13,37 @@ use Livewire\Component;
 #[Layout('components.layouts.app')]
 class Dashboard extends Component
 {
+    private function rid(): ?int
+    {
+        return Restaurant::query()->value('id');
+    }
+
     #[Computed]
     public function openCount(): int
     {
-        return Order::byStatus(OrderStatus::PendingConfirmation)->count();
+        return Order::byStatus(OrderStatus::PendingConfirmation)
+            ->where('restaurant_id', $this->rid())->count();
     }
 
     #[Computed]
     public function inPreparationCount(): int
     {
-        return Order::byStatus(OrderStatus::InPreparation)->count();
+        return Order::byStatus(OrderStatus::InPreparation)
+            ->where('restaurant_id', $this->rid())->count();
     }
 
     #[Computed]
     public function readyCount(): int
     {
-        return Order::byStatus(OrderStatus::ReadyForPickup)->count();
+        return Order::byStatus(OrderStatus::ReadyForPickup)
+            ->where('restaurant_id', $this->rid())->count();
     }
 
     #[Computed]
     public function todayOrderCount(): int
     {
-        return Order::whereDate('created_at', today())
+        return Order::where('restaurant_id', $this->rid())
+            ->whereDate('created_at', today())
             ->whereNotIn('status', [OrderStatus::Canceled->value, OrderStatus::Draft->value])
             ->count();
     }
@@ -41,13 +51,12 @@ class Dashboard extends Component
     #[Computed]
     public function avgPrepMinutes(): ?int
     {
-        $orders = Order::whereNotNull('ready_at')
+        $orders = Order::where('restaurant_id', $this->rid())
+            ->whereNotNull('ready_at')
             ->whereDate('ready_at', today())
             ->get(['created_at', 'ready_at']);
 
-        if ($orders->isEmpty()) {
-            return null;
-        }
+        if ($orders->isEmpty()) return null;
 
         return (int) round($orders->avg(
             fn ($o) => $o->created_at->diffInMinutes($o->ready_at)
@@ -57,16 +66,17 @@ class Dashboard extends Component
     #[Computed]
     public function todayRevenue(): float
     {
-        return (float) Order::whereIn('status', [
-            OrderStatus::Delivered->value,
-            OrderStatus::Completed->value,
-        ])->whereDate('created_at', today())->sum('total');
+        return (float) Order::where('restaurant_id', $this->rid())
+            ->whereIn('status', [OrderStatus::Delivered->value, OrderStatus::Completed->value])
+            ->whereDate('created_at', today())
+            ->sum('total');
     }
 
     #[Computed]
     public function recentOrders()
     {
-        return Order::orderBy('created_at', 'desc')->limit(5)->get();
+        return Order::where('restaurant_id', $this->rid())
+            ->orderBy('created_at', 'desc')->limit(5)->get();
     }
 
     #[Computed]
@@ -74,6 +84,7 @@ class Dashboard extends Component
     {
         return DB::table('order_items')
             ->join('orders', 'order_items.order_id', '=', 'orders.id')
+            ->where('orders.restaurant_id', $this->rid())
             ->where('orders.status', OrderStatus::InPreparation->value)
             ->select([
                 'order_items.product_name',
@@ -91,6 +102,7 @@ class Dashboard extends Component
     {
         return DB::table('order_items')
             ->join('orders', 'order_items.order_id', '=', 'orders.id')
+            ->where('orders.restaurant_id', $this->rid())
             ->whereDate('orders.created_at', today())
             ->whereNotIn('orders.status', [OrderStatus::Canceled->value, OrderStatus::Draft->value])
             ->select([
@@ -109,6 +121,7 @@ class Dashboard extends Component
         $result = [];
 
         $delayed = Order::byStatus(OrderStatus::InPreparation)
+            ->where('orders.restaurant_id', $this->rid())
             ->join('order_status_histories as osh', function ($join) {
                 $join->on('osh.order_id', '=', 'orders.id')
                     ->where('osh.to_status', '=', OrderStatus::InPreparation->value);

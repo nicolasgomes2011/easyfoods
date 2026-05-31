@@ -51,6 +51,11 @@ class Product extends Model
         return $this->hasMany(AddonGroup::class)->orderBy('sort_order');
     }
 
+    public function orderItems(): HasMany
+    {
+        return $this->hasMany(OrderItem::class);
+    }
+
     public function isAvailable(): bool
     {
         return $this->availability_status->isOrderable();

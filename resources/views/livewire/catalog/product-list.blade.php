@@ -88,13 +88,20 @@
                         </td>
                         <td class="px-5 py-3.5 text-right">
                             <div class="flex items-center justify-end gap-1">
+                                <button
+                                    wire:click="toggleAvailability({{ $product->id }})"
+                                    class="text-xs transition px-2 py-1 rounded-lg hover:bg-zinc-800 {{ $product->availability_status === \App\Enums\ProductAvailabilityStatus::Available ? 'text-green-400 hover:text-zinc-400' : 'text-zinc-500 hover:text-green-400' }}"
+                                    title="{{ $product->availability_status === \App\Enums\ProductAvailabilityStatus::Available ? 'Pausar produto' : 'Ativar produto' }}"
+                                >
+                                    {{ $product->availability_status === \App\Enums\ProductAvailabilityStatus::Available ? 'Pausar' : 'Ativar' }}
+                                </button>
                                 <a href="{{ route('admin.catalog.products.edit', $product) }}"
                                    class="text-xs text-zinc-400 hover:text-white transition px-2 py-1 rounded-lg hover:bg-zinc-800">
                                     Editar
                                 </a>
                                 <button
                                     wire:click="delete({{ $product->id }})"
-                                    wire:confirm="Remover '{{ $product->name }}'? Esta ação não pode ser desfeita."
+                                    wire:confirm="Remover '{{ $product->name }}'? Se houver pedidos vinculados, o produto será pausado em vez de excluído."
                                     class="text-zinc-600 hover:text-red-400 transition p-1 rounded-lg hover:bg-zinc-800"
                                 >
                                     <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">

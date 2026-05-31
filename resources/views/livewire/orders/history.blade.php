@@ -7,6 +7,7 @@ use Livewire\WithPagination;
 use App\Enums\OrderStatus;
 use App\Enums\DeliveryType;
 use App\Models\Order;
+use App\Models\Restaurant;
 
 new #[Layout('components.layouts.app')] class extends Component {
     use WithPagination;
@@ -29,6 +30,7 @@ new #[Layout('components.layouts.app')] class extends Component {
         ];
 
         return Order::whereIn('status', $finalStatuses)
+            ->where('restaurant_id', Restaurant::query()->value('id'))
             ->when($this->status, fn ($q) => $q->where('status', $this->status))
             ->when($this->date,   fn ($q) => $q->whereDate('created_at', $this->date))
             ->latest()

@@ -5,6 +5,7 @@ namespace App\Livewire\Catalog;
 use App\Enums\ProductAvailabilityStatus;
 use App\Models\Category;
 use App\Models\Product;
+use App\Models\Restaurant;
 use Livewire\Attributes\Computed;
 use Livewire\Component;
 
@@ -14,10 +15,16 @@ class ProductList extends Component
     public string $statusFilter = '';
     public string $categoryFilter = '';
 
+    private function rid(): ?int
+    {
+        return Restaurant::query()->value('id');
+    }
+
     #[Computed]
     public function products()
     {
         return Product::with('category')
+            ->where('restaurant_id', $this->rid())
             ->when($this->search, fn ($q) => $q->where('name', 'like', "%{$this->search}%"))
             ->when($this->statusFilter, fn ($q) => $q->where('availability_status', $this->statusFilter))
             ->when($this->categoryFilter, fn ($q) => $q->where('category_id', $this->categoryFilter))
@@ -29,7 +36,7 @@ class ProductList extends Component
     #[Computed]
     public function categories()
     {
-        return Category::active()->ordered()->get();
+        return Category::where('restaurant_id', $this->rid())->active()->ordered()->get();
     }
 
     public function statuses(): array
@@ -37,9 +44,27 @@ class ProductList extends Component
         return ProductAvailabilityStatus::cases();
     }
 
+    public function toggleAvailability(int $productId): void
+    {
+        $product = Product::findOrFail($productId);
+        $product->update([
+            'availability_status' => $product->availability_status === ProductAvailabilityStatus::Available
+                ? ProductAvailabilityStatus::Unavailable
+                : ProductAvailabilityStatus::Available,
+        ]);
+        unset($this->products);
+    }
+
     public function delete(int $productId): void
     {
-        Product::findOrFail($productId)->delete();
+        $product = Product::findOrFail($productId);
+
+        if ($product->orderItems()->exists()) {
+            $product->update(['availability_status' => ProductAvailabilityStatus::Unavailable]);
+        } else {
+            $product->delete();
+        }
+
         unset($this->products);
     }
 

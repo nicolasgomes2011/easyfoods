@@ -4,6 +4,7 @@ use Livewire\Attributes\Computed;
 use Livewire\Volt\Component;
 use App\Enums\DiningTableStatus;
 use App\Models\DiningTable;
+use App\Models\Restaurant;
 
 new #[Layout('components.layouts.app')] class extends Component {
 
@@ -23,7 +24,8 @@ new #[Layout('components.layouts.app')] class extends Component {
     #[Computed]
     public function tables()
     {
-        return DiningTable::orderBy('number')->get();
+        return DiningTable::where('restaurant_id', Restaurant::query()->value('id'))
+            ->orderBy('number')->get();
     }
 
     #[Computed]
@@ -63,9 +65,10 @@ new #[Layout('components.layouts.app')] class extends Component {
             ]);
         } else {
             DiningTable::create([
-                'number'   => $this->number,
-                'capacity' => $this->capacity,
-                'status'   => DiningTableStatus::Free,
+                'restaurant_id' => Restaurant::query()->value('id'),
+                'number'        => $this->number,
+                'capacity'      => $this->capacity,
+                'status'        => DiningTableStatus::Free,
             ]);
         }
 

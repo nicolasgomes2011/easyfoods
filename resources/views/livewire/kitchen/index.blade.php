@@ -39,6 +39,7 @@ new #[Layout('components.layouts.app')] #[Poll(30000)] class extends Component {
             OrderStatus::Confirmed->value,
             OrderStatus::InPreparation->value,
         ])
+            ->where('restaurant_id', Restaurant::query()->value('id'))
             ->with('items')
             ->orderBy('created_at')
             ->get();
