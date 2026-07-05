@@ -18,7 +18,7 @@ new #[Layout('components.layouts.customer')] class extends Component {
     public function cart(): ?Cart
     {
         if (! $this->restaurant) return null;
-        return Cart::with(['items.product', 'items.variant'])
+        return Cart::with(['items.product', 'items.variant', 'items.addons.option'])
             ->where('session_id', session()->getId())
             ->where('restaurant_id', $this->restaurant->id)
             ->first();
@@ -28,7 +28,7 @@ new #[Layout('components.layouts.customer')] class extends Component {
     public function subtotal(): float
     {
         if (! $this->cart) return 0.0;
-        return $this->cart->items->sum(fn ($item) => $item->unitPrice() * $item->quantity);
+        return $this->cart->items->sum(fn ($item) => $item->lineTotal());
     }
 
     public function increment(int $itemId): void
@@ -85,10 +85,15 @@ new #[Layout('components.layouts.customer')] class extends Component {
                 @if($item->variant)
                 <p class="text-xs text-zinc-500">{{ $item->variant->name }}</p>
                 @endif
+                @if($item->addons->isNotEmpty())
+                <p class="text-xs text-zinc-500">
+                    {{ $item->addons->map(fn ($a) => $a->option?->name)->filter()->join(', ') }}
+                </p>
+                @endif
                 @if($item->notes)
                 <p class="text-xs text-zinc-400 italic mt-0.5">{{ $item->notes }}</p>
                 @endif
-                <p class="text-sm font-bold text-zinc-700 mt-1">R$ {{ number_format($item->unitPrice(), 2, ',', '.') }}</p>
+                <p class="text-sm font-bold text-zinc-700 mt-1">R$ {{ number_format($item->lineTotal(), 2, ',', '.') }}</p>
             </div>
 
             <div class="flex items-center gap-2 shrink-0">

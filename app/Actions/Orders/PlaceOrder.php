@@ -27,7 +27,7 @@ class PlaceOrder
             }
 
             $subtotal = $items->sum(function ($item) {
-                return $item->unitPrice() * $item->quantity;
+                return $item->lineTotal();
             });
 
             $deliveryFee = $deliveryType === DeliveryType::Delivery
@@ -74,7 +74,9 @@ class PlaceOrder
             // Frozen item snapshots
             foreach ($items as $cartItem) {
                 $unitPrice = $cartItem->unitPrice();
-                $itemSubtotal = $unitPrice * $cartItem->quantity;
+                // Line subtotal includes the selected addons (folded into the line so the
+                // order subtotal/total stay coherent with what the customer sees).
+                $itemSubtotal = $cartItem->lineTotal();
 
                 $orderItem = OrderItem::create([
                     'order_id'           => $order->id,

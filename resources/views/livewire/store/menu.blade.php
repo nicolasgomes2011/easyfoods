@@ -19,7 +19,12 @@ new #[Layout('components.layouts.customer')] class extends Component {
     public int $qty = 1;
     public string $notes = '';
 
+    public ?int $selectedVariant = null;
+    /** @var array<int,mixed> groupId => optionId (single) | array of optionIds (multi) */
+    public array $selectedAddons = [];
+
     public ?string $flashMessage = null;
+    public ?string $modalError = null;
 
     #[Computed]
     public function restaurant(): ?Restaurant
@@ -33,8 +38,7 @@ new #[Layout('components.layouts.customer')] class extends Component {
         if (! $this->restaurant) return collect();
         return Category::where('restaurant_id', $this->restaurant->id)
             ->active()->ordered()
-            ->withCount(['products' => fn ($q) => $q->where('availability_status', 'available')])
-            ->having('products_count', '>', 0)
+            ->whereHas('products', fn ($q) => $q->where('availability_status', 'available'))
             ->get();
     }
 
@@ -74,12 +78,71 @@ new #[Layout('components.layouts.customer')] class extends Component {
         $this->showProductId = $productId;
         $this->qty   = 1;
         $this->notes = '';
+        $this->modalError = null;
+
+        $product = $this->modalProduct;
+        // Pre-select the first available variant (variant choice is required when variants exist).
+        $this->selectedVariant = $product?->variants->first()?->id;
+
+        // Initialise addon selection: empty array for multi-choice groups, null for single.
+        $this->selectedAddons = [];
+        foreach ($product?->addonGroups ?? [] as $group) {
+            $this->selectedAddons[$group->id] = $group->max_choices > 1 ? [] : null;
+        }
     }
 
     public function closeProduct(): void
     {
         $this->showProductId = null;
-        $this->reset('qty', 'notes');
+        $this->reset('qty', 'notes', 'selectedVariant', 'selectedAddons', 'modalError');
+    }
+
+    #[Computed]
+    public function modalProduct(): ?Product
+    {
+        if (! $this->showProductId) return null;
+
+        return Product::with([
+            'variants' => fn ($q) => $q->available()->orderBy('sort_order'),
+            'addonGroups' => fn ($q) => $q->active(),
+            'addonGroups.activeOptions',
+        ])->find($this->showProductId);
+    }
+
+    /** Flatten the selected addon ids into a plain list of ints. */
+    private function selectedAddonOptionIds(): array
+    {
+        $ids = [];
+        foreach ($this->selectedAddons as $value) {
+            if (is_array($value)) {
+                $ids = array_merge($ids, $value);
+            } elseif ($value) {
+                $ids[] = $value;
+            }
+        }
+
+        return array_values(array_unique(array_map('intval', $ids)));
+    }
+
+    #[Computed]
+    public function modalUnitPrice(): float
+    {
+        $product = $this->modalProduct;
+        if (! $product) return 0.0;
+
+        $variant = $this->selectedVariant
+            ? $product->variants->firstWhere('id', $this->selectedVariant)
+            : null;
+
+        $base = (float) ($variant?->price ?? $product->price);
+
+        $chosen = $this->selectedAddonOptionIds();
+        $addons = $product->addonGroups
+            ->flatMap->activeOptions
+            ->whereIn('id', $chosen)
+            ->sum(fn ($o) => (float) $o->price);
+
+        return $base + (float) $addons;
     }
 
     public function addToCart(int $productId): void
@@ -87,27 +150,68 @@ new #[Layout('components.layouts.customer')] class extends Component {
         $restaurant = $this->restaurant;
         if (! $restaurant) return;
 
-        $product = Product::findOrFail($productId);
+        $product = $this->modalProduct;
+        if (! $product || $product->id !== $productId) return;
+
+        $this->modalError = null;
+
+        // Variant required when the product offers (available) variants.
+        if ($product->variants->isNotEmpty() && ! $this->selectedVariant) {
+            $this->modalError = 'Escolha uma opção.';
+            return;
+        }
+
+        // Validate addon group constraints (required / min / max).
+        foreach ($product->addonGroups as $group) {
+            $value = $this->selectedAddons[$group->id] ?? null;
+            $count = is_array($value) ? count(array_filter($value)) : ($value ? 1 : 0);
+
+            $min = $group->required ? max($group->min_choices, 1) : $group->min_choices;
+            if ($count < $min) {
+                $this->modalError = "Selecione ao menos {$min} em \"{$group->name}\".";
+                return;
+            }
+            if ($group->max_choices && $count > $group->max_choices) {
+                $this->modalError = "Máximo de {$group->max_choices} em \"{$group->name}\".";
+                return;
+            }
+        }
+
+        $chosenIds = $this->selectedAddonOptionIds();
 
         $cart = Cart::firstOrCreate(
             ['session_id' => session()->getId(), 'restaurant_id' => $restaurant->id],
             ['delivery_type' => DeliveryType::Delivery->value]
         );
 
-        $existing = CartItem::where('cart_id', $cart->id)
+        // Merge only into a line with the exact same variant AND addon set.
+        $existing = CartItem::with('addons')
+            ->where('cart_id', $cart->id)
             ->where('product_id', $productId)
-            ->whereNull('product_variant_id')
-            ->first();
+            ->where('product_variant_id', $this->selectedVariant)
+            ->get()
+            ->first(function (CartItem $item) use ($chosenIds) {
+                $itemIds = $item->addons->pluck('addon_option_id')->map('intval')->sort()->values()->all();
+                return $itemIds === collect($chosenIds)->sort()->values()->all();
+            });
 
         if ($existing) {
             $existing->increment('quantity', $this->qty);
         } else {
-            CartItem::create([
-                'cart_id'    => $cart->id,
-                'product_id' => $productId,
-                'quantity'   => $this->qty,
-                'notes'      => $this->notes ?: null,
+            $item = CartItem::create([
+                'cart_id'            => $cart->id,
+                'product_id'         => $productId,
+                'product_variant_id' => $this->selectedVariant,
+                'quantity'           => $this->qty,
+                'notes'              => $this->notes ?: null,
             ]);
+
+            foreach ($chosenIds as $optionId) {
+                $item->addons()->create([
+                    'addon_option_id' => $optionId,
+                    'quantity'        => 1,
+                ]);
+            }
         }
 
         $this->closeProduct();
@@ -225,33 +329,91 @@ new #[Layout('components.layouts.customer')] class extends Component {
     @endif
 
     {{-- Product quick-add modal --}}
-    @if($showProductId)
-    @php $p = \App\Models\Product::find($showProductId) @endphp
-    @if($p)
+    @if($this->modalProduct)
+    @php $p = $this->modalProduct; @endphp
     <div class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50" wire:click.self="closeProduct">
-        <div class="bg-white rounded-t-3xl sm:rounded-2xl w-full max-w-md p-6 shadow-xl">
+        <div class="bg-white rounded-t-3xl sm:rounded-2xl w-full max-w-md p-6 shadow-xl max-h-[90vh] overflow-y-auto">
             <h3 class="text-lg font-bold text-zinc-800">{{ $p->name }}</h3>
             @if($p->description)
             <p class="text-sm text-zinc-500 mt-1">{{ $p->description }}</p>
             @endif
-            <p class="text-xl font-bold text-zinc-800 mt-3">R$ {{ number_format($p->price, 2, ',', '.') }}</p>
 
-            <div class="mt-4 space-y-3">
+            @if($modalError)
+            <div class="mt-3 px-3 py-2 bg-red-50 border border-red-200 text-red-600 text-xs rounded-xl">
+                {{ $modalError }}
+            </div>
+            @endif
+
+            <div class="mt-4 space-y-4">
+
+                {{-- Variations (required single choice) --}}
+                @if($p->variants->isNotEmpty())
+                <div>
+                    <label class="block text-xs font-semibold text-zinc-600 mb-2">Opção <span class="text-red-400">*</span></label>
+                    <div class="space-y-2">
+                        @foreach($p->variants as $variant)
+                        <label class="flex items-center justify-between cursor-pointer border-2 rounded-xl px-3 py-2.5 transition
+                                      {{ $selectedVariant === $variant->id ? 'border-orange-500 bg-orange-50' : 'border-zinc-200 hover:border-zinc-300' }}">
+                            <span class="flex items-center gap-2 text-sm text-zinc-700">
+                                <input type="radio" wire:model.live="selectedVariant" value="{{ $variant->id }}" class="accent-orange-500" />
+                                {{ $variant->name }}
+                            </span>
+                            <span class="text-sm font-semibold text-zinc-700 tabular-nums">R$ {{ number_format($variant->price, 2, ',', '.') }}</span>
+                        </label>
+                        @endforeach
+                    </div>
+                </div>
+                @endif
+
+                {{-- Addon groups --}}
+                @foreach($p->addonGroups as $group)
+                @if($group->activeOptions->isNotEmpty())
+                <div>
+                    <label class="block text-xs font-semibold text-zinc-600 mb-0.5">
+                        {{ $group->name }}
+                        @if($group->required)<span class="text-red-400">*</span>@endif
+                    </label>
+                    <p class="text-[11px] text-zinc-400 mb-2">
+                        @if($group->max_choices > 1)Escolha até {{ $group->max_choices }}@else Escolha 1 @endif
+                    </p>
+                    <div class="space-y-2">
+                        @foreach($group->activeOptions as $option)
+                        <label class="flex items-center justify-between cursor-pointer border rounded-xl px-3 py-2 transition border-zinc-200 hover:border-zinc-300">
+                            <span class="flex items-center gap-2 text-sm text-zinc-700">
+                                @if($group->max_choices > 1)
+                                <input type="checkbox" wire:model.live="selectedAddons.{{ $group->id }}" value="{{ $option->id }}" class="accent-orange-500" />
+                                @else
+                                <input type="radio" wire:model.live="selectedAddons.{{ $group->id }}" value="{{ $option->id }}" class="accent-orange-500" />
+                                @endif
+                                {{ $option->name }}
+                            </span>
+                            @if((float) $option->price > 0)
+                            <span class="text-xs text-zinc-500 tabular-nums">+ R$ {{ number_format($option->price, 2, ',', '.') }}</span>
+                            @endif
+                        </label>
+                        @endforeach
+                    </div>
+                </div>
+                @endif
+                @endforeach
+
+                {{-- Notes --}}
                 <div>
                     <label class="block text-xs font-medium text-zinc-500 mb-1.5">Observações</label>
                     <input wire:model="notes" type="text" placeholder="Ex: sem cebola, bem passado…"
                            class="w-full bg-zinc-50 border border-zinc-200 text-zinc-800 placeholder-zinc-400 text-sm rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-orange-400" />
                 </div>
 
+                {{-- Quantity --}}
                 <div class="flex items-center justify-between">
                     <label class="text-xs font-medium text-zinc-500">Quantidade</label>
                     <div class="flex items-center gap-3">
-                        <button wire:click="$set('qty', {{ max(1, $qty - 1) }})"
+                        <button type="button" wire:click="$set('qty', {{ max(1, $qty - 1) }})"
                                 class="size-8 flex items-center justify-center rounded-full border border-zinc-300 text-zinc-600 hover:bg-zinc-100 transition">
                             <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14" /></svg>
                         </button>
                         <span class="text-sm font-semibold text-zinc-800 w-4 text-center">{{ $qty }}</span>
-                        <button wire:click="$set('qty', {{ $qty + 1 }})"
+                        <button type="button" wire:click="$set('qty', {{ $qty + 1 }})"
                                 class="size-8 flex items-center justify-center rounded-full border border-zinc-300 text-zinc-600 hover:bg-zinc-100 transition">
                             <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
                         </button>
@@ -260,19 +422,18 @@ new #[Layout('components.layouts.customer')] class extends Component {
             </div>
 
             <div class="flex gap-3 mt-6">
-                <button wire:click="closeProduct"
+                <button type="button" wire:click="closeProduct"
                         class="flex-1 py-3 rounded-xl border border-zinc-200 text-sm text-zinc-600 hover:bg-zinc-50 transition">
                     Cancelar
                 </button>
-                <button wire:click="addToCart({{ $p->id }})" wire:loading.attr="disabled"
+                <button type="button" wire:click="addToCart({{ $p->id }})" wire:loading.attr="disabled"
                         class="flex-1 py-3 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold transition">
-                    <span wire:loading.remove wire:target="addToCart">Adicionar • R$ {{ number_format($p->price * $qty, 2, ',', '.') }}</span>
+                    <span wire:loading.remove wire:target="addToCart">Adicionar • R$ {{ number_format($this->modalUnitPrice * $qty, 2, ',', '.') }}</span>
                     <span wire:loading wire:target="addToCart">Adicionando…</span>
                 </button>
             </div>
         </div>
     </div>
-    @endif
     @endif
 
     @else

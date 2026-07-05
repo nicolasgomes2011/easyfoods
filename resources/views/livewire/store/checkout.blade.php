@@ -5,6 +5,7 @@ use Livewire\Volt\Component;
 use App\Actions\Orders\PlaceOrder;
 use App\Enums\DeliveryType;
 use App\Models\Cart;
+use App\Models\DeliveryZone;
 use App\Models\DiningTable;
 use App\Models\Restaurant;
 
@@ -25,6 +26,9 @@ new #[Layout('components.layouts.customer')] class extends Component {
     public string $city         = '';
     public string $state        = '';
     public string $zip          = '';
+
+    // Delivery zone (drives the real delivery fee)
+    public string $deliveryZoneId = '';
 
     // Dine-in
     public string $tableId = '';
@@ -52,7 +56,7 @@ new #[Layout('components.layouts.customer')] class extends Component {
     public function cart(): ?Cart
     {
         if (! $this->restaurant) return null;
-        return Cart::with(['items.product', 'items.variant'])
+        return Cart::with(['items.product', 'items.variant', 'items.addons.option'])
             ->where('session_id', session()->getId())
             ->where('restaurant_id', $this->restaurant->id)
             ->first();
@@ -68,16 +72,40 @@ new #[Layout('components.layouts.customer')] class extends Component {
     }
 
     #[Computed]
+    public function deliveryZones()
+    {
+        return DeliveryZone::where('restaurant_id', $this->restaurant?->id)
+            ->active()
+            ->orderBy('name')
+            ->get();
+    }
+
+    #[Computed]
     public function subtotal(): float
     {
         if (! $this->cart) return 0.0;
-        return $this->cart->items->sum(fn ($item) => $item->unitPrice() * $item->quantity);
+        return $this->cart->items->sum(fn ($item) => $item->lineTotal());
     }
 
     #[Computed]
     public function deliveryFee(): float
     {
-        return $this->deliveryType === 'delivery' ? 5.00 : 0.0;
+        if ($this->deliveryType !== 'delivery') return 0.0;
+
+        $zone = $this->deliveryZoneId
+            ? $this->deliveryZones->firstWhere('id', (int) $this->deliveryZoneId)
+            : null;
+
+        return (float) ($zone?->fee ?? 0.0);
+    }
+
+    public function updatedDeliveryZoneId(): void
+    {
+        $zone = $this->deliveryZones->firstWhere('id', (int) $this->deliveryZoneId);
+        if ($zone) {
+            $this->neighborhood = $zone->neighborhood ?? $this->neighborhood;
+            $this->city         = $zone->city ?? $this->city;
+        }
     }
 
     #[Computed]
@@ -132,9 +160,15 @@ new #[Layout('components.layouts.customer')] class extends Component {
         if ($this->deliveryType === 'delivery') {
             $rules['street']       = 'required|string|max:150';
             $rules['addressNumber']= 'required|string|max:20';
-            $rules['city']         = 'required|string|max:100';
-            $rules['state']        = 'required|string|max:2';
-            $rules['zip']          = 'required|string|max:10';
+            $rules['city']         = 'nullable|string|max:100';
+            $rules['state']        = 'nullable|string|max:2';
+            $rules['zip']          = 'nullable|string|max:10';
+
+            // When the restaurant configured delivery zones, the customer must pick one
+            // (it drives the delivery fee). With no zones configured, delivery is free.
+            if ($this->deliveryZones->isNotEmpty()) {
+                $rules['deliveryZoneId'] = 'required|exists:delivery_zones,id';
+            }
         }
 
         if ($this->deliveryType === 'dine_in') {
@@ -187,7 +221,7 @@ new #[Layout('components.layouts.customer')] class extends Component {
                 'zip'            => $this->zip ?: null,
             ]);
 
-            $this->redirect(route('store.order.tracking', $order->number), navigate: true);
+            $this->redirect(route('store.order.tracking', $order->token), navigate: true);
         } catch (\Throwable $e) {
             $this->error = $e->getMessage();
         }
@@ -235,6 +269,23 @@ new #[Layout('components.layouts.customer')] class extends Component {
             @if($deliveryType === 'delivery')
             <div class="bg-white border border-zinc-200 rounded-2xl p-5 space-y-3">
                 <h2 class="text-sm font-semibold text-zinc-700">Endereço de entrega</h2>
+
+                @if($this->deliveryZones->isNotEmpty())
+                <div>
+                    <select wire:model.live="deliveryZoneId"
+                            class="w-full bg-zinc-50 border border-zinc-200 text-sm rounded-xl px-3 py-2.5 text-zinc-800 focus:outline-none focus:ring-2 focus:ring-orange-400">
+                        <option value="">Selecione o bairro / zona *</option>
+                        @foreach($this->deliveryZones as $zone)
+                        <option value="{{ $zone->id }}">
+                            {{ $zone->name }}{{ $zone->neighborhood ? ' — '.$zone->neighborhood : '' }}
+                            ({{ (float) $zone->fee > 0 ? 'R$ '.number_format($zone->fee, 2, ',', '.') : 'Grátis' }})
+                        </option>
+                        @endforeach
+                    </select>
+                    @error('deliveryZoneId') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
+                </div>
+                @endif
+
                 <div class="grid grid-cols-3 gap-3">
                     <div class="col-span-2">
                         <input wire:model="street" type="text" placeholder="Logradouro *"
@@ -338,8 +389,13 @@ new #[Layout('components.layouts.customer')] class extends Component {
                     @if($this->cart)
                     @foreach($this->cart->items as $item)
                     <div class="flex justify-between text-sm text-zinc-600">
-                        <span class="flex-1 truncate">{{ $item->quantity }}× {{ $item->product?->name }}</span>
-                        <span class="ml-2 tabular-nums">R$ {{ number_format($item->unitPrice() * $item->quantity, 2, ',', '.') }}</span>
+                        <span class="flex-1 truncate">
+                            {{ $item->quantity }}× {{ $item->product?->name }}{{ $item->variant ? ' ('.$item->variant->name.')' : '' }}
+                            @if($item->addons->isNotEmpty())
+                            <span class="block text-xs text-zinc-400">{{ $item->addons->map(fn ($a) => $a->option?->name)->filter()->join(', ') }}</span>
+                            @endif
+                        </span>
+                        <span class="ml-2 tabular-nums">R$ {{ number_format($item->lineTotal(), 2, ',', '.') }}</span>
                     </div>
                     @endforeach
                     @endif

@@ -8,19 +8,22 @@ use App\Models\Order;
 
 new #[Layout('components.layouts.customer')] class extends Component {
 
-    public string $orderNumber = '';
+    public string $token = '';
 
     public function mount(string $order): void
     {
-        $this->orderNumber = $order;
+        // The {order} route param carries the order's public token (uuid),
+        // not the sequential number — sequential numbers are enumerable and
+        // would let anyone read another customer's order. See orders.token.
+        $this->token = $order;
     }
 
     #[Computed]
     #[Polling(30000)]
     public function order(): ?Order
     {
-        return Order::with(['items', 'statusHistory'])
-            ->where('number', $this->orderNumber)
+        return Order::with(['items.addons', 'statusHistory'])
+            ->where('token', $this->token)
             ->first();
     }
 
@@ -38,7 +41,7 @@ new #[Layout('components.layouts.customer')] class extends Component {
 <div>
     @if(! $this->order)
     <div class="py-20 text-center">
-        <p class="text-zinc-500">Pedido #{{ $orderNumber }} não encontrado.</p>
+        <p class="text-zinc-500">Pedido não encontrado.</p>
         <a href="{{ route('store.menu') }}" wire:navigate class="inline-block mt-3 text-sm text-orange-500 hover:text-orange-600">
             Ver cardápio →
         </a>
@@ -109,7 +112,12 @@ new #[Layout('components.layouts.customer')] class extends Component {
         <div class="space-y-2">
             @foreach($order->items as $item)
             <div class="flex justify-between text-sm">
-                <span class="text-zinc-700">{{ $item->quantity }}× {{ $item->product_name }}</span>
+                <span class="text-zinc-700">
+                    {{ $item->quantity }}× {{ $item->displayName() }}
+                    @if($item->addons->isNotEmpty())
+                    <span class="block text-xs text-zinc-400">{{ $item->addons->map(fn ($a) => $a->addon_option_name)->filter()->join(', ') }}</span>
+                    @endif
+                </span>
                 <span class="text-zinc-600 tabular-nums">R$ {{ number_format($item->subtotal, 2, ',', '.') }}</span>
             </div>
             @endforeach
