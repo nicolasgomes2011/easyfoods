@@ -18,7 +18,8 @@
         <div class="grid grid-cols-3 gap-6 mb-6">
 
             {{-- Coluna principal --}}
-            <div class="col-span-2 bg-zinc-900 border border-zinc-800 rounded-xl p-5 space-y-5">
+            <div class="col-span-2 space-y-6">
+                <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-5 space-y-5">
                 <p class="text-xs font-medium text-zinc-500 uppercase tracking-wider">Informações básicas</p>
 
                 <div>
@@ -47,6 +48,56 @@
                     @error('description')
                         <p class="text-xs text-red-400 mt-1">{{ $message }}</p>
                     @enderror
+                </div>
+                </div>
+
+                {{-- Variações (P/M/G) --}}
+                <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+                    <div class="flex items-start justify-between gap-3 mb-4">
+                        <div>
+                            <p class="text-xs font-medium text-zinc-500 uppercase tracking-wider">Variações</p>
+                            <p class="text-xs text-zinc-500 mt-1">Tamanhos ou versões com preço próprio (ex.: P / M / G). Quando existem, o cliente escolhe uma ao pedir.</p>
+                        </div>
+                        <button type="button" wire:click="addVariant"
+                                class="text-xs text-white bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-lg px-3 py-1.5 transition shrink-0">
+                            + Variação
+                        </button>
+                    </div>
+
+                    @if(empty($variants))
+                    <p class="text-sm text-zinc-600">Sem variações — o produto usa apenas o preço base.</p>
+                    @else
+                    <div class="space-y-2">
+                        @foreach($variants as $i => $variant)
+                        <div class="grid grid-cols-12 gap-2" wire:key="variant-{{ $variant['key'] }}">
+                            <div class="col-span-5">
+                                <input wire:model="variants.{{ $i }}.name" type="text" placeholder="Nome (ex.: Pequeno)"
+                                       class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500 transition" />
+                                @error("variants.{$i}.name") <p class="text-xs text-red-400 mt-1">Informe o nome.</p> @enderror
+                            </div>
+                            <div class="col-span-3">
+                                <input wire:model="variants.{{ $i }}.price" type="number" step="0.01" min="0" placeholder="Preço (R$)"
+                                       class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500 transition" />
+                                @error("variants.{$i}.price") <p class="text-xs text-red-400 mt-1">Preço inválido.</p> @enderror
+                            </div>
+                            <div class="col-span-3">
+                                <select wire:model="variants.{{ $i }}.availability_status"
+                                        class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-300 focus:outline-none focus:border-orange-500 transition">
+                                    @foreach($this->statuses() as $status)
+                                        <option value="{{ $status->value }}">{{ $status->label() }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-span-1 flex items-start justify-end">
+                                <button type="button" wire:click="removeVariant({{ $i }})" title="Remover variação"
+                                        class="text-zinc-600 hover:text-red-400 transition px-2 py-2 rounded-lg hover:bg-zinc-800">
+                                    ✕
+                                </button>
+                            </div>
+                        </div>
+                        @endforeach
+                    </div>
+                    @endif
                 </div>
             </div>
 
@@ -165,6 +216,40 @@
                             <div class="w-9 h-5 bg-zinc-700 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-orange-500"></div>
                         </label>
                     </div>
+                </div>
+
+                {{-- Imagem --}}
+                <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-5 space-y-3">
+                    <p class="text-xs font-medium text-zinc-500 uppercase tracking-wider">Imagem</p>
+
+                    {{-- isPreviewable() guard: a rejected non-image (e.g. PDF) would make temporaryUrl() throw mid-render --}}
+                    @if($photo && $photo->isPreviewable())
+                        <img src="{{ $photo->temporaryUrl() }}" alt="Pré-visualização"
+                             class="w-full h-36 object-cover rounded-lg border border-zinc-800" />
+                    @elseif($product?->image && ! $removeImage)
+                        <img src="{{ asset('storage/'.$product->image) }}" alt="{{ $product->name }}"
+                             class="w-full h-36 object-cover rounded-lg border border-zinc-800" />
+                    @else
+                        <div class="w-full h-36 flex items-center justify-center bg-zinc-800/60 border border-dashed border-zinc-700 rounded-lg">
+                            <span class="text-xs text-zinc-500">Sem imagem</span>
+                        </div>
+                    @endif
+
+                    <input type="file" wire:model="photo" accept="image/jpeg,image/png,image/webp"
+                           class="block w-full text-xs text-zinc-400 file:mr-3 file:rounded-lg file:border-0 file:bg-zinc-800 file:px-3 file:py-2 file:text-xs file:text-zinc-300 hover:file:bg-zinc-700 file:transition file:cursor-pointer" />
+                    <div wire:loading wire:target="photo" class="text-xs text-orange-400">Enviando…</div>
+                    @error('photo')
+                        <p class="text-xs text-red-400">{{ $message }}</p>
+                    @enderror
+                    <p class="text-xs text-zinc-600">JPG, PNG ou WebP até 2MB.</p>
+
+                    @if($product?->image)
+                    <label class="flex items-center gap-2 cursor-pointer select-none">
+                        <input type="checkbox" wire:model.live="removeImage"
+                               class="rounded border-zinc-600 bg-zinc-800 text-orange-500 focus:ring-orange-500" />
+                        <span class="text-xs text-zinc-400">Remover imagem atual</span>
+                    </label>
+                    @endif
                 </div>
             </div>
         </div>

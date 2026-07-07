@@ -23,10 +23,15 @@ new #[Layout('components.layouts.app')] class extends Component {
         ];
     }
 
+    private function rid(): ?int
+    {
+        return Restaurant::query()->value('id');
+    }
+
     #[Computed]
     public function categories()
     {
-        return Category::where('restaurant_id', Restaurant::query()->value('id'))
+        return Category::where('restaurant_id', $this->rid())
             ->withCount('products')->orderBy('sort_order')->orderBy('name')->get();
     }
 
@@ -37,8 +42,11 @@ new #[Layout('components.layouts.app')] class extends Component {
         $this->showForm = true;
     }
 
-    public function openEdit(Category $category): void
+    public function openEdit(int $categoryId): void
     {
+        // Scoped lookup: implicit model binding would resolve another restaurant's category (IDOR).
+        $category = Category::where('restaurant_id', $this->rid())->findOrFail($categoryId);
+
         $this->editingId   = (string) $category->id;
         $this->name        = $category->name;
         $this->description = $category->description ?? '';
@@ -51,7 +59,7 @@ new #[Layout('components.layouts.app')] class extends Component {
         $this->validate();
 
         if ($this->editingId) {
-            Category::findOrFail($this->editingId)->update([
+            Category::where('restaurant_id', $this->rid())->findOrFail($this->editingId)->update([
                 'name'        => $this->name,
                 'slug'        => Str::slug($this->name),
                 'description' => $this->description ?: null,
@@ -59,12 +67,13 @@ new #[Layout('components.layouts.app')] class extends Component {
             ]);
         } else {
             Category::create([
-                'restaurant_id' => Restaurant::query()->value('id'),
+                'restaurant_id' => $this->rid(),
                 'name'          => $this->name,
                 'slug'          => Str::slug($this->name),
                 'description'   => $this->description ?: null,
                 'is_active'     => $this->isActive,
-                'sort_order'    => Category::max('sort_order') + 1,
+                // Scoped max: a global max would inherit another restaurant's ordering.
+                'sort_order'    => (int) Category::where('restaurant_id', $this->rid())->max('sort_order') + 1,
             ]);
         }
 
@@ -74,14 +83,58 @@ new #[Layout('components.layouts.app')] class extends Component {
         unset($this->categories);
     }
 
-    public function toggleActive(Category $category): void
+    public function moveUp(int $categoryId): void
     {
+        $this->move($categoryId, -1);
+    }
+
+    public function moveDown(int $categoryId): void
+    {
+        $this->move($categoryId, +1);
+    }
+
+    /**
+     * Swap the category with its neighbour in the rendered order and persist
+     * the whole sequence (1..n) — this also normalizes legacy ties where rows
+     * share the same sort_order. The pluck is restaurant-scoped, so a foreign
+     * id simply isn't found and the call is a no-op.
+     */
+    private function move(int $categoryId, int $direction): void
+    {
+        $ids = Category::where('restaurant_id', $this->rid())
+            ->orderBy('sort_order')->orderBy('name')
+            ->pluck('id')->all();
+
+        $index = array_search($categoryId, $ids, true);
+        if ($index === false) {
+            return;
+        }
+
+        $target = $index + $direction;
+        if ($target < 0 || $target >= count($ids)) {
+            return; // already at the edge
+        }
+
+        [$ids[$index], $ids[$target]] = [$ids[$target], $ids[$index]];
+
+        foreach ($ids as $position => $id) {
+            Category::whereKey($id)->update(['sort_order' => $position + 1]);
+        }
+
+        unset($this->categories);
+    }
+
+    public function toggleActive(int $categoryId): void
+    {
+        $category = Category::where('restaurant_id', $this->rid())->findOrFail($categoryId);
         $category->update(['is_active' => ! $category->is_active]);
         unset($this->categories);
     }
 
-    public function delete(Category $category): void
+    public function delete(int $categoryId): void
     {
+        $category = Category::where('restaurant_id', $this->rid())->findOrFail($categoryId);
+
         if ($category->products()->exists()) {
             $this->addError('delete', "Não é possível excluir '{$category->name}': há produtos vinculados.");
             return;
@@ -214,6 +267,16 @@ new #[Layout('components.layouts.app')] class extends Component {
                     </td>
                     <td class="px-5 py-3.5">
                         <div class="flex items-center justify-end gap-1">
+                            <button wire:click="moveUp({{ $category->id }})" @if($loop->first) disabled @endif
+                                    title="Mover para cima"
+                                    class="text-xs text-zinc-400 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-lg px-2 py-1.5 transition disabled:opacity-30 disabled:pointer-events-none">
+                                ▲
+                            </button>
+                            <button wire:click="moveDown({{ $category->id }})" @if($loop->last) disabled @endif
+                                    title="Mover para baixo"
+                                    class="text-xs text-zinc-400 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-lg px-2 py-1.5 transition disabled:opacity-30 disabled:pointer-events-none">
+                                ▼
+                            </button>
                             <button wire:click="toggleActive({{ $category->id }})"
                                     class="text-xs text-zinc-400 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-lg px-2.5 py-1.5 transition">
                                 {{ $category->is_active ? 'Desativar' : 'Ativar' }}

@@ -30,6 +30,7 @@ class Order extends Model
         'restaurant_id',
         'customer_id',
         'dining_table_id',
+        'table_session_id',
         'table_number',
         'status',
         'delivery_type',
@@ -81,6 +82,11 @@ class Order extends Model
     public function diningTable(): BelongsTo
     {
         return $this->belongsTo(DiningTable::class);
+    }
+
+    public function tableSession(): BelongsTo
+    {
+        return $this->belongsTo(TableSession::class);
     }
 
     public function items(): HasMany

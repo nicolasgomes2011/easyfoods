@@ -38,7 +38,7 @@ new #[Layout('components.layouts.customer')] class extends Component {
         if (! $this->restaurant) return collect();
         return Category::where('restaurant_id', $this->restaurant->id)
             ->active()->ordered()
-            ->whereHas('products', fn ($q) => $q->where('availability_status', 'available'))
+            ->whereHas('products', fn ($q) => $q->where('availability_status', 'available')->whereNull('archived_at'))
             ->get();
     }
 
@@ -49,6 +49,7 @@ new #[Layout('components.layouts.customer')] class extends Component {
 
         $query = Product::where('restaurant_id', $this->restaurant->id)
             ->available()
+            ->notArchived()
             ->with(['category', 'variants'])
             ->ordered();
 
@@ -102,11 +103,17 @@ new #[Layout('components.layouts.customer')] class extends Component {
     {
         if (! $this->showProductId) return null;
 
-        return Product::with([
-            'variants' => fn ($q) => $q->available()->orderBy('sort_order'),
-            'addonGroups' => fn ($q) => $q->active(),
-            'addonGroups.activeOptions',
-        ])->find($this->showProductId);
+        // Fenced the same way the grid is: this restaurant, orderable, not
+        // archived — addToCart trusts this lookup, so an id-only payload can't
+        // reach a hidden or foreign product.
+        return Product::where('restaurant_id', $this->restaurant?->id)
+            ->available()
+            ->notArchived()
+            ->with([
+                'variants' => fn ($q) => $q->available()->orderBy('sort_order'),
+                'addonGroups' => fn ($q) => $q->active(),
+                'addonGroups.activeOptions',
+            ])->find($this->showProductId);
     }
 
     /** Flatten the selected addon ids into a plain list of ints. */

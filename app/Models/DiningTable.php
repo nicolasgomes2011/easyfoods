@@ -3,9 +3,11 @@
 namespace App\Models;
 
 use App\Enums\DiningTableStatus;
+use App\Enums\TableSessionStatus;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Str;
 
 class DiningTable extends Model
@@ -41,6 +43,16 @@ class DiningTable extends Model
     public function waiterCalls(): HasMany
     {
         return $this->hasMany(WaiterCall::class);
+    }
+
+    public function tableSessions(): HasMany
+    {
+        return $this->hasMany(TableSession::class);
+    }
+
+    public function openSession(): HasOne
+    {
+        return $this->hasOne(TableSession::class)->where('status', TableSessionStatus::Open->value);
     }
 
     public function isFree(): bool

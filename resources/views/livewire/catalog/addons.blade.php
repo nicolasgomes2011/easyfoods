@@ -3,6 +3,7 @@ use App\Models\AddonGroup;
 use App\Models\AddonOption;
 use App\Models\Product;
 use App\Models\Restaurant;
+use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
@@ -31,10 +32,12 @@ new #[Layout('components.layouts.app')] class extends Component {
     {
         return [
             'groupName'       => 'required|string|max:100',
-            'groupProductId'  => 'required|exists:products,id',
+            // Product must belong to this restaurant — a raw exists: would accept
+            // another restaurant's product id (cross-tenant write).
+            'groupProductId'  => ['required', Rule::exists('products', 'id')->where('restaurant_id', $this->rid())],
             'groupRequired'   => 'boolean',
             'groupMinChoices' => 'required|integer|min:0',
-            'groupMaxChoices' => 'required|integer|min:1',
+            'groupMaxChoices' => 'required|integer|min:1|gte:groupMinChoices',
         ];
     }
 
@@ -46,17 +49,22 @@ new #[Layout('components.layouts.app')] class extends Component {
         ];
     }
 
-    #[Computed]
-    public function restaurant(): ?Restaurant
+    /**
+     * Single-tenant shortcut — same convention as every other panel component.
+     * Restaurant::first() (SELECT *) and value('id') (SELECT id) can resolve
+     * DIFFERENT rows once a 2nd restaurant exists (the planner may serve them
+     * from different scans), so this must be the only form used here.
+     */
+    private function rid(): ?int
     {
-        return Restaurant::first();
+        return Restaurant::query()->value('id');
     }
 
     #[Computed]
     public function products()
     {
-        if (! $this->restaurant) return collect();
-        return Product::where('restaurant_id', $this->restaurant->id)
+        if (! $this->rid()) return collect();
+        return Product::where('restaurant_id', $this->rid())
             ->orderBy('name')
             ->get(['id', 'name']);
     }
@@ -64,12 +72,26 @@ new #[Layout('components.layouts.app')] class extends Component {
     #[Computed]
     public function groups()
     {
-        if (! $this->restaurant) return collect();
-        return AddonGroup::whereHas('product', fn ($q) => $q->where('restaurant_id', $this->restaurant->id))
+        if (! $this->rid()) return collect();
+        return AddonGroup::whereHas('product', fn ($q) => $q->where('restaurant_id', $this->rid()))
             ->with(['product:id,name', 'options'])
             ->orderBy('sort_order')
             ->orderBy('id')
             ->get();
+    }
+
+    /** Group lookup fenced to this restaurant (via its product) — bare findOrFail would cross tenants. */
+    private function findGroup(int $groupId): AddonGroup
+    {
+        return AddonGroup::whereHas('product', fn ($q) => $q->where('restaurant_id', $this->rid()))
+            ->findOrFail($groupId);
+    }
+
+    /** Option lookup fenced to this restaurant (via its group's product). */
+    private function findOption(int $optionId): AddonOption
+    {
+        return AddonOption::whereHas('group.product', fn ($q) => $q->where('restaurant_id', $this->rid()))
+            ->findOrFail($optionId);
     }
 
     // ── Group actions ──────────────────────────────────────────────────────
@@ -83,8 +105,10 @@ new #[Layout('components.layouts.app')] class extends Component {
         $this->showGroupForm   = true;
     }
 
-    public function openEditGroup(AddonGroup $group): void
+    public function openEditGroup(int $groupId): void
     {
+        $group = $this->findGroup($groupId);
+
         $this->editingGroupId  = (string) $group->id;
         $this->groupProductId  = (string) $group->product_id;
         $this->groupName       = $group->name;
@@ -96,7 +120,9 @@ new #[Layout('components.layouts.app')] class extends Component {
 
     public function saveGroup(): void
     {
-        $this->validateOnly('groupName,groupProductId,groupRequired,groupMinChoices,groupMaxChoices', $this->groupRules());
+        // validate() (not validateOnly with a comma list — that matches no rule key
+        // and would silently validate nothing).
+        $this->validate($this->groupRules());
 
         $data = [
             'product_id'  => $this->groupProductId,
@@ -107,9 +133,9 @@ new #[Layout('components.layouts.app')] class extends Component {
         ];
 
         if ($this->editingGroupId) {
-            AddonGroup::findOrFail($this->editingGroupId)->update($data);
+            $this->findGroup((int) $this->editingGroupId)->update($data);
         } else {
-            $data['sort_order'] = AddonGroup::max('sort_order') + 1;
+            $data['sort_order'] = (int) AddonGroup::whereHas('product', fn ($q) => $q->where('restaurant_id', $this->rid()))->max('sort_order') + 1;
             $data['is_active']  = true;
             AddonGroup::create($data);
         }
@@ -119,8 +145,10 @@ new #[Layout('components.layouts.app')] class extends Component {
         unset($this->groups);
     }
 
-    public function deleteGroup(AddonGroup $group): void
+    public function deleteGroup(int $groupId): void
     {
+        $group = $this->findGroup($groupId);
+
         $this->deleteError = null;
         $group->options()->delete();
         $group->delete();
@@ -144,8 +172,10 @@ new #[Layout('components.layouts.app')] class extends Component {
         $this->showOptionForm  = true;
     }
 
-    public function openEditOption(AddonOption $option): void
+    public function openEditOption(int $optionId): void
     {
+        $option = $this->findOption($optionId);
+
         $this->editingOptionId = (string) $option->id;
         $this->optionGroupId   = (string) $option->addon_group_id;
         $this->optionName      = $option->name;
@@ -155,7 +185,7 @@ new #[Layout('components.layouts.app')] class extends Component {
 
     public function saveOption(): void
     {
-        $this->validateOnly('optionName,optionPrice', $this->optionRules());
+        $this->validate($this->optionRules());
 
         $data = [
             'name'  => $this->optionName,
@@ -163,11 +193,14 @@ new #[Layout('components.layouts.app')] class extends Component {
         ];
 
         if ($this->editingOptionId) {
-            AddonOption::findOrFail($this->editingOptionId)->update($data);
+            $this->findOption((int) $this->editingOptionId)->update($data);
         } else {
-            $data['addon_group_id'] = $this->optionGroupId;
+            // Fence the target group to this restaurant before attaching the option.
+            $group = $this->findGroup((int) $this->optionGroupId);
+
+            $data['addon_group_id'] = $group->id;
             $data['is_active']      = true;
-            $data['sort_order']     = AddonOption::where('addon_group_id', $this->optionGroupId)->max('sort_order') + 1;
+            $data['sort_order']     = (int) AddonOption::where('addon_group_id', $group->id)->max('sort_order') + 1;
             AddonOption::create($data);
         }
 
@@ -176,9 +209,9 @@ new #[Layout('components.layouts.app')] class extends Component {
         unset($this->groups);
     }
 
-    public function deleteOption(AddonOption $option): void
+    public function deleteOption(int $optionId): void
     {
-        $option->delete();
+        $this->findOption($optionId)->delete();
         unset($this->groups);
     }
 

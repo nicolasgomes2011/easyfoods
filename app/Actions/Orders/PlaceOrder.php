@@ -3,12 +3,16 @@
 namespace App\Actions\Orders;
 
 use App\Enums\DeliveryType;
+use App\Enums\DiningTableStatus;
 use App\Enums\OrderStatus;
+use App\Enums\TableSessionStatus;
 use App\Models\Cart;
+use App\Models\DiningTable;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\OrderStatusHistory;
 use App\Models\Restaurant;
+use App\Models\TableSession;
 use Illuminate\Support\Facades\DB;
 
 class PlaceOrder
@@ -73,6 +77,14 @@ class PlaceOrder
 
             // Frozen item snapshots
             foreach ($items as $cartItem) {
+                // A product can be paused or archived between add-to-cart and
+                // checkout — re-check here so it never slips into a placed order.
+                $product = $cartItem->product;
+                if (! $product || $product->isArchived() || ! $product->isAvailable()) {
+                    $name = $product?->name ?? 'Um dos itens';
+                    throw new \RuntimeException("\"{$name}\" não está mais disponível no cardápio.");
+                }
+
                 $unitPrice = $cartItem->unitPrice();
                 // Line subtotal includes the selected addons (folded into the line so the
                 // order subtotal/total stay coherent with what the customer sees).
@@ -111,6 +123,35 @@ class PlaceOrder
                 'changed_by' => null,
                 'changed_at' => now(),
             ]);
+
+            // Dine-in: the table becomes occupied and joins the tab (table session)
+            // the moment the order lands — opening one if this is the first order
+            // of the sitting, or reusing the one already open. Dining-room state
+            // only — order status/history is not involved. The table lookup is
+            // scoped to this restaurant, so a foreign table id is simply ignored.
+            if ($deliveryType === DeliveryType::DineIn && $order->dining_table_id) {
+                $table = DiningTable::where('restaurant_id', $restaurant->id)
+                    ->whereKey($order->dining_table_id)
+                    ->first();
+
+                if ($table) {
+                    $table->update(['status' => DiningTableStatus::Occupied->value]);
+
+                    $session = TableSession::where('restaurant_id', $restaurant->id)
+                        ->where('dining_table_id', $table->id)
+                        ->open()
+                        ->first();
+
+                    $session ??= TableSession::create([
+                        'restaurant_id'   => $restaurant->id,
+                        'dining_table_id' => $table->id,
+                        'status'          => TableSessionStatus::Open,
+                        'opened_at'       => now(),
+                    ]);
+
+                    $order->update(['table_session_id' => $session->id]);
+                }
+            }
 
             // Clear cart
             $cart->items()->each(fn ($item) => $item->addons()->delete() && $item->delete());

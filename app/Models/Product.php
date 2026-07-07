@@ -20,6 +20,7 @@ class Product extends Model
         'image',
         'price',
         'availability_status',
+        'archived_at',
         'sort_order',
         'is_featured',
     ];
@@ -27,6 +28,7 @@ class Product extends Model
     protected $casts = [
         'price'               => 'decimal:2',
         'availability_status' => ProductAvailabilityStatus::class,
+        'archived_at'         => 'datetime',
         'sort_order'          => 'integer',
         'is_featured'         => 'boolean',
     ];
@@ -61,9 +63,19 @@ class Product extends Model
         return $this->availability_status->isOrderable();
     }
 
+    public function isArchived(): bool
+    {
+        return $this->archived_at !== null;
+    }
+
     public function scopeAvailable($query)
     {
         return $query->where('availability_status', ProductAvailabilityStatus::Available->value);
+    }
+
+    public function scopeNotArchived($query)
+    {
+        return $query->whereNull('archived_at');
     }
 
     public function scopeFeatured($query)

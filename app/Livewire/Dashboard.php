@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Enums\DiningTableStatus;
 use App\Enums\OrderStatus;
 use App\Models\Order;
 use App\Models\Restaurant;
@@ -70,6 +71,72 @@ class Dashboard extends Component
             ->whereIn('status', [OrderStatus::Delivered->value, OrderStatus::Completed->value])
             ->whereDate('created_at', today())
             ->sum('total');
+    }
+
+    #[Computed]
+    public function outForDeliveryCount(): int
+    {
+        return Order::byStatus(OrderStatus::OutForDelivery)
+            ->where('restaurant_id', $this->rid())->count();
+    }
+
+    #[Computed]
+    public function tablesSnapshot(): array
+    {
+        $counts = DB::table('dining_tables')
+            ->where('restaurant_id', $this->rid())
+            ->select('status', DB::raw('COUNT(*) as total'))
+            ->groupBy('status')
+            ->pluck('total', 'status');
+
+        return [
+            'free'     => (int) ($counts[DiningTableStatus::Free->value] ?? 0),
+            'occupied' => (int) ($counts[DiningTableStatus::Occupied->value] ?? 0),
+            'reserved' => (int) ($counts[DiningTableStatus::Reserved->value] ?? 0),
+            'total'    => (int) $counts->sum(),
+        ];
+    }
+
+    /**
+     * Today-vs-baseline percentage deltas for the "Pedidos hoje" and
+     * "Faturamento hoje" KPI cards. Baselines: yesterday (whole day) and the
+     * 7-day daily average excluding today. Null = no baseline yet, so the
+     * blade hides the badge (this is also the division-by-zero guard).
+     */
+    #[Computed]
+    public function comparisons(): array
+    {
+        $rid = $this->rid();
+
+        $orderCount = fn ($from, $to): int => Order::where('restaurant_id', $rid)
+            ->where('created_at', '>=', $from)->where('created_at', '<', $to)
+            ->whereNotIn('status', [OrderStatus::Canceled->value, OrderStatus::Draft->value])
+            ->count();
+
+        $revenue = fn ($from, $to): float => (float) Order::where('restaurant_id', $rid)
+            ->where('created_at', '>=', $from)->where('created_at', '<', $to)
+            ->whereIn('status', [OrderStatus::Delivered->value, OrderStatus::Completed->value])
+            ->sum('total');
+
+        return [
+            'orders' => [
+                'yesterday' => $this->percentDelta($this->todayOrderCount, $orderCount(today()->subDay(), today())),
+                'week'      => $this->percentDelta($this->todayOrderCount, $orderCount(today()->subDays(7), today()) / 7),
+            ],
+            'revenue' => [
+                'yesterday' => $this->percentDelta($this->todayRevenue, $revenue(today()->subDay(), today())),
+                'week'      => $this->percentDelta($this->todayRevenue, $revenue(today()->subDays(7), today()) / 7),
+            ],
+        ];
+    }
+
+    private function percentDelta(float|int $current, float|int $baseline): ?int
+    {
+        if ($baseline <= 0) {
+            return null;
+        }
+
+        return (int) round((($current - $baseline) / $baseline) * 100);
     }
 
     #[Computed]
@@ -163,6 +230,9 @@ class Dashboard extends Component
             'kitchenQueue'       => $this->kitchenQueue,
             'topItemsToday'      => $this->topItemsToday,
             'alerts'             => $this->alerts,
+            'outForDeliveryCount' => $this->outForDeliveryCount,
+            'tablesSnapshot'     => $this->tablesSnapshot,
+            'comparisons'        => $this->comparisons,
         ]);
     }
 }

@@ -42,6 +42,7 @@
             'value' => $todayOrderCount,
             'sub'   => 'excluindo cancelados',
             'dot'   => 'bg-blue-400',
+            'delta' => $comparisons['orders'],
         ],
         [
             'label' => 'Tempo médio',
@@ -54,6 +55,7 @@
             'value' => 'R$ ' . number_format($todayRevenue, 2, ',', '.'),
             'sub'   => 'em pedidos entregues/concluídos',
             'dot'   => 'bg-zinc-400',
+            'delta' => $comparisons['revenue'],
         ],
     ];
     @endphp
@@ -68,9 +70,100 @@
             <div>
                 <p class="text-2xl font-bold text-white tabular-nums">{{ $kpi['value'] }}</p>
                 <p class="text-xs text-zinc-500 mt-0.5">{{ $kpi['sub'] }}</p>
+                @if(isset($kpi['delta']) && ($kpi['delta']['yesterday'] !== null || $kpi['delta']['week'] !== null))
+                <div class="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1.5 text-[11px] leading-tight">
+                    @if($kpi['delta']['yesterday'] !== null)
+                    <span class="{{ $kpi['delta']['yesterday'] >= 0 ? 'text-green-400' : 'text-red-400' }} tabular-nums">
+                        {{ $kpi['delta']['yesterday'] >= 0 ? '▲' : '▼' }} {{ abs($kpi['delta']['yesterday']) }}% vs ontem
+                    </span>
+                    @endif
+                    @if($kpi['delta']['week'] !== null)
+                    <span class="text-zinc-500 tabular-nums">
+                        {{ $kpi['delta']['week'] >= 0 ? '▲' : '▼' }} {{ abs($kpi['delta']['week']) }}% vs média 7d
+                    </span>
+                    @endif
+                </div>
+                @endif
             </div>
         </div>
         @endforeach
+    </div>
+
+    {{-- ── Salão, entregas e ações rápidas ─────────────────────────────── --}}
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+
+        {{-- Snapshot de mesas --}}
+        <div class="bg-zinc-900 border border-zinc-800 rounded-xl">
+            <div class="flex items-center justify-between px-5 py-4 border-b border-zinc-800">
+                <h2 class="text-sm font-semibold text-white">Salão agora</h2>
+                <a href="{{ route('admin.dining.tables') }}" class="text-xs text-orange-400 hover:text-orange-300 transition" wire:navigate>
+                    Ver mesas →
+                </a>
+            </div>
+            @if($tablesSnapshot['total'] === 0)
+            <div class="px-5 py-8 text-center">
+                <p class="text-zinc-500 text-sm">Nenhuma mesa cadastrada.</p>
+            </div>
+            @else
+            <div class="grid grid-cols-3 divide-x divide-zinc-800">
+                <div class="px-4 py-5 text-center">
+                    <p class="text-2xl font-bold text-green-400 tabular-nums">{{ $tablesSnapshot['free'] }}</p>
+                    <p class="text-xs text-zinc-500 mt-1">Livres</p>
+                </div>
+                <div class="px-4 py-5 text-center">
+                    <p class="text-2xl font-bold text-orange-400 tabular-nums">{{ $tablesSnapshot['occupied'] }}</p>
+                    <p class="text-xs text-zinc-500 mt-1">Ocupadas</p>
+                </div>
+                <div class="px-4 py-5 text-center">
+                    <p class="text-2xl font-bold text-blue-400 tabular-nums">{{ $tablesSnapshot['reserved'] }}</p>
+                    <p class="text-xs text-zinc-500 mt-1">Reservadas</p>
+                </div>
+            </div>
+            @endif
+        </div>
+
+        {{-- Entregas em rota --}}
+        <div class="bg-zinc-900 border border-zinc-800 rounded-xl">
+            <div class="flex items-center justify-between px-5 py-4 border-b border-zinc-800">
+                <h2 class="text-sm font-semibold text-white">Entregas</h2>
+                <a href="{{ route('admin.driver.index') }}" class="text-xs text-orange-400 hover:text-orange-300 transition" wire:navigate>
+                    Painel do entregador →
+                </a>
+            </div>
+            <div class="px-5 py-5 flex items-center gap-4">
+                <p class="text-3xl font-bold text-indigo-400 tabular-nums">{{ $outForDeliveryCount }}</p>
+                <div>
+                    <p class="text-sm text-zinc-300">em rota agora</p>
+                    <p class="text-xs text-zinc-500 mt-0.5">pedidos que saíram para entrega</p>
+                </div>
+            </div>
+        </div>
+
+        {{-- Ações rápidas --}}
+        <div class="bg-zinc-900 border border-zinc-800 rounded-xl">
+            <div class="px-5 py-4 border-b border-zinc-800">
+                <h2 class="text-sm font-semibold text-white">Ações rápidas</h2>
+            </div>
+            <div class="grid grid-cols-2 gap-2 p-4">
+                <a href="{{ route('admin.kitchen.index') }}" wire:navigate
+                   class="flex items-center justify-center px-3 py-3 text-sm font-medium text-zinc-300 bg-zinc-800 hover:bg-zinc-700 hover:text-white rounded-lg transition">
+                    Cozinha
+                </a>
+                <a href="{{ route('admin.orders.index') }}" wire:navigate
+                   class="flex items-center justify-center px-3 py-3 text-sm font-medium text-zinc-300 bg-zinc-800 hover:bg-zinc-700 hover:text-white rounded-lg transition">
+                    Pedidos
+                </a>
+                <a href="{{ route('admin.dining.tables') }}" wire:navigate
+                   class="flex items-center justify-center px-3 py-3 text-sm font-medium text-zinc-300 bg-zinc-800 hover:bg-zinc-700 hover:text-white rounded-lg transition">
+                    Mesas
+                </a>
+                <a href="{{ route('admin.dining.queue') }}" wire:navigate
+                   class="flex items-center justify-center px-3 py-3 text-sm font-medium text-zinc-300 bg-zinc-800 hover:bg-zinc-700 hover:text-white rounded-lg transition">
+                    Fila de espera
+                </a>
+            </div>
+        </div>
+
     </div>
 
     {{-- ── Middle section ──────────────────────────────────────────────── --}}

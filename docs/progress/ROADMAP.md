@@ -41,21 +41,21 @@ The restaurant needs to configure and operate.
 - [x] Create product form (Livewire `Catalog\ProductForm`)
 - [x] Edit product form
 - [x] Addon group management (Volt `catalog.addons`)
-- [ ] Category CRUD (route exists, no Volt component yet)
-- [ ] Reorder categories
-- [ ] Archive / pause product
-- [ ] Delete product with guard against open orders
-- [ ] Manual availability toggle
-- [ ] Product variants (Small / Medium / Large)
-- [ ] Product image upload + resize
+- [x] Category CRUD (Volt `catalog.categories`)
+- [x] Reorder categories (moveUp/moveDown, restaurant-scoped)
+- [x] Archive / pause product (`archived_at`, distinct from availability pause)
+- [x] Delete product with guard against open orders (active-order check, not "any order")
+- [x] Manual availability toggle
+- [x] Product variants (Small / Medium / Large) — repeatable rows in `ProductForm`
+- [x] Product image upload + resize (GD, capped at 1200px longest side)
 
 ### Dining (Tables)
 - [x] Tables list with create/edit/delete (Volt `dining.tables`)
 - [x] Table status counters (free/occupied/reserved)
-- [~] Waitlist queue (Volt `dining.queue` exists — needs add/seat/remove actions verified)
-- [ ] Auto-transition `occupied` when an order is placed at the table
-- [ ] Table session lifecycle (start on first order, close on payment)
-- [ ] Guard: cannot delete a table with an active session
+- [x] Waitlist queue (Volt `dining.queue` — add/seat/remove, FIFO, tenant-scoped)
+- [x] Auto-transition `occupied` when an order is placed at the table
+- [x] Table session lifecycle (opens on first dine-in order, staff close manually — stand-in for "on payment" since no payment gateway exists yet)
+- [x] Guard: cannot delete a table with an active session
 
 ### Employee Management
 - [ ] Staff invite via email

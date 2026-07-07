@@ -3,6 +3,7 @@ use Livewire\Attributes\Layout;
 use Livewire\Attributes\Computed;
 use Livewire\Volt\Component;
 use App\Enums\DiningTableStatus;
+use App\Enums\TableSessionStatus;
 use App\Models\DiningTable;
 use App\Models\Restaurant;
 
@@ -21,10 +22,22 @@ new #[Layout('components.layouts.app')] class extends Component {
         ];
     }
 
+    private function rid(): ?int
+    {
+        return Restaurant::query()->value('id');
+    }
+
+    /** Table lookup fenced to this restaurant — a bare findOrFail would cross tenants. */
+    private function findTable(int $tableId): DiningTable
+    {
+        return DiningTable::where('restaurant_id', $this->rid())->findOrFail($tableId);
+    }
+
     #[Computed]
     public function tables()
     {
-        return DiningTable::where('restaurant_id', Restaurant::query()->value('id'))
+        return DiningTable::where('restaurant_id', $this->rid())
+            ->with('openSession')
             ->orderBy('number')->get();
     }
 
@@ -46,8 +59,10 @@ new #[Layout('components.layouts.app')] class extends Component {
         $this->showForm  = true;
     }
 
-    public function openEdit(DiningTable $table): void
+    public function openEdit(int $tableId): void
     {
+        $table = $this->findTable($tableId);
+
         $this->number    = $table->number;
         $this->capacity  = $table->capacity;
         $this->editingId = (string) $table->id;
@@ -59,13 +74,13 @@ new #[Layout('components.layouts.app')] class extends Component {
         $this->validate();
 
         if ($this->editingId) {
-            DiningTable::findOrFail($this->editingId)->update([
+            $this->findTable((int) $this->editingId)->update([
                 'number'   => $this->number,
                 'capacity' => $this->capacity,
             ]);
         } else {
             DiningTable::create([
-                'restaurant_id' => Restaurant::query()->value('id'),
+                'restaurant_id' => $this->rid(),
                 'number'        => $this->number,
                 'capacity'      => $this->capacity,
                 'status'        => DiningTableStatus::Free,
@@ -77,14 +92,47 @@ new #[Layout('components.layouts.app')] class extends Component {
         unset($this->tables, $this->counts);
     }
 
-    public function setStatus(DiningTable $table, string $status): void
+    public function setStatus(int $tableId, string $status): void
     {
-        $table->update(['status' => $status]);
+        $this->findTable($tableId)->update(['status' => $status]);
         unset($this->tables, $this->counts);
     }
 
-    public function delete(DiningTable $table): void
+    /**
+     * Closes the tab: blocked while any order under the open session is still
+     * active (kitchen/delivery in flight), otherwise closes the session and
+     * frees the table — this is the stand-in "payment happened" moment, since
+     * there is no payment gateway yet.
+     */
+    public function closeSession(int $tableId): void
     {
+        $table = $this->findTable($tableId);
+        $session = $table->openSession;
+
+        if (! $session) {
+            return; // nothing to close — stale button
+        }
+
+        if ($session->hasActiveOrders()) {
+            $this->addError('closeSession', "Não é possível fechar a mesa {$table->number}: há pedidos em andamento.");
+            return;
+        }
+
+        $session->update(['status' => TableSessionStatus::Closed, 'closed_at' => now()]);
+        $table->update(['status' => DiningTableStatus::Free]);
+
+        unset($this->tables, $this->counts);
+    }
+
+    public function delete(int $tableId): void
+    {
+        $table = $this->findTable($tableId);
+
+        if ($table->openSession) {
+            $this->addError('delete', "Não é possível excluir a mesa {$table->number}: há uma sessão aberta. Feche a mesa primeiro.");
+            return;
+        }
+
         $table->delete();
         unset($this->tables, $this->counts);
     }
@@ -179,6 +227,17 @@ new #[Layout('components.layouts.app')] class extends Component {
         @endforeach
     </div>
 
+    @error('closeSession')
+    <div class="mb-4 px-4 py-3 bg-red-500/10 border border-red-500/20 rounded-xl text-sm text-red-400">
+        {{ $message }}
+    </div>
+    @enderror
+    @error('delete')
+    <div class="mb-4 px-4 py-3 bg-red-500/10 border border-red-500/20 rounded-xl text-sm text-red-400">
+        {{ $message }}
+    </div>
+    @enderror
+
     {{-- Table list --}}
     @if($this->tables->isEmpty())
     <div class="bg-zinc-900 border border-zinc-800 border-dashed rounded-xl px-5 py-16 text-center">
@@ -223,8 +282,14 @@ new #[Layout('components.layouts.app')] class extends Component {
                     </td>
                     <td class="px-5 py-3.5">
                         <div class="flex items-center justify-end gap-1">
-                            {{-- Status toggle --}}
-                            @if($table->status !== \App\Enums\DiningTableStatus::Free)
+                            {{-- Status toggle — an open session (active tab) can only be cleared via "Fechar mesa" --}}
+                            @if($table->openSession)
+                            <button wire:click="closeSession({{ $table->id }})"
+                                    wire:confirm="Fechar a mesa {{ $table->number }}? Isso encerra a conta e libera a mesa."
+                                    class="text-xs text-teal-400 bg-teal-400/10 hover:bg-teal-400/20 rounded-lg px-2.5 py-1.5 transition">
+                                Fechar mesa
+                            </button>
+                            @elseif($table->status !== \App\Enums\DiningTableStatus::Free)
                             <button wire:click="setStatus({{ $table->id }}, 'free')"
                                     class="text-xs text-green-400 bg-green-400/10 hover:bg-green-400/20 rounded-lg px-2.5 py-1.5 transition">
                                 Liberar

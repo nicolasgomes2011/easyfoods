@@ -2,7 +2,7 @@
     <div class="flex items-center justify-between mb-6">
         <div>
             <h1 class="text-xl font-bold text-white">Produtos</h1>
-            <p class="text-sm text-zinc-400 mt-0.5">{{ $this->products->count() }} produto(s) no cardápio</p>
+            <p class="text-sm text-zinc-400 mt-0.5">{{ $this->products->count() }} produto(s) {{ $showArchived ? 'arquivado(s)' : 'no cardápio' }}</p>
         </div>
         <a href="{{ route('admin.catalog.products.create') }}" wire:navigate
            class="text-sm text-white bg-orange-500 hover:bg-orange-600 rounded-lg px-3 py-1.5 transition">
@@ -31,17 +31,33 @@
                 <option value="{{ $status->value }}">{{ $status->label() }}</option>
             @endforeach
         </select>
+
+        <button wire:click="$toggle('showArchived')"
+                class="text-sm rounded-lg px-3 py-2 border transition {{ $showArchived ? 'bg-zinc-700 text-white border-zinc-600' : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:text-white' }}">
+            Arquivados
+        </button>
     </div>
+
+    @error('delete')
+    <div class="mb-4 px-4 py-3 bg-red-500/10 border border-red-500/20 rounded-xl text-sm text-red-400">
+        {{ $message }}
+    </div>
+    @enderror
 
     <div class="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
         @if($this->products->isEmpty())
             <div class="px-5 py-16 text-center">
+                @if($showArchived)
+                <p class="text-zinc-400 text-sm font-medium">Nenhum produto arquivado.</p>
+                <p class="text-zinc-600 text-xs mt-1">Produtos arquivados saem do cardápio mas mantêm o histórico.</p>
+                @else
                 <p class="text-zinc-400 text-sm font-medium">Nenhum produto encontrado.</p>
                 <p class="text-zinc-600 text-xs mt-1">O cardápio está vazio. Adicione o primeiro produto.</p>
                 <a href="{{ route('admin.catalog.products.create') }}" wire:navigate
                    class="inline-block mt-4 text-sm text-white bg-orange-500 hover:bg-orange-600 rounded-lg px-4 py-2 transition">
                     + Novo produto
                 </a>
+                @endif
             </div>
         @else
             <table class="w-full text-sm">
@@ -88,6 +104,15 @@
                         </td>
                         <td class="px-5 py-3.5 text-right">
                             <div class="flex items-center justify-end gap-1">
+                                @if($product->isArchived())
+                                <button
+                                    wire:click="unarchive({{ $product->id }})"
+                                    class="text-xs text-orange-400 hover:text-orange-300 transition px-2 py-1 rounded-lg hover:bg-zinc-800"
+                                    title="Devolver ao cardápio"
+                                >
+                                    Restaurar
+                                </button>
+                                @else
                                 <button
                                     wire:click="toggleAvailability({{ $product->id }})"
                                     class="text-xs transition px-2 py-1 rounded-lg hover:bg-zinc-800 {{ $product->availability_status === \App\Enums\ProductAvailabilityStatus::Available ? 'text-green-400 hover:text-zinc-400' : 'text-zinc-500 hover:text-green-400' }}"
@@ -100,8 +125,17 @@
                                     Editar
                                 </a>
                                 <button
+                                    wire:click="archive({{ $product->id }})"
+                                    wire:confirm="Arquivar '{{ $product->name }}'? Ele some do cardápio e da lista, mas mantém todo o histórico."
+                                    class="text-xs text-zinc-400 hover:text-white transition px-2 py-1 rounded-lg hover:bg-zinc-800"
+                                    title="Arquivar produto"
+                                >
+                                    Arquivar
+                                </button>
+                                @endif
+                                <button
                                     wire:click="delete({{ $product->id }})"
-                                    wire:confirm="Remover '{{ $product->name }}'? Se houver pedidos vinculados, o produto será pausado em vez de excluído."
+                                    wire:confirm="Excluir '{{ $product->name }}' permanentemente? Pedidos em andamento bloqueiam a exclusão; o histórico mantém nome e preço congelados."
                                     class="text-zinc-600 hover:text-red-400 transition p-1 rounded-lg hover:bg-zinc-800"
                                 >
                                     <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
