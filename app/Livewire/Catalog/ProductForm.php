@@ -104,7 +104,7 @@ class ProductForm extends Component
     #[Computed]
     public function categories()
     {
-        return Category::where('restaurant_id', $this->rid())->active()->ordered()->get();
+        return Category::where('restaurant_id', $this?->rid())->active()->ordered()->get();
     }
 
     public function statuses(): array
@@ -116,14 +116,15 @@ class ProductForm extends Component
     {
         $this->validate(['newCategoryName' => ['required', 'string', 'max:255']]);
 
-        $restaurantId = $this->rid();
+        $restaurantId = $this?->rid();
 
+       
         $category = Category::create([
             'restaurant_id' => $restaurantId,
-            'name'          => $this->newCategoryName,
-            'slug'          => Str::slug($this->newCategoryName),
+            'name'          => $this?->newCategoryName,
+            'slug'          => Str::slug($this?->newCategoryName),
             'is_active'     => true,
-            'sort_order'    => (int) Category::where('restaurant_id', $restaurantId)->max('sort_order') + 1,
+            'sort_order'    => (int) Category::where('restaurant_id', $restaurantId)?->max('sort_order') + 1,
         ]);
 
         $this->category_id = (string) $category->id;
