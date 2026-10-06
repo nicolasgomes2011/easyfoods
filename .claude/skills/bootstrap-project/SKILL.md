@@ -24,8 +24,8 @@ Establishes situational awareness so every later action is context-aware. This i
 - Pure, self-contained Q&A that needs no project state ("what does this regex do").
 
 ## Execution workflow
-1. **Load Tier-1 memory.** Read `docs/memory/system-overview.md`. If it doesn't exist (fresh clone — memory
-   is local-only), fall back to `docs/scope/README.md` + `docs/progress/ROADMAP.md` and tell the user the
+1. **Load Tier-1 memory.** Read `docs/memory/system-overview.md`. If it doesn't exist (brain not linked on this
+   machine — run `easyfoods-brain\scripts\setup.ps1`), fall back to `docs/scope/README.md` + `docs/progress/ROADMAP.md` and tell the user the
    local memory isn't present.
 2. **Detect phase & WIP.** Read `docs/memory/active-work/current.md` and `docs/memory/summaries/roadmap-status.md`
    (or `docs/progress/ROADMAP.md` + `ADJUSTMENTS.md`).
