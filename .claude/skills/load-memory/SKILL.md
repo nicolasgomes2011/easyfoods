@@ -21,8 +21,8 @@ Retrieves the *right* memory, lean. The counterpart to `save-memory`; the recall
 - When context is already loaded this session (don't reload the tree repeatedly).
 
 ## Execution workflow (tiered — context economy)
-1. **Tier 1 (always):** read `docs/memory/system-overview.md`. If absent (fresh clone — memory is
-   local-only), say so and fall back to `docs/scope/` + `docs/progress/`.
+1. **Tier 1 (always):** read `docs/memory/system-overview.md`. If absent (brain repo not linked on this machine —
+   run `easyfoods-brain\scripts\setup.ps1`), say so and fall back to `docs/scope/` + `docs/progress/`.
 2. **Identify the domain** of the task; use `architecture/domain-map.md` to pick the relevant slice.
 3. **Tier 2 (by domain):** read only the relevant `business-rules/*` + `architecture/*` files (e.g. orders →
    `order-state-machine` + `data-integrity`; any query → `tenant-isolation`).

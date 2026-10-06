@@ -12,7 +12,8 @@ description: >
 
 # save-memory
 
-Writes durable EasyFoods knowledge into `docs/memory/` (local-only, gitignored — safe for sensitive detail).
+Writes durable EasyFoods knowledge into `docs/memory/` — a junction to the **private** `easyfoods-brain` repo
+(gitignored here and blocked by a pre-commit hook — safe for sensitive detail, never published).
 
 ## When to use
 - An architectural decision, business rule, confirmed bug/debt, phase change, or reusable pattern emerged.
@@ -80,6 +81,7 @@ If you created a new file, add a `[[link]]` from the most relevant existing file
 - [ ] Cross-links added
 - [ ] Lean (summarized/archived as needed)
 - [ ] Told the user what was saved + where (one line)
+- [ ] Reminded the user to sync the brain repo (`easyfoods-brain\scripts\sync.ps1`) if this was the last save of the session
 
 ## EasyFoods example
 After implementing `CancelOrder`: save an ADR ("first `app/Actions/Orders/` action; transition actions
