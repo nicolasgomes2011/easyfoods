@@ -1,7 +1,6 @@
 <?php
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Computed;
-use Livewire\Attributes\Poll;
 use Livewire\Volt\Component;
 use App\Enums\DiningTableStatus;
 use App\Enums\WaitlistStatus;
@@ -9,7 +8,7 @@ use App\Models\DiningTable;
 use App\Models\Restaurant;
 use App\Models\WaitlistEntry;
 
-new #[Layout('components.layouts.app')] #[Poll(30000)] class extends Component {
+new #[Layout('components.layouts.app')] class extends Component {
 
     public string $partyName = '';
     public string $partySize = '';
@@ -131,7 +130,7 @@ new #[Layout('components.layouts.app')] #[Poll(30000)] class extends Component {
     }
 }; ?>
 
-<div>
+<div wire:poll.30s>
     <div class="flex items-center justify-between mb-6">
         <div>
             <h1 class="text-xl font-bold text-white">Fila de espera</h1>

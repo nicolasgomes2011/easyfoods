@@ -1,7 +1,6 @@
 <?php
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Computed;
-use Livewire\Attributes\Polling;
 use Livewire\Volt\Component;
 use App\Enums\OrderStatus;
 use App\Models\Order;
@@ -19,7 +18,6 @@ new #[Layout('components.layouts.customer')] class extends Component {
     }
 
     #[Computed]
-    #[Polling(30000)]
     public function order(): ?Order
     {
         return Order::with(['items.addons', 'statusHistory'])
@@ -38,7 +36,8 @@ new #[Layout('components.layouts.customer')] class extends Component {
     }
 }; ?>
 
-<div>
+{{-- Keep refreshing until the order reaches a final status. --}}
+<div @if($this->order && ! $this->order->status->isFinal()) wire:poll.10s @endif>
     @if(! $this->order)
     <div class="py-20 text-center">
         <p class="text-zinc-500">Pedido não encontrado.</p>
