@@ -7,7 +7,7 @@
 >
 > Cross-cutting work is tracked in [ADJUSTMENTS.md](ADJUSTMENTS.md) (cleanup of fake data, route layer, env) and [TESTING_ROADMAP.md](TESTING_ROADMAP.md) (test coverage).
 
-**Last reconciled against the code: 2026-10-07** (`main` @ `cfb4f79`, 214 tests). Checkboxes below
+**Last reconciled against the code: 2026-10-07** (`main` @ `cfb4f79` + `fix/livewire-upgrade`, 220 tests). Checkboxes below
 were re-derived from the actual source, not from the previous plan — where the shipped behavior differs from
 what a bullet specced, the bullet says so instead of being silently ticked.
 
@@ -147,7 +147,7 @@ The customer browses the menu, customizes items, and places an order from their 
 - [x] Public tracking route resolved by `orders.token`, not the enumerable order number (no auth) — `GET /store/order/{token}`
 - [x] Status steps visualization: Recebido → Confirmado → Em preparo → Pronto → Entregue
 - [ ] Each completed step shows exact timestamp
-- [ ] Live countdown: "Pronto às HH:MM" (polling via Livewire) — the page does not auto-refresh yet (no `wire:poll` is rendered)
+- [ ] Live countdown: "Pronto às HH:MM" — not built yet. The page itself now refreshes every 10s (`wire:poll.10s`) and stops polling once the order reaches a final status
 - [ ] Delay message when ETA shifts: "Está demorando um pouco mais, novo horário: HH:MM"
 - [x] Shareable link (guest-safe, no login required)
 
@@ -170,7 +170,7 @@ Orders flow from customer to kitchen to delivery.
 
 ### Kitchen Panel
 - [x] Kitchen queue with status counters (Volt `kitchen.index`)
-- [ ] Polling refresh (30s) — the view advertises "atualiza a cada 30s", but no `wire:poll` is rendered yet
+- [x] Polling refresh (30s) — `wire:poll.30s` on the component root (same on in-progress orders, waitlist queue and driver queue)
 - [x] Mark order as `in_preparation` — `TransitionOrderStatus` action (kitchen role)
 - [x] Mark order as `ready` (`ready_for_pickup`) — `TransitionOrderStatus` action (kitchen role)
 - [ ] Per-order live countdown timer
@@ -191,7 +191,7 @@ Customers see what is happening with their order.
 > Overlaps [3.6](#36--order-tracking-customer). The static tracking page shipped with Phase 3; what remains
 > here is the *live* half.
 
-- [~] Real-time order status page — the page exists and is correct, but is static (no polling/broadcast)
+- [~] Real-time order status page — refreshes by polling every 10s until the order is final; no broadcasting yet
 - [ ] Live countdown timer (always decreasing)
 - [ ] Status change notifications
 
