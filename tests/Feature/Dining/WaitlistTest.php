@@ -155,25 +155,15 @@ class WaitlistTest extends TestCase
         $this->actAsStaff();
 
         // Foreign entry is not actionable.
-        $caught = null;
-        try {
-            Volt::test('dining.queue')->call('seat', $foreignEntry->id);
-        } catch (\Throwable $e) {
-            $caught = $e;
-        }
-        $this->assertNotNull($caught, 'seat must not resolve a foreign waitlist entry.');
+        // Scoped findOrFail on a foreign id → 404.
+        Volt::test('dining.queue')->call('seat', $foreignEntry->id)->assertStatus(404);
         $this->assertSame(WaitlistStatus::Waiting, $foreignEntry->fresh()->status);
 
         // A foreign table cannot be used to seat a local entry.
-        $caught = null;
-        try {
-            Volt::test('dining.queue')
-                ->set('tableId', (string) $foreignTable->id)
-                ->call('seat', $panelEntry->id);
-        } catch (\Throwable $e) {
-            $caught = $e;
-        }
-        $this->assertNotNull($caught, 'seat must not resolve a foreign table.');
+        Volt::test('dining.queue')
+            ->set('tableId', (string) $foreignTable->id)
+            ->call('seat', $panelEntry->id)
+            ->assertStatus(404);
         $this->assertSame(WaitlistStatus::Waiting, $panelEntry->fresh()->status);
         $this->assertSame(DiningTableStatus::Free, $foreignTable->fresh()->status);
     }
