@@ -16,6 +16,10 @@ The master workflow that turns a feature request into reviewed, tested code — 
 
 > **Autonomy mode: PLAN-AND-APPROVE (locked).** Always present the plan and wait for explicit approval
 > before writing code. Never start editing files in the planning phase. (Decision AD-007.)
+>
+> **Exception — autopilot.** When running inside `/ship-next`, the user already approved by invoking the
+> command: run phases A → B → D → E without stopping at phase C, post the plan as a Linear comment and in
+> the PR description, and never ask "posso seguir?".
 
 ## When to use
 - Any request to build/add/implement real functionality in the codebase.

@@ -8,6 +8,7 @@ Visão geral em `README.md`; escopo em `docs/scope/`; status em `docs/progress/`
 2. Use **`load-memory`** para puxar só o domínio da tarefa; **`save-memory`** ao fim de cada decisão/bug/feature.
 3. Features: **`implement-feature`** em modo PLAN-AND-APPROVE — apresente o plano e espere aprovação antes de editar.
 4. Bugs: `bug-investigation`. Status/prioridade: `roadmap-review`. Lista completa em `.claude/skills/`.
+5. **Autopilot: `/ship-next`** — o próprio comando é a aprovação. Faz o fluxo completo (card do Linear → código → testes → PR → merge) **sem perguntar**, e substitui o PLAN-AND-APPROVE do item 3 enquanto roda. Regras em `.claude/skills/ship-next/SKILL.md`.
 
 ## Memória do projeto (privada)
 - `docs/memory/` é uma junction para o repo **privado** `easyfoods-brain` (ver o README de lá).
