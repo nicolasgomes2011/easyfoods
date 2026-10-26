@@ -17,7 +17,6 @@ class FileSizeCeilingTest extends TestCase
     // Adoption baseline: files already over MAX_LINES when the gate was introduced.
     // An entry may only shrink. Remove it once its file is back under MAX_LINES.
     private const BASELINE = [
-        'resources/views/livewire/catalog/addons.blade.php' => 410,
         'resources/views/livewire/orders/show.blade.php' => 352,
     ];
 
