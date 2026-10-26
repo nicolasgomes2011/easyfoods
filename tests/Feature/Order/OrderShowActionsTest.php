@@ -32,6 +32,23 @@ class OrderShowActionsTest extends TestCase
             ->assertDontSee('Undefined');
     }
 
+    public function test_status_badge_follows_the_order_status(): void
+    {
+        $order = Order::factory()->create([
+            'status' => OrderStatus::PendingConfirmation,
+            'confirmed_at' => null,
+        ]);
+
+        $this->actingAs($this->manager());
+
+        Volt::test('orders.show', ['order' => $order])
+            ->assertSeeHtml('bg-yellow-400/10 text-yellow-400')
+            ->assertSee(OrderStatus::PendingConfirmation->label())
+            ->call('confirm')
+            ->assertSeeHtml('bg-blue-400/10 text-blue-400')
+            ->assertSee(OrderStatus::Confirmed->label());
+    }
+
     public function test_manager_can_confirm_pending_order(): void
     {
         $order = Order::factory()->create([

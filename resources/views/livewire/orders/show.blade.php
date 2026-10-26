@@ -85,23 +85,7 @@ new #[Layout('components.layouts.app')] class extends Component {
             <div>
                 <div class="flex items-center gap-3">
                     <h1 class="text-xl font-bold text-white">#{{ $this->order->number }}</h1>
-                    @php
-                    $statusColors = [
-                        'yellow' => 'bg-yellow-400/10 text-yellow-400',
-                        'blue'   => 'bg-blue-400/10 text-blue-400',
-                        'orange' => 'bg-orange-400/10 text-orange-400',
-                        'purple' => 'bg-purple-400/10 text-purple-400',
-                        'indigo' => 'bg-indigo-400/10 text-indigo-400',
-                        'teal'   => 'bg-teal-400/10 text-teal-400',
-                        'green'  => 'bg-green-400/10 text-green-400',
-                        'red'    => 'bg-red-400/10 text-red-400',
-                        'gray'   => 'bg-zinc-700 text-zinc-400',
-                    ];
-                    $badgeClass = $statusColors[$this->order->status->color()] ?? 'bg-zinc-700 text-zinc-400';
-                    @endphp
-                    <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium {{ $badgeClass }}">
-                        {{ $this->order->status->label() }}
-                    </span>
+                    <x-orders.status-badge :status="$this->order->status" />
                 </div>
                 <p class="text-sm text-zinc-400 mt-0.5">
                     {{ $this->order->created_at->format('d/m/Y \à\s H:i') }}
