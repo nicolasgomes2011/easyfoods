@@ -267,61 +267,7 @@ new #[Layout('components.layouts.customer')] class extends Component {
 
             {{-- Endereço (delivery only) --}}
             @if($deliveryType === 'delivery')
-            <div class="bg-white border border-zinc-200 rounded-2xl p-5 space-y-3">
-                <h2 class="text-sm font-semibold text-zinc-700">Endereço de entrega</h2>
-
-                @if($this->deliveryZones->isNotEmpty())
-                <div>
-                    <select wire:model.live="deliveryZoneId"
-                            class="w-full bg-zinc-50 border border-zinc-200 text-sm rounded-xl px-3 py-2.5 text-zinc-800 focus:outline-none focus:ring-2 focus:ring-orange-400">
-                        <option value="">Selecione o bairro / zona *</option>
-                        @foreach($this->deliveryZones as $zone)
-                        <option value="{{ $zone->id }}">
-                            {{ $zone->name }}{{ $zone->neighborhood ? ' — '.$zone->neighborhood : '' }}
-                            ({{ (float) $zone->fee > 0 ? 'R$ '.number_format($zone->fee, 2, ',', '.') : 'Grátis' }})
-                        </option>
-                        @endforeach
-                    </select>
-                    @error('deliveryZoneId') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
-                </div>
-                @endif
-
-                <div class="grid grid-cols-3 gap-3">
-                    <div class="col-span-2">
-                        <input wire:model="street" type="text" placeholder="Logradouro *"
-                               class="w-full bg-zinc-50 border border-zinc-200 text-sm rounded-xl px-3 py-2.5 text-zinc-800 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-orange-400" />
-                        @error('street') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
-                    </div>
-                    <div>
-                        <input wire:model="addressNumber" type="text" placeholder="Número *"
-                               class="w-full bg-zinc-50 border border-zinc-200 text-sm rounded-xl px-3 py-2.5 text-zinc-800 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-orange-400" />
-                        @error('addressNumber') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
-                    </div>
-                </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <input wire:model="complement" type="text" placeholder="Complemento"
-                           class="w-full bg-zinc-50 border border-zinc-200 text-sm rounded-xl px-3 py-2.5 text-zinc-800 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-orange-400" />
-                    <input wire:model="neighborhood" type="text" placeholder="Bairro"
-                           class="w-full bg-zinc-50 border border-zinc-200 text-sm rounded-xl px-3 py-2.5 text-zinc-800 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-orange-400" />
-                </div>
-                <div class="grid grid-cols-5 gap-3">
-                    <div class="col-span-3">
-                        <input wire:model="city" type="text" placeholder="Cidade *"
-                               class="w-full bg-zinc-50 border border-zinc-200 text-sm rounded-xl px-3 py-2.5 text-zinc-800 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-orange-400" />
-                        @error('city') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
-                    </div>
-                    <div>
-                        <input wire:model="state" type="text" placeholder="UF *" maxlength="2"
-                               class="w-full bg-zinc-50 border border-zinc-200 text-sm rounded-xl px-3 py-2.5 text-zinc-800 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-orange-400 uppercase" />
-                        @error('state') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
-                    </div>
-                    <div>
-                        <input wire:model="zip" type="text" placeholder="CEP *"
-                               class="w-full bg-zinc-50 border border-zinc-200 text-sm rounded-xl px-3 py-2.5 text-zinc-800 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-orange-400" />
-                        @error('zip') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
-                    </div>
-                </div>
-            </div>
+            <x-store.checkout-address :zones="$this->deliveryZones" />
             @endif
 
             {{-- Mesa (dine-in only) --}}
@@ -382,46 +328,8 @@ new #[Layout('components.layouts.customer')] class extends Component {
 
         {{-- Order summary sidebar --}}
         <div class="lg:col-span-1">
-            <div class="bg-white border border-zinc-200 rounded-2xl p-5 sticky top-24">
-                <h2 class="text-sm font-semibold text-zinc-700 mb-4">Resumo do pedido</h2>
-
-                <div class="space-y-2 mb-4">
-                    @if($this->cart)
-                    @foreach($this->cart->items as $item)
-                    <div class="flex justify-between text-sm text-zinc-600">
-                        <span class="flex-1 truncate">
-                            {{ $item->quantity }}× {{ $item->product?->name }}{{ $item->variant ? ' ('.$item->variant->name.')' : '' }}
-                            @if($item->addons->isNotEmpty())
-                            <span class="block text-xs text-zinc-400">{{ $item->addons->map(fn ($a) => $a->option?->name)->filter()->join(', ') }}</span>
-                            @endif
-                        </span>
-                        <span class="ml-2 tabular-nums">R$ {{ number_format($item->lineTotal(), 2, ',', '.') }}</span>
-                    </div>
-                    @endforeach
-                    @endif
-                </div>
-
-                <div class="border-t border-zinc-100 pt-3 space-y-1.5 text-sm">
-                    <div class="flex justify-between text-zinc-500">
-                        <span>Subtotal</span>
-                        <span class="tabular-nums">R$ {{ number_format($this->subtotal, 2, ',', '.') }}</span>
-                    </div>
-                    <div class="flex justify-between text-zinc-500">
-                        <span>Taxa de entrega</span>
-                        <span class="tabular-nums">{{ $this->deliveryFee > 0 ? 'R$ ' . number_format($this->deliveryFee, 2, ',', '.') : 'Grátis' }}</span>
-                    </div>
-                    <div class="flex justify-between font-bold text-zinc-800 pt-2 border-t border-zinc-100 text-base">
-                        <span>Total</span>
-                        <span class="tabular-nums">R$ {{ number_format($this->total, 2, ',', '.') }}</span>
-                    </div>
-                </div>
-
-                <button type="submit" wire:loading.attr="disabled"
-                        class="w-full mt-5 py-3.5 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-2xl transition text-sm">
-                    <span wire:loading.remove wire:target="placeOrder">Confirmar pedido</span>
-                    <span wire:loading wire:target="placeOrder">Processando…</span>
-                </button>
-            </div>
+            <x-store.order-summary :cart="$this->cart" :subtotal="$this->subtotal"
+                                   :delivery-fee="$this->deliveryFee" :total="$this->total" />
         </div>
 
     </form>

@@ -369,4 +369,24 @@ class CustomerOrderingFlowTest extends TestCase
             ->call('closeProduct')
             ->assertDontSee('Bacon');
     }
+
+    public function test_checkout_renders_address_form_errors_and_summary(): void
+    {
+        $this->addSimpleProductToCart(2);
+
+        Volt::test('store.checkout')
+            ->assertSee('Resumo do pedido')
+            ->assertSee('2× X-Burger')
+            ->assertSee('Logradouro *')
+            ->assertSee('Centro')
+            ->assertSee('R$ 7,50')
+            ->set('deliveryZoneId', (string) $this->zone->id)
+            ->assertSee('R$ 57,50')
+            ->set('customerName', 'Ana')
+            ->call('placeOrder')
+            ->assertHasErrors(['street', 'addressNumber'])
+            ->assertSeeHtml('<p class="text-red-500 text-xs mt-1">')
+            ->set('deliveryType', 'pickup')
+            ->assertDontSee('Logradouro *');
+    }
 }
