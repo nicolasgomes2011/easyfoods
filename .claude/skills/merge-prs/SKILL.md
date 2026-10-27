@@ -26,6 +26,7 @@ allowed-tools:
   - Bash(cat *)
   - Bash(grep *)
   - mcp__linear
+  - mcp__Linear
 ---
 
 # merge-prs — testar e fazer merge de todos os PRs abertos
@@ -46,8 +47,8 @@ principal do projeto você **não** troca de branch, **não** faz stash, **não*
 
 ## 0. Pré-voo
 1. `gh auth status` — se falhar, vá para o relatório com o comando `gh auth login`.
-2. Linear: as ferramentas `mcp__linear__*` respondem? Se não, siga sem Linear e avise no relatório
-   (rode `/mcp` → linear).
+2. Linear: as ferramentas do Linear respondem (`mcp__linear__*` do `.mcp.json` ou `mcp__Linear__*` do
+   conector da conta)? Se nenhuma responder, siga sem Linear e avise no relatório (rode `/mcp` → linear).
 3. `git fetch origin --prune`.
 4. Pasta de teste (`W = ../easyfoods-pr-check`):
    - Se não existir: `git worktree add --detach ../easyfoods-pr-check origin/main`, depois
@@ -109,8 +110,10 @@ Trabalhe sempre dentro de `../easyfoods-pr-check`.
 **f. Decisão**
 - ✅ **Aprovado** e sem `--dry-run`:
   `gh pr merge <n> --squash` (sem `--delete-branch`: ele tentaria apagar a branch local que pode estar
-  aberta na pasta do usuário — a branch remota some sozinha pela configuração do repo).
+  aberta na pasta do usuário).
   Se o merge for recusado **só** por exigir revisão e todo o resto estiver verde, use `--admin`.
+  Depois do merge, apague **só a branch remota** do PR: `git push origin --delete <headRefName>`
+  (se ela já tiver sumido, siga). Nunca apague a branch local de nenhuma pasta.
   Depois: `git fetch origin` e **refaça o baseline** (passo 0.6) com a nova `main` antes do próximo PR.
 - ✅ Aprovado com `--dry-run`: só comente "pronto para merge".
 - 🟡 **Revisão manual** (portão de risco): comente o motivo e adicione o label `precisa-decisao`.
@@ -137,6 +140,7 @@ Trabalhe sempre dentro de `../easyfoods-pr-check`.
 | #14 | … | ❌ reprovado | 2 testes novos falhando (TableSessionTest…) |
 
 📋 Cards atualizados: EF-1 → Done …
+🧹 Branches remotas apagadas: fix/ef-1-polling …
 ⚠️ Falhas que já existiam na main: <lista curta ou "nenhuma">
 👉 Para você: <ações exatas, se houver>
 ```
