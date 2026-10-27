@@ -8,6 +8,7 @@ use App\Models\Cart;
 use App\Models\DeliveryZone;
 use App\Models\DiningTable;
 use App\Models\Restaurant;
+use App\Support\CurrentRestaurant;
 
 new #[Layout('components.layouts.customer')] class extends Component {
 
@@ -49,7 +50,7 @@ new #[Layout('components.layouts.customer')] class extends Component {
     #[Computed]
     public function restaurant(): ?Restaurant
     {
-        return Restaurant::first();
+        return CurrentRestaurant::get();
     }
 
     #[Computed]
@@ -180,7 +181,7 @@ new #[Layout('components.layouts.customer')] class extends Component {
 
     private function currentCart(): ?Cart
     {
-        $restaurant = Restaurant::first();
+        $restaurant = CurrentRestaurant::get();
         if (! $restaurant) return null;
         return Cart::where('session_id', session()->getId())
             ->where('restaurant_id', $restaurant->id)

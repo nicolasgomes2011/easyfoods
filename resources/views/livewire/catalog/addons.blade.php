@@ -2,7 +2,7 @@
 use App\Models\AddonGroup;
 use App\Models\AddonOption;
 use App\Models\Product;
-use App\Models\Restaurant;
+use App\Support\CurrentRestaurant;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -51,13 +51,12 @@ new #[Layout('components.layouts.app')] class extends Component {
 
     /**
      * Single-tenant shortcut — same convention as every other panel component.
-     * Restaurant::first() (SELECT *) and value('id') (SELECT id) can resolve
-     * DIFFERENT rows once a 2nd restaurant exists (the planner may serve them
-     * from different scans), so this must be the only form used here.
+     * CurrentRestaurant resolves with an explicit ORDER BY id, so every
+     * component agrees on the same restaurant once a 2nd one exists.
      */
     private function rid(): ?int
     {
-        return Restaurant::query()->value('id');
+        return CurrentRestaurant::id();
     }
 
     #[Computed]
