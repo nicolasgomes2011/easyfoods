@@ -337,4 +337,56 @@ class CustomerOrderingFlowTest extends TestCase
 
         $this->assertSame(0, CartItem::count());
     }
+
+    public function test_product_modal_renders_addons_and_live_price(): void
+    {
+        $group = AddonGroup::create([
+            'product_id'  => $this->product->id,
+            'name'        => 'Extras',
+            'required'    => false,
+            'min_choices' => 0,
+            'max_choices' => 2,
+            'sort_order'  => 1,
+            'is_active'   => true,
+        ]);
+        $bacon = AddonOption::create([
+            'addon_group_id' => $group->id,
+            'name'           => 'Bacon',
+            'price'          => 3.00,
+            'is_active'      => true,
+            'sort_order'     => 1,
+        ]);
+
+        Volt::test('store.menu')
+            ->assertSee('X-Burger')
+            ->call('openProduct', $this->product->id)
+            ->assertSee('Extras')
+            ->assertSee('Bacon')
+            ->assertSee('Adicionar • R$ 25,00')
+            ->set('selectedAddons.' . $group->id, [$bacon->id])
+            ->set('qty', 2)
+            ->assertSee('Adicionar • R$ 56,00')
+            ->call('closeProduct')
+            ->assertDontSee('Bacon');
+    }
+
+    public function test_checkout_renders_address_form_errors_and_summary(): void
+    {
+        $this->addSimpleProductToCart(2);
+
+        Volt::test('store.checkout')
+            ->assertSee('Resumo do pedido')
+            ->assertSee('2× X-Burger')
+            ->assertSee('Logradouro *')
+            ->assertSee('Centro')
+            ->assertSee('R$ 7,50')
+            ->set('deliveryZoneId', (string) $this->zone->id)
+            ->assertSee('R$ 57,50')
+            ->set('customerName', 'Ana')
+            ->call('placeOrder')
+            ->assertHasErrors(['street', 'addressNumber'])
+            ->assertSeeHtml('<p class="text-red-500 text-xs mt-1">')
+            ->set('deliveryType', 'pickup')
+            ->assertDontSee('Logradouro *');
+    }
 }
