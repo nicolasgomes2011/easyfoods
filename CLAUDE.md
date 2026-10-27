@@ -9,6 +9,7 @@ Visão geral em `README.md`; escopo em `docs/scope/`; status em `docs/progress/`
 3. Features: **`implement-feature`** em modo PLAN-AND-APPROVE — apresente o plano e espere aprovação antes de editar.
 4. Bugs: `bug-investigation`. Status/prioridade: `roadmap-review`. Lista completa em `.claude/skills/`.
 5. **Autopilot: `/ship-next`** — o próprio comando é a aprovação. Faz o fluxo completo (card do Linear → código → testes → PR → merge) **sem perguntar**, e substitui o PLAN-AND-APPROVE do item 3 enquanto roda. Regras em `.claude/skills/ship-next/SKILL.md`.
+6. **Rotina automática**: `/planejar-semana` (segunda, distribui os cards da semana por data de entrega), `/rotina-executor` (de hora em hora, 08h–18h: merge dos PRs prontos via `/merge-prs` + 1 card via `/ship-next --sem-merge`) e `/cacar-bugs` (toda noite: testes + revisões → cards `auto-detectado`). Rodam na pasta exclusiva do piloto, nunca na pasta de trabalho do Nicolas.
 
 ## Memória do projeto (privada)
 - `docs/memory/` é uma junction para o repo **privado** `easyfoods-brain` (ver o README de lá).

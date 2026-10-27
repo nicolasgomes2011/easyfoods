@@ -4,7 +4,7 @@ description: >
   Autopilot do EasyFoods. Pega o próximo card do Linear (ou acha trabalho no roadmap e abre o card),
   avisa o usuário do que vai fazer, implementa com testes, abre o pull request e faz o merge — tudo sem
   perguntar. Use só quando o usuário digitar /ship-next.
-argument-hint: "[quantidade de cards | EF-123]"
+argument-hint: "[quantidade de cards | EF-123] [--sem-merge]"
 disable-model-invocation: true
 allowed-tools:
   - Read
@@ -26,6 +26,7 @@ allowed-tools:
   - Bash(grep *)
   - Bash(powershell -File ../easyfoods-brain/scripts/sync.ps1*)
   - mcp__linear
+  - mcp__Linear
 ---
 
 # ship-next — autopilot (card → código → PR → merge)
@@ -43,6 +44,9 @@ allowed-tools:
 - vazio → 1 card.
 - número `N` (ex. `/ship-next 3`) → até N cards em sequência, um PR por card.
 - id do card (ex. `/ship-next EF-7`) → só esse card.
+- `--sem-merge` (combina com os anteriores) → para no passo 7: PR aberto e card em **In Review**. O passo 8
+  **não** roda; o merge fica para o `/merge-prs`, numa sessão que não escreveu o código. É o modo usado
+  pela rotina automática (`/rotina-executor`).
 
 ## 0. Pré-voo (silencioso)
 1. `git status --porcelain` e `git branch --show-current`. Anote os arquivos já sujos: **eles não são seus,
@@ -50,8 +54,9 @@ allowed-tools:
 2. `git fetch origin` → `git switch main` → `git pull --ff-only`. Se a troca de branch falhar por causa de
    arquivos sujos que conflitam, siga a seção **Parada**.
 3. `gh auth status`. Se falhar → **Parada** com o comando `gh auth login`.
-4. Linear: as ferramentas `mcp__linear__*` precisam responder (ex. listar times). Se não → **Parada** pedindo
-   para rodar `/mcp` e autenticar o servidor `linear`.
+4. Linear: as ferramentas do Linear precisam responder (ex. listar times) — tanto faz se vêm do servidor
+   `linear` do `.mcp.json` (`mcp__linear__*`) ou do conector Linear da conta (`mcp__Linear__*`). Se nenhuma
+   responder → **Parada** pedindo para rodar `/mcp` e autenticar o servidor `linear`.
 5. Se `public/build/manifest.json` não existir: `npm run build` (os testes HTTP precisam do manifest do Vite).
 6. Baseline: `php artisan view:clear` e `php artisan test`. Guarde quais testes já falham na `main`.
    - Se algum card do Linear trata exatamente dessas falhas, ele vira o card prioritário.
@@ -64,7 +69,11 @@ Fonte: Linear, time **EasyFoods**, projeto **Roadmap EasyFoods**.
 2. Senão, liste os cards em **Todo** e **Backlog** e escolha o primeiro que:
    - **não** está bloqueado (todos os `blockedBy` em Done/Canceled);
    - **não** tem o label `precisa-decisao`;
-   - na ordem: prioridade (Urgent → Low) → marco (M0 → M1 → M2 → M3) → menor número EF.
+   - nesta ordem de preferência (a data de entrega vem do plano da semana feito pelo `/planejar-semana`):
+     a. prioridade **Urgent**;
+     b. data de entrega (`dueDate`) **até hoje** — os mais atrasados primeiro; no mesmo dia, por prioridade;
+     c. data de entrega **futura** — a mais próxima primeiro (adianta a semana planejada);
+     d. o resto: prioridade (High → Low) → marco (M0 → M1 → M2 → M3) → menor número EF.
 3. Se não houver card elegível: rode `roadmap-review`, pegue a melhoria de maior alavancagem e vá para o
    passo 3 criando o card.
 4. Leia o card inteiro (descrição + comentários). Confirme no código que o problema ainda existe
@@ -125,6 +134,7 @@ Siga as fases A, B, D e E do `implement-feature` (a fase C — parar para aprova
    copiado de `docs/memory/`.
 5. Comente no PR o resultado da auto-revisão (`gh pr comment`).
 6. Linear: adicione o link do PR ao card e mova para **In Review**.
+7. Com `--sem-merge`: **pare aqui** e vá para o passo 9 (relatório com "aberto, merge no próximo ciclo").
 
 ## 8. "Aprovar" e fazer o merge
 O GitHub **não permite aprovar o próprio PR**; aqui "aprovar" = passar nos portões abaixo e fazer o merge.
