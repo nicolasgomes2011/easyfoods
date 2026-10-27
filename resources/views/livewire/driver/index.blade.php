@@ -1,7 +1,6 @@
 <?php
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Computed;
-use Livewire\Attributes\Poll;
 use Livewire\Volt\Component;
 use App\Actions\Orders\TransitionOrderStatus;
 use App\Enums\DeliveryType;
@@ -9,7 +8,7 @@ use App\Enums\OrderStatus;
 use App\Models\Order;
 use App\Models\Restaurant;
 
-new #[Layout('components.layouts.app')] #[Poll(30000)] class extends Component {
+new #[Layout('components.layouts.app')] class extends Component {
 
     public ?string $error = null;
 
@@ -66,7 +65,7 @@ new #[Layout('components.layouts.app')] #[Poll(30000)] class extends Component {
     }
 }; ?>
 
-<div>
+<div wire:poll.30s>
     <div class="flex items-center justify-between mb-6">
         <div>
             <h1 class="text-xl font-bold text-white">Entregas</h1>

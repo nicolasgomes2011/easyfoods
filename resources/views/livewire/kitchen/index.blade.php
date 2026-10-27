@@ -1,7 +1,6 @@
 <?php
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Computed;
-use Livewire\Attributes\Poll;
 use Livewire\Volt\Component;
 use App\Enums\OrderStatus;
 use App\Enums\DeliveryType;
@@ -12,7 +11,7 @@ use App\Models\WaiterCall;
 use App\Actions\Orders\TransitionOrderStatus;
 use Illuminate\Support\Facades\Gate;
 
-new #[Layout('components.layouts.app')] #[Poll(30000)] class extends Component {
+new #[Layout('components.layouts.app')] class extends Component {
 
     #[Computed]
     public function waitingCount(): int
@@ -88,7 +87,7 @@ new #[Layout('components.layouts.app')] #[Poll(30000)] class extends Component {
     }
 }; ?>
 
-<div>
+<div wire:poll.30s>
     {{-- Waiter call alerts --}}
     @if($this->pendingWaiterCalls->isNotEmpty())
     <div class="mb-5 space-y-2">

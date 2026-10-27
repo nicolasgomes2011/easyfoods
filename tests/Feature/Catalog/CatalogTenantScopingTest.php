@@ -82,18 +82,10 @@ class CatalogTenantScopingTest extends TestCase
         ]);
     }
 
-    /** Call a component action expecting the scoped lookup to reject it. */
-    private function assertActionRejected(callable $action, string $message): void
+    /** Call a component action expecting the scoped lookup (findOrFail) to 404. */
+    private function assertActionRejected(callable $action): void
     {
-        $caught = null;
-
-        try {
-            $action();
-        } catch (\Throwable $e) {
-            $caught = $e;
-        }
-
-        $this->assertNotNull($caught, $message);
+        $action()->assertStatus(404);
     }
 
     public function test_product_toggle_and_delete_reject_foreign_products(): void
@@ -104,13 +96,11 @@ class CatalogTenantScopingTest extends TestCase
         $this->actAsAdmin();
 
         $this->assertActionRejected(
-            fn () => Livewire::test(ProductList::class)->call('toggleAvailability', $foreignProduct->id),
-            'toggleAvailability must not resolve a foreign product.'
+            fn () => Livewire::test(ProductList::class)->call('toggleAvailability', $foreignProduct->id)
         );
 
         $this->assertActionRejected(
-            fn () => Livewire::test(ProductList::class)->call('delete', $foreignProduct->id),
-            'delete must not resolve a foreign product.'
+            fn () => Livewire::test(ProductList::class)->call('delete', $foreignProduct->id)
         );
 
         $foreignProduct->refresh();
@@ -126,13 +116,11 @@ class CatalogTenantScopingTest extends TestCase
         $this->actAsAdmin();
 
         $this->assertActionRejected(
-            fn () => Volt::test('catalog.categories')->call('toggleActive', $foreignCategory->id),
-            'toggleActive must not resolve a foreign category.'
+            fn () => Volt::test('catalog.categories')->call('toggleActive', $foreignCategory->id)
         );
 
         $this->assertActionRejected(
-            fn () => Volt::test('catalog.categories')->call('delete', $foreignCategory->id),
-            'delete must not resolve a foreign category.'
+            fn () => Volt::test('catalog.categories')->call('delete', $foreignCategory->id)
         );
 
         // Update path: editingId pointing at a foreign category must not save.
@@ -215,13 +203,11 @@ class CatalogTenantScopingTest extends TestCase
         $this->actAsAdmin();
 
         $this->assertActionRejected(
-            fn () => Volt::test('catalog.addons')->call('deleteGroup', $foreignGroup->id),
-            'deleteGroup must not resolve a foreign group.'
+            fn () => Volt::test('catalog.addons')->call('deleteGroup', $foreignGroup->id)
         );
 
         $this->assertActionRejected(
-            fn () => Volt::test('catalog.addons')->call('deleteOption', $foreignOption->id),
-            'deleteOption must not resolve a foreign option.'
+            fn () => Volt::test('catalog.addons')->call('deleteOption', $foreignOption->id)
         );
 
         // Creating an option under a foreign group must also be fenced.

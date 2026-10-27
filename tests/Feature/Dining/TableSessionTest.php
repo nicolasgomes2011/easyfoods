@@ -218,22 +218,11 @@ class TableSessionTest extends TestCase
 
         $this->actAsStaff();
 
-        $caught = null;
-        try {
-            Volt::test('dining.tables')->call('closeSession', $foreignTable->id);
-        } catch (\Throwable $e) {
-            $caught = $e;
-        }
-        $this->assertNotNull($caught, 'closeSession must not resolve a foreign table.');
+        // Scoped findOrFail on a foreign id → 404.
+        Volt::test('dining.tables')->call('closeSession', $foreignTable->id)->assertStatus(404);
         $this->assertSame(TableSessionStatus::Open, $foreignTable->openSession->status);
 
-        $caught = null;
-        try {
-            Volt::test('dining.tables')->call('delete', $foreignTable->id);
-        } catch (\Throwable $e) {
-            $caught = $e;
-        }
-        $this->assertNotNull($caught, 'delete must not resolve a foreign table.');
+        Volt::test('dining.tables')->call('delete', $foreignTable->id)->assertStatus(404);
         $this->assertDatabaseHas('dining_tables', ['id' => $foreignTable->id]);
     }
 }
