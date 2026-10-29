@@ -43,9 +43,19 @@ class CartItem extends Model
         return $this->hasMany(CartItemAddon::class);
     }
 
+    /**
+     * Base price for one unit — the variant's only when it belongs to this
+     * line's product, so a foreign variant id can never set the price.
+     */
     public function unitPrice(): float
     {
-        return (float) ($this->variant?->price ?? $this->product->price);
+        $variant = $this->variant;
+
+        if ($variant && (int) $variant->product_id === (int) $this->product_id) {
+            return (float) $variant->price;
+        }
+
+        return (float) $this->product->price;
     }
 
     /**

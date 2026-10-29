@@ -167,9 +167,9 @@ new #[Layout('components.layouts.customer')] class extends Component {
         $action->handle(
             $restaurant,
             session()->getId(),
-            $productId,
+            $product,
             $this->selectedVariant,
-            $this->selectedAddonOptionIds(),
+            $this->selectedAddons,
             $this->qty,
             $this->notes ?: null,
         );
