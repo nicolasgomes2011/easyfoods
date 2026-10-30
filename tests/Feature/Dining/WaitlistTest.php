@@ -13,6 +13,7 @@ use App\Models\DiningTable;
 use App\Models\Product;
 use App\Models\Restaurant;
 use App\Models\User;
+use App\Support\CurrentRestaurant;
 use App\Models\WaitlistEntry;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Volt\Volt;
@@ -141,11 +142,10 @@ class WaitlistTest extends TestCase
 
     public function test_waitlist_actions_are_scoped_to_the_panel_restaurant(): void
     {
-        // Resolve which restaurant the panel scopes to (value('id') is
-        // planner-order-dependent, not first-created — BUG-007).
+        // Resolve which restaurant the panel scopes to.
         $x = Restaurant::factory()->create();
         $y = Restaurant::factory()->create();
-        $panelId = Restaurant::query()->value('id');
+        $panelId = CurrentRestaurant::id();
         [$panel, $foreign] = $panelId === $x->id ? [$x, $y] : [$y, $x];
 
         $foreignEntry = WaitlistEntry::factory()->for($foreign)->create();

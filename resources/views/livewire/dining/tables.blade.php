@@ -5,7 +5,7 @@ use Livewire\Volt\Component;
 use App\Enums\DiningTableStatus;
 use App\Enums\TableSessionStatus;
 use App\Models\DiningTable;
-use App\Models\Restaurant;
+use App\Support\CurrentRestaurant;
 
 new #[Layout('components.layouts.app')] class extends Component {
 
@@ -24,7 +24,7 @@ new #[Layout('components.layouts.app')] class extends Component {
 
     private function rid(): ?int
     {
-        return Restaurant::query()->value('id');
+        return CurrentRestaurant::id();
     }
 
     /** Table lookup fenced to this restaurant — a bare findOrFail would cross tenants. */

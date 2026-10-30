@@ -5,7 +5,7 @@ namespace App\Livewire;
 use App\Enums\DiningTableStatus;
 use App\Enums\OrderStatus;
 use App\Models\Order;
-use App\Models\Restaurant;
+use App\Support\CurrentRestaurant;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -16,7 +16,7 @@ class Dashboard extends Component
 {
     private function rid(): ?int
     {
-        return Restaurant::query()->value('id');
+        return CurrentRestaurant::id();
     }
 
     #[Computed]
