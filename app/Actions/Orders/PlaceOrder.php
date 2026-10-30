@@ -7,6 +7,7 @@ use App\Enums\DiningTableStatus;
 use App\Enums\OrderStatus;
 use App\Enums\TableSessionStatus;
 use App\Models\Cart;
+use App\Models\CartItem;
 use App\Models\DiningTable;
 use App\Models\Order;
 use App\Models\OrderItem;
@@ -24,7 +25,7 @@ class PlaceOrder
             $deliveryType = DeliveryType::from($data['delivery_type']);
 
             // Build frozen snapshot of items
-            $items = $cart->items()->with(['product', 'variant', 'addons.option'])->get();
+            $items = $cart->items()->with(['product', 'variant', 'addons.option.group'])->get();
 
             if ($items->isEmpty()) {
                 throw new \RuntimeException('O carrinho está vazio.');
@@ -83,6 +84,12 @@ class PlaceOrder
                 if (! $product || $product->isArchived() || ! $product->isAvailable()) {
                     $name = $product?->name ?? 'Um dos itens';
                     throw new \RuntimeException("\"{$name}\" não está mais disponível no cardápio.");
+                }
+
+                // Same for the chosen variant / addons — and never freeze a price
+                // or name that doesn't belong to this product.
+                if ($error = $this->selectionError($cartItem)) {
+                    throw new \RuntimeException($error);
                 }
 
                 $unitPrice = $cartItem->unitPrice();
@@ -159,5 +166,34 @@ class PlaceOrder
 
             return $order;
         });
+    }
+
+    /**
+     * Customer-facing reason a cart line's variant/addons can't be ordered
+     * anymore, or null when they are still valid for its product.
+     */
+    private function selectionError(CartItem $cartItem): ?string
+    {
+        $product = $cartItem->product;
+
+        if ($cartItem->product_variant_id !== null) {
+            $variant = $cartItem->variant;
+
+            if (! $variant || (int) $variant->product_id !== (int) $product->id || ! $variant->isAvailable()) {
+                return "A opção escolhida de \"{$product->name}\" não está mais disponível.";
+            }
+        }
+
+        foreach ($cartItem->addons as $addon) {
+            $option = $addon->option;
+            $group = $option?->group;
+
+            if (! $option || ! $option->is_active || ! $group || ! $group->is_active
+                || (int) $group->product_id !== (int) $product->id) {
+                return "Um adicional de \"{$product->name}\" não está mais disponível.";
+            }
+        }
+
+        return null;
     }
 }

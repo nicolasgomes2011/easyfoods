@@ -13,19 +13,43 @@ class AddItemToCart
     /**
      * Customer-facing reason the selection can't be added, or null when it's valid.
      *
+     * The variant / addon ids come from the client, so they are checked against
+     * the product's own orderable variants and active addon groups/options —
+     * queried here, never trusted from whatever the caller eager-loaded.
+     *
      * @param array<int,mixed> $selectedAddons groupId => optionId (single) | array of optionIds (multi)
      */
     public function selectionError(Product $product, ?int $variantId, array $selectedAddons): ?string
     {
+        $variantIds = $product->variants()->available()->pluck('id');
+
+        if ($variantId && ! $variantIds->contains($variantId)) {
+            return 'Essa opção não está mais disponível.';
+        }
+
         // Variant required when the product offers (available) variants.
-        if ($product->variants->isNotEmpty() && ! $variantId) {
+        if ($variantIds->isNotEmpty() && ! $variantId) {
             return 'Escolha uma opção.';
         }
 
+        $groups = $product->addonGroups()->active()->with('activeOptions')->get()->keyBy('id');
+
+        // Every chosen option must be an active option of an active group of this product.
+        foreach ($selectedAddons as $groupId => $value) {
+            $optionIds = $this->optionIds($value);
+            if ($optionIds === []) {
+                continue;
+            }
+
+            $group = $groups->get($groupId);
+            if (! $group || array_diff($optionIds, $group->activeOptions->pluck('id')->all()) !== []) {
+                return 'Um dos adicionais escolhidos não está disponível.';
+            }
+        }
+
         // Validate addon group constraints (required / min / max).
-        foreach ($product->addonGroups as $group) {
-            $value = $selectedAddons[$group->id] ?? null;
-            $count = is_array($value) ? count(array_filter($value)) : ($value ? 1 : 0);
+        foreach ($groups as $group) {
+            $count = count($this->optionIds($selectedAddons[$group->id] ?? null));
 
             $min = $group->required ? max($group->min_choices, 1) : $group->min_choices;
             if ($count < $min) {
@@ -39,16 +63,37 @@ class AddItemToCart
         return null;
     }
 
-    /** @param int[] $addonOptionIds */
+    /**
+     * Re-validates the selection itself, so nothing reaches the cart through a
+     * caller that skipped selectionError().
+     *
+     * @param array<int,mixed> $selectedAddons groupId => optionId (single) | array of optionIds (multi)
+     *
+     * @throws \RuntimeException when the product or the selection is not valid
+     */
     public function handle(
         Restaurant $restaurant,
         string $sessionId,
-        int $productId,
+        Product $product,
         ?int $variantId,
-        array $addonOptionIds,
+        array $selectedAddons,
         int $quantity,
         ?string $notes,
     ): CartItem {
+        if ((int) $product->restaurant_id !== (int) $restaurant->id) {
+            throw new \RuntimeException('Produto não encontrado.');
+        }
+
+        if ($error = $this->selectionError($product, $variantId, $selectedAddons)) {
+            throw new \RuntimeException($error);
+        }
+
+        $addonOptionIds = collect($selectedAddons)
+            ->flatMap(fn ($value) => $this->optionIds($value))
+            ->unique()
+            ->values()
+            ->all();
+
         $cart = Cart::firstOrCreate(
             ['session_id' => $sessionId, 'restaurant_id' => $restaurant->id],
             ['delivery_type' => DeliveryType::Delivery->value]
@@ -57,7 +102,7 @@ class AddItemToCart
         // Merge only into a line with the exact same variant AND addon set.
         $existing = CartItem::with('addons')
             ->where('cart_id', $cart->id)
-            ->where('product_id', $productId)
+            ->where('product_id', $product->id)
             ->where('product_variant_id', $variantId)
             ->get()
             ->first(function (CartItem $item) use ($addonOptionIds) {
@@ -73,7 +118,7 @@ class AddItemToCart
 
         $item = CartItem::create([
             'cart_id'            => $cart->id,
-            'product_id'         => $productId,
+            'product_id'         => $product->id,
             'product_variant_id' => $variantId,
             'quantity'           => $quantity,
             'notes'              => $notes,
@@ -87,5 +132,13 @@ class AddItemToCart
         }
 
         return $item;
+    }
+
+    /** @return int[] the non-empty, unique option ids of one group's selection */
+    private function optionIds(mixed $value): array
+    {
+        $values = is_array($value) ? $value : [$value];
+
+        return array_values(array_unique(array_map('intval', array_filter($values))));
     }
 }
