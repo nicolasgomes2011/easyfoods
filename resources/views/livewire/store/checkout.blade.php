@@ -2,6 +2,7 @@
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Computed;
 use Livewire\Volt\Component;
+use Illuminate\Validation\Rule;
 use App\Actions\Orders\PlaceOrder;
 use App\Enums\DeliveryType;
 use App\Models\Cart;
@@ -166,8 +167,11 @@ new #[Layout('components.layouts.customer')] class extends Component {
 
             // When the restaurant configured delivery zones, the customer must pick one
             // (it drives the delivery fee). With no zones configured, delivery is free.
+            // Only an active zone of this restaurant counts — never free delivery by accident.
             if ($this->deliveryZones->isNotEmpty()) {
-                $rules['deliveryZoneId'] = 'required|exists:delivery_zones,id';
+                $rules['deliveryZoneId'] = ['required', Rule::exists('delivery_zones', 'id')
+                    ->where('restaurant_id', $this->restaurant?->id)
+                    ->where('is_active', true)];
             }
         }
 
@@ -176,6 +180,13 @@ new #[Layout('components.layouts.customer')] class extends Component {
         }
 
         return $rules;
+    }
+
+    public function messages(): array
+    {
+        return [
+            'deliveryZoneId.exists' => 'Essa zona de entrega não está disponível. Escolha outra.',
+        ];
     }
 
     private function currentCart(): ?Cart
@@ -208,7 +219,8 @@ new #[Layout('components.layouts.customer')] class extends Component {
                 'customer_name'  => $this->customerName,
                 'customer_phone' => $this->customerPhone ?: null,
                 'notes'          => $this->notes ?: null,
-                'delivery_fee'   => $this->deliveryFee,
+                // The fee is computed by PlaceOrder from the zone, never taken from here.
+                'delivery_zone_id' => $this->deliveryZoneId ?: null,
                 'dining_table_id'=> $table?->id,
                 'table_number'   => $table?->number,
                 // Address

@@ -8,6 +8,7 @@ use App\Enums\OrderStatus;
 use App\Enums\TableSessionStatus;
 use App\Models\Cart;
 use App\Models\CartItem;
+use App\Models\DeliveryZone;
 use App\Models\DiningTable;
 use App\Models\Order;
 use App\Models\OrderItem;
@@ -36,7 +37,7 @@ class PlaceOrder
             });
 
             $deliveryFee = $deliveryType === DeliveryType::Delivery
-                ? (float) ($data['delivery_fee'] ?? 0)
+                ? $this->deliveryFee($restaurant, $data['delivery_zone_id'] ?? null)
                 : 0.0;
 
             $total = $subtotal + $deliveryFee;
@@ -166,6 +167,29 @@ class PlaceOrder
 
             return $order;
         });
+    }
+
+    /**
+     * Delivery fee computed on the server from the chosen zone. While the
+     * restaurant has active zones, the zone must be one of them — an inactive,
+     * foreign or missing zone is refused instead of becoming free delivery.
+     * With no active zones configured, delivery is free (same rule as checkout).
+     */
+    private function deliveryFee(Restaurant $restaurant, mixed $zoneId): float
+    {
+        $zones = DeliveryZone::where('restaurant_id', $restaurant->id)->active();
+
+        if (! (clone $zones)->exists()) {
+            return 0.0;
+        }
+
+        $zone = $zoneId ? $zones->whereKey($zoneId)->first() : null;
+
+        if (! $zone) {
+            throw new \RuntimeException('Escolha uma zona de entrega válida para este endereço.');
+        }
+
+        return (float) $zone->fee;
     }
 
     /**
