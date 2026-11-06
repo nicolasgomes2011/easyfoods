@@ -41,15 +41,17 @@ class PlaceOrder
 
             $total = $subtotal + $deliveryFee;
 
-            // Generate sequential order number
-            $lastNumber = (int) Order::where('restaurant_id', $restaurant->id)
+            // Generate sequential order number from the per-restaurant integer
+            // sequence (portable: no CAST, no max() over a string column).
+            $sequence = (int) Order::where('restaurant_id', $restaurant->id)
                 ->lockForUpdate()
-                ->max(DB::raw('CAST(number AS INTEGER)'));
+                ->max('sequence') + 1;
 
-            $number = str_pad($lastNumber + 1, 5, '0', STR_PAD_LEFT);
+            $number = str_pad((string) $sequence, 5, '0', STR_PAD_LEFT);
 
             $order = Order::create([
                 'number'          => $number,
+                'sequence'        => $sequence,
                 'restaurant_id'   => $restaurant->id,
                 'customer_id'     => $cart->customer_id,
                 'status'          => OrderStatus::PendingConfirmation,

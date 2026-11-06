@@ -26,6 +26,7 @@ class Order extends Model
 
     protected $fillable = [
         'number',
+        'sequence',
         'token',
         'restaurant_id',
         'customer_id',
@@ -56,6 +57,7 @@ class Order extends Model
     ];
 
     protected $casts = [
+        'sequence'      => 'integer',
         'status'        => OrderStatus::class,
         'delivery_type' => DeliveryType::class,
         'subtotal'      => 'decimal:2',

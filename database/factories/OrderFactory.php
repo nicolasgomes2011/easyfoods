@@ -18,9 +18,11 @@ class OrderFactory extends Factory
         $deliveryFee = $this->faker->randomElement([0, 5.00, 7.50, 10.00]);
         $discount    = 0;
         $total       = $subtotal + $deliveryFee - $discount;
+        $sequence    = self::$sequence++;
 
         return [
-            'number'         => str_pad(self::$sequence++, 5, '0', STR_PAD_LEFT),
+            'number'         => str_pad($sequence, 5, '0', STR_PAD_LEFT),
+            'sequence'       => $sequence,
             'restaurant_id'  => Restaurant::factory(),
             'customer_id'    => Customer::factory(),
             'status'         => OrderStatus::PendingConfirmation,
