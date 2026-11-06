@@ -2,13 +2,13 @@
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Computed;
 use Livewire\Volt\Component;
+use Illuminate\Validation\Rule;
 use App\Actions\Orders\PlaceOrder;
 use App\Enums\DeliveryType;
 use App\Models\Cart;
 use App\Models\DeliveryZone;
 use App\Models\DiningTable;
 use App\Models\Restaurant;
-use Illuminate\Validation\Rule;
 
 new #[Layout('components.layouts.customer')] class extends Component {
 
