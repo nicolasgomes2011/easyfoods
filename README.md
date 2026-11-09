@@ -161,6 +161,10 @@ Feature tests hit real HTTP routes (not just `Livewire::test()`) for anything ro
 guard-sensitive — several real bugs (missing auth guards, IDOR via enumerable order numbers, SQLite
 `HAVING` incompatibility) only surfaced under a real request, not the Livewire test harness.
 
+CI (`.github/workflows/tests.yml`) runs on every pull request and on pushes to `main`: a guard job
+(no `dd()`/`dump()`/`var_dump()`, no `docs/memory/` or `.env` tracked), then the full suite twice —
+SQLite `:memory:` and MySQL 8 — after `composer install` and `npm run build`, on PHP 8.4.
+
 ## Documentation map
 
 | Need | Where |
