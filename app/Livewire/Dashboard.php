@@ -49,18 +49,20 @@ class Dashboard extends Component
             ->count();
     }
 
+    /** Kitchen time only (start of preparation → ready); the wait for confirmation does not count. */
     #[Computed]
     public function avgPrepMinutes(): ?int
     {
         $orders = Order::where('restaurant_id', $this->rid())
+            ->whereNotNull('preparation_started_at')
             ->whereNotNull('ready_at')
             ->whereDate('ready_at', today())
-            ->get(['created_at', 'ready_at']);
+            ->get(['preparation_started_at', 'ready_at']);
 
         if ($orders->isEmpty()) return null;
 
         return (int) round($orders->avg(
-            fn ($o) => $o->created_at->diffInMinutes($o->ready_at)
+            fn ($o) => $o->preparation_started_at->diffInMinutes($o->ready_at)
         ));
     }
 

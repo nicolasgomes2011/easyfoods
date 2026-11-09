@@ -22,7 +22,9 @@ class TransitionOrderStatus
     /** Target status => milestone column on `orders`. Statuses without a column are omitted. */
     private const MILESTONES = [
         OrderStatus::Confirmed->value => 'confirmed_at',
+        OrderStatus::InPreparation->value => 'preparation_started_at',
         OrderStatus::ReadyForPickup->value => 'ready_at',
+        OrderStatus::OutForDelivery->value => 'out_for_delivery_at',
         OrderStatus::Delivered->value => 'delivered_at',
         OrderStatus::Completed->value => 'completed_at',
         OrderStatus::Canceled->value => 'canceled_at',

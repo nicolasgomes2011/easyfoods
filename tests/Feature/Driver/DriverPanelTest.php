@@ -88,6 +88,28 @@ class DriverPanelTest extends TestCase
         ]);
     }
 
+    public function test_en_route_orders_are_listed_by_departure_time_not_last_update(): void
+    {
+        $restaurant = $this->restaurant();
+        // Left first, but touched recently (e.g. a note edit) — must still come first.
+        $leftFirst = Order::factory()->for($restaurant)->create([
+            'status'              => OrderStatus::OutForDelivery,
+            'out_for_delivery_at' => now()->subMinutes(30),
+            'updated_at'          => now(),
+        ]);
+        $leftLater = Order::factory()->for($restaurant)->create([
+            'status'              => OrderStatus::OutForDelivery,
+            'out_for_delivery_at' => now()->subMinutes(10),
+            'updated_at'          => now()->subHour(),
+        ]);
+
+        $this->actingAs($this->driver());
+
+        $ids = Volt::test('driver.index')->instance()->outForDelivery->pluck('id')->all();
+
+        $this->assertSame([$leftFirst->id, $leftLater->id], $ids);
+    }
+
     public function test_driver_cannot_act_on_order_from_another_restaurant(): void
     {
         $restaurantA = $this->restaurant();

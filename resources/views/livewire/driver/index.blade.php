@@ -34,7 +34,8 @@ new #[Layout('components.layouts.app')] class extends Component {
         return Order::where('restaurant_id', $this->rid())
             ->where('status', OrderStatus::OutForDelivery->value)
             ->with('items')
-            ->orderBy('updated_at')
+            ->orderBy('out_for_delivery_at') // left first, listed first
+            ->orderBy('updated_at')          // tie-break for orders without the milestone
             ->get();
     }
 
