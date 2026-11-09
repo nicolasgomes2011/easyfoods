@@ -32,35 +32,46 @@ são 7 dias).
 
 ## 2. Capacidade (cota diária)
 1. Conte os cards do time EF que foram para **Done** nos últimos 7 dias (`completedAt`).
-2. Cota diária = esse número ÷ 7, arredondado, limitado entre **2** e **10** (10 é o máximo de ciclos de
-   card por dia do executor: das 08h às 17h).
-3. Primeira semana da rotina (não existe documento "Plano da semana" anterior) → cota **10**, a meta
-   do Nicolas. Nas semanas seguintes vale a medição.
-4. Se na semana anterior a rotina entregou menos da metade do planejado, use a média real mesmo que fique
-   bem abaixo da meta, e explique no documento.
+2. Cota diária = esse número ÷ 7, arredondado, limitado entre **2** e **8** (8 é o máximo do executor por
+   noite: até 4 cards no ciclo das 00h e até 4 no das 03h).
+3. Primeira semana da rotina (não existe documento "Plano da semana" anterior) → cota **8**, perto da meta
+   de 10 do Nicolas. Nas semanas seguintes vale a medição.
+4. Se na semana anterior a rotina entregou menos da metade do planejado, veja o motivo nos comentários dos
+   PRs e dos cards antes de baixar a cota:
+   - travas da própria rotina (merge bloqueado por permissão, PC desligado ou dormindo, ciclos pulados) →
+     **não** reduza: use a cota máxima (8) e explique no documento;
+   - cards travando de verdade (testes falhando, `precisa-decisao`, cards grandes demais) → use a média real,
+     mesmo que fique bem abaixo da meta, e explique no documento.
 
 ## 3. Fila
 1. Todos os cards abertos (Backlog, Todo, In Progress), **menos**: os com `precisa-decisao`, os
    bloqueados (algum `blockedBy` não concluído) e os em **In Review** (já têm PR; o executor faz o merge).
 2. **Roadmap sem card**: item `[ ]` ou `[~]` da fase ativa do `ROADMAP.md` que não tem card correspondente
-   → crie o card (Todo, label Feature ou Improvement, marco pela fase). No máximo **10** por semana.
+   → crie o card (Backlog, label Feature ou Improvement, marco pela fase). No máximo **10** por semana.
 3. **Tamanho** (pela descrição e pelo código que o card toca):
    - **P**: um ajuste localizado, 1–3 arquivos;
    - **M**: alguns arquivos e testes novos, sem mudar o modelo de dados;
    - **G**: migration, fluxo novo ou várias telas.
    - **Grande demais para um ciclo** (vários fluxos, ~15+ arquivos, ou critérios de aceite que são na
      verdade várias entregas): quebre em 2–4 sub-cards P/M com critérios de aceite próprios (card original
-     vira pai). Agende os sub-cards, não o pai.
-4. **Ordem**: prioridade (Urgent → High → Medium → Low) → marco (M0 → M3) → Bug antes de Improvement
-   antes de Feature → tamanho (P → M → G) → menor número EF. Card que bloqueia outros sobe para antes deles.
+     vira épico). Agende os sub-cards; o épico fica no Backlog, sem data.
+4. **Ordem**: Erro → Bug → Feature/Improvement; dentro de cada tipo: prioridade (Urgent → Low) → marco
+   (M0 → M3) → tamanho (P → M → G) → menor número EF. Card que bloqueia outros sobe para antes deles.
+5. **Marcos**: Feature/Improvement só entram na semana se forem do marco mais baixo que ainda tem cards
+   abertos ou do seguinte (hoje: M0 e M1). Os de marcos depois desses ficam no Backlog. Erro e Bug entram
+   sempre, de qualquer marco.
 
-## 4. Distribuir pelos dias
+## 4. Montar a semana
+A **data de entrega** do card é o **prazo** pelas regras do `CLAUDE.md` (Erro 1 dia, Bug 3 dias,
+Feature/Improvement 10 dias sem avanço), não o dia do plano. O dia do plano vai só no documento.
 1. Vagas = cota × dias do período.
-2. Primeiro os **atrasados** (data de entrega já passou e não estão Done), no dia de hoje.
-3. Depois a fila, dia a dia: cada card recebe `dueDate` = o dia. No máximo **2 cards G** por dia.
-4. Cards agendados que estão em **Backlog** → **Todo**.
-5. Cards que não couberem ficam **sem data**. Se tinham data dentro desta semana (de um plano antigo),
-   tire a data.
+2. Primeiro todos os **Erros** e **Bugs** abertos (mesmo que passem das vagas), depois a fila do passo 3.
+3. Distribua pelos dias **no documento** (no máximo **2 cards G** por dia), por ordem de prazo e depois da fila.
+4. Cards da semana que estão no **Backlog** → **Todo**. Feature/Improvement que entra no Todo agora recebe
+   prazo = **hoje + 10 dias**; Erro/Bug sem prazo recebe o da regra (se já passou, **hoje**).
+5. **Todo = só a semana**: Feature/Improvement no Todo que **não** entrou no plano desta semana e não
+   avançou nos últimos 10 dias → volta para o **Backlog** e perde a data. Erro e Bug nunca voltam.
+6. Épicos ficam no Backlog, sem data.
 6. Não mude prioridade, título ou descrição de card existente (exceto o card pai que você quebrou:
    só um comentário apontando os sub-cards).
 
@@ -69,7 +80,8 @@ Crie com a ferramenta de documentos disponível nesta sessão (Claude Docs; se n
 Drive do Nicolas; se nenhuma, só no relatório final). Conteúdo:
 - **Resumo**: pendências abertas, cota diária e como foi calculada, quantos cards cabem na semana e
   quantos ficam para depois.
-- **Uma seção por dia**: `EF-N — título — prioridade — tamanho — link`.
+- **Uma seção por dia**: `EF-N — título — tipo — prioridade — tamanho — prazo — link`.
+- **Prazos estourados**: cards com data de entrega antes de hoje, e o motivo.
 - **Precisa de você**: cards com `precisa-decisao` (motivo do último comentário) e PRs em revisão manual.
 - **Ficou para depois**: os 10 primeiros da fila que não couberam.
 - **Mudanças feitas pelo plano**: cards criados do roadmap, cards quebrados, datas removidas.
