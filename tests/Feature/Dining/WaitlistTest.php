@@ -109,6 +109,36 @@ class WaitlistTest extends TestCase
         $this->assertSame(DiningTableStatus::Occupied, $table->fresh()->status);
     }
 
+    public function test_seating_at_a_table_that_is_no_longer_free_keeps_the_entry_waiting(): void
+    {
+        $restaurant = Restaurant::factory()->create();
+        $occupied = $this->table($restaurant, 11, DiningTableStatus::Occupied);
+        $reserved = $this->table($restaurant, 12, DiningTableStatus::Reserved);
+        $entry = WaitlistEntry::factory()->for($restaurant)->create();
+
+        $this->actAsStaff();
+
+        // The picker was opened while the tables were free; another attendant
+        // (or a dine-in order) took them before "Confirmar".
+        foreach ([$occupied, $reserved] as $table) {
+            Volt::test('dining.queue')
+                ->call('openSeat', $entry->id)
+                ->set('tableId', (string) $table->id)
+                ->call('seat', $entry->id)
+                ->assertHasErrors(['tableId'])
+                ->assertSet('seatingId', $entry->id)
+                ->assertSet('tableId', '');
+
+            $entry->refresh();
+            $this->assertSame(WaitlistStatus::Waiting, $entry->status);
+            $this->assertNull($entry->dining_table_id);
+            $this->assertNull($entry->seated_at);
+        }
+
+        $this->assertSame(DiningTableStatus::Occupied, $occupied->fresh()->status);
+        $this->assertSame(DiningTableStatus::Reserved, $reserved->fresh()->status);
+    }
+
     public function test_seating_without_a_table_just_marks_seated(): void
     {
         $restaurant = Restaurant::factory()->create();

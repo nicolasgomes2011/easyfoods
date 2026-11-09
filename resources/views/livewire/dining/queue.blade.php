@@ -7,6 +7,7 @@ use App\Enums\WaitlistStatus;
 use App\Models\DiningTable;
 use App\Models\Restaurant;
 use App\Models\WaitlistEntry;
+use Illuminate\Support\Facades\DB;
 
 new #[Layout('components.layouts.app')] class extends Component {
 
@@ -81,27 +82,54 @@ new #[Layout('components.layouts.app')] class extends Component {
     {
         $this->seatingId = null;
         $this->tableId   = '';
+        $this->resetErrorBag('tableId');
     }
 
+    /**
+     * Seats the entry, optionally at a table. The picker list can be stale (two
+     * attendants, or a dine-in order from the store), so entry and table are
+     * re-read under a row lock and the table must still be free.
+     */
     public function seat(int $entryId): void
     {
-        $entry = $this->findEntry($entryId);
-        if (! $entry->isWaiting()) {
-            return; // stale button — another attendant already handled it
+        $this->resetErrorBag('tableId');
+
+        $rid = $this->rid();
+        $tableId = $this->tableId ? (int) $this->tableId : null;
+
+        $result = DB::transaction(function () use ($rid, $entryId, $tableId): string {
+            $entry = WaitlistEntry::where('restaurant_id', $rid)->lockForUpdate()->findOrFail($entryId);
+            if (! $entry->isWaiting()) {
+                return 'stale'; // another attendant already handled it
+            }
+
+            $table = $tableId
+                ? DiningTable::where('restaurant_id', $rid)->lockForUpdate()->findOrFail($tableId)
+                : null;
+
+            if ($table && $table->status !== DiningTableStatus::Free) {
+                return 'table_taken';
+            }
+
+            $entry->update([
+                'status'          => WaitlistStatus::Seated,
+                'dining_table_id' => $table?->id,
+                'seated_at'       => now(),
+            ]);
+
+            // Seating at a table occupies it (dining-room state).
+            $table?->update(['status' => DiningTableStatus::Occupied]);
+
+            return 'seated';
+        });
+
+        if ($result === 'table_taken') {
+            // Keep the picker open with a fresh list so the attendant can pick again.
+            $this->tableId = '';
+            $this->addError('tableId', 'Essa mesa já foi ocupada. Escolha outra mesa.');
+            unset($this->freeTables);
+            return;
         }
-
-        $table = $this->tableId
-            ? DiningTable::where('restaurant_id', $this->rid())->findOrFail((int) $this->tableId)
-            : null;
-
-        $entry->update([
-            'status'          => WaitlistStatus::Seated,
-            'dining_table_id' => $table?->id,
-            'seated_at'       => now(),
-        ]);
-
-        // Seating at a table occupies it (dining-room state).
-        $table?->update(['status' => DiningTableStatus::Occupied]);
 
         $this->cancelSeat();
         unset($this->waiting, $this->freeTables, $this->seatedTodayCount);
@@ -238,6 +266,9 @@ new #[Layout('components.layouts.app')] class extends Component {
                         class="text-xs text-zinc-400 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-xl px-4 py-2.5 transition">
                     Cancelar
                 </button>
+                @error('tableId')
+                <p class="w-full text-xs text-red-400">{{ $message }}</p>
+                @enderror
                 @if($this->freeTables->isEmpty())
                 <p class="w-full text-xs text-zinc-500">Nenhuma mesa livre agora — dá para sentar sem vincular mesa.</p>
                 @endif
