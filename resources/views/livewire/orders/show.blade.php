@@ -89,7 +89,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                 </div>
                 <p class="text-sm text-zinc-400 mt-0.5">
                     {{ $this->order->created_at->format('d/m/Y \à\s H:i') }}
-                    · {{ $this->order->delivery_type === DeliveryType::Delivery ? 'Delivery' : 'Retirada no balcão' }}
+                    · <x-orders.delivery-type :order="$this->order" />
                 </p>
             </div>
         </div>

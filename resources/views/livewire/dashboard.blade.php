@@ -204,7 +204,7 @@
                         <span class="text-xs font-mono text-zinc-500">#{{ $order->number }}</span>
                         <div>
                             <p class="text-sm font-medium text-white">
-                                {{ $order->delivery_type === \App\Enums\DeliveryType::Delivery ? 'Delivery' : 'Balcão' }}
+                                <x-orders.delivery-type :order="$order" />
                             </p>
                             <p class="text-xs text-zinc-500">{{ $order->created_at->diffForHumans() }}</p>
                         </div>
