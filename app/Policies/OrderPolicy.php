@@ -36,6 +36,12 @@ class OrderPolicy
         return $user->hasAnyRole(UserRole::Admin, UserRole::Manager, UserRole::Attendant);
     }
 
+    /** Register the customer's payment (front-of-house roles only). */
+    public function markPaid(User $user, Order $order): bool
+    {
+        return $user->hasAnyRole(UserRole::Admin, UserRole::Manager, UserRole::Attendant);
+    }
+
     public function transitionInKitchen(User $user, Order $order): bool
     {
         if ($order->isInFinalState()) {

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\PaymentMethod;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -85,5 +86,36 @@ class Restaurant extends Model
     public function getSetting(string $key, mixed $default = null): mixed
     {
         return $this->settings->firstWhere('key', $key)?->castValue() ?? $default;
+    }
+
+    /**
+     * Payment methods enabled in Settings › Payments, in display order.
+     * When none is enabled (settings never saved), every method is accepted.
+     *
+     * @return list<PaymentMethod>
+     */
+    public function acceptedPaymentMethods(): array
+    {
+        $settingKeys = [
+            PaymentMethod::Cash->value       => 'payment_cash',
+            PaymentMethod::Pix->value        => 'payment_pix',
+            PaymentMethod::CreditCard->value => 'payment_credit_card',
+            PaymentMethod::DebitCard->value  => 'payment_debit_card',
+            PaymentMethod::Voucher->value    => 'payment_meal_voucher',
+        ];
+
+        $all = array_map(fn (string $method) => PaymentMethod::from($method), array_keys($settingKeys));
+
+        $active = array_values(array_filter(
+            $all,
+            fn (PaymentMethod $method) => (bool) $this->getSetting($settingKeys[$method->value], false),
+        ));
+
+        return $active ?: $all;
+    }
+
+    public function acceptsPaymentMethod(PaymentMethod $method): bool
+    {
+        return in_array($method, $this->acceptedPaymentMethods(), true);
     }
 }

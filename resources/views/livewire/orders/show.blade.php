@@ -2,8 +2,10 @@
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 use App\Actions\Orders\TransitionOrderStatus;
+use App\Actions\Payments\MarkPaymentAsPaid;
 use App\Enums\DeliveryType;
 use App\Enums\OrderStatus;
+use App\Enums\PaymentStatus;
 use App\Models\Order;
 use Illuminate\Support\Facades\Gate;
 
@@ -58,6 +60,20 @@ new #[Layout('components.layouts.app')] class extends Component {
 
         $this->reloadOrder();
         $this->statusMessage = 'Pedido concluído.';
+    }
+
+    public function markAsPaid(MarkPaymentAsPaid $action): void
+    {
+        Gate::authorize('markPaid', $this->order);
+
+        $payment = $this->order->payment;
+        abort_unless($payment && $payment->status->canTransitionTo(PaymentStatus::Paid), 403);
+
+        // Payment only — the order status and its history stay as they are.
+        $action->execute($payment);
+
+        $this->reloadOrder();
+        $this->statusMessage = 'Pagamento registrado.';
     }
 
     public function canComplete(): bool
@@ -302,33 +318,7 @@ new #[Layout('components.layouts.app')] class extends Component {
 
             {{-- Payment --}}
             @if($this->order->payment)
-            <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
-                <h2 class="text-sm font-semibold text-white mb-4">Pagamento</h2>
-                <div class="space-y-2.5 text-sm">
-                    <div class="flex items-center justify-between">
-                        <span class="text-zinc-500">Método</span>
-                        <span class="text-zinc-300">{{ $this->order->payment->method->label() }}</span>
-                    </div>
-                    <div class="flex items-center justify-between">
-                        <span class="text-zinc-500">Status</span>
-                        @if($this->order->payment->isPaid())
-                        <span class="text-green-400 text-xs font-medium">Pago</span>
-                        @else
-                        <span class="text-yellow-400 text-xs font-medium">Pendente</span>
-                        @endif
-                    </div>
-                    <div class="flex items-center justify-between">
-                        <span class="text-zinc-500">Valor</span>
-                        <span class="text-zinc-200 tabular-nums">R$ {{ number_format($this->order->payment->amount, 2, ',', '.') }}</span>
-                    </div>
-                    @if($this->order->payment->paid_at)
-                    <div class="flex items-center justify-between">
-                        <span class="text-zinc-500">Pago em</span>
-                        <span class="text-zinc-400 text-xs">{{ $this->order->payment->paid_at->format('d/m/Y H:i') }}</span>
-                    </div>
-                    @endif
-                </div>
-            </div>
+            <x-orders.payment-card :order="$this->order" :payment="$this->order->payment" />
             @endif
 
         </div>

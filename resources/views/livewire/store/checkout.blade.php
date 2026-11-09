@@ -4,10 +4,13 @@ use Livewire\Attributes\Computed;
 use Livewire\Volt\Component;
 use App\Actions\Orders\PlaceOrder;
 use App\Enums\DeliveryType;
+use App\Enums\PaymentMethod;
 use App\Models\Cart;
 use App\Models\DeliveryZone;
 use App\Models\DiningTable;
 use App\Models\Restaurant;
+use App\Support\MoneyInput;
+use Illuminate\Validation\Rule;
 
 new #[Layout('components.layouts.customer')] class extends Component {
 
@@ -35,6 +38,7 @@ new #[Layout('components.layouts.customer')] class extends Component {
 
     // Payment
     public string $paymentMethod = 'cash';
+    public string $cashChangeFor = ''; // "Troco para quanto?" (cash only, optional)
 
     public ?string $error = null;
 
@@ -43,6 +47,11 @@ new #[Layout('components.layouts.customer')] class extends Component {
         $cart = $this->currentCart();
         if (! $cart || $cart->items()->count() === 0) {
             $this->redirect(route('store.cart'), navigate: true);
+        }
+
+        // Pre-select an enabled method (cash may be disabled in Settings › Payments).
+        if (! array_key_exists($this->paymentMethod, $this->acceptedPayments)) {
+            $this->paymentMethod = (string) array_key_first($this->acceptedPayments);
         }
     }
 
@@ -114,37 +123,19 @@ new #[Layout('components.layouts.customer')] class extends Component {
         return $this->subtotal + $this->deliveryFee;
     }
 
+    /** Methods enabled in Settings › Payments, keyed by PaymentMethod value. */
     #[Computed]
     public function acceptedPayments(): array
     {
         $restaurant = $this->restaurant;
         if (! $restaurant) return [];
 
-        $restaurant->load('settings');
-        $map = [
-            'cash'        => 'payment_cash',
-            'pix'         => 'payment_pix',
-            'credit_card' => 'payment_credit_card',
-            'debit_card'  => 'payment_debit_card',
-            'meal_voucher'=> 'payment_meal_voucher',
-        ];
-
-        $labels = [
-            'cash'        => 'Dinheiro',
-            'pix'         => 'Pix',
-            'credit_card' => 'Cartão de crédito',
-            'debit_card'  => 'Cartão de débito',
-            'meal_voucher'=> 'Vale-refeição',
-        ];
-
         $active = [];
-        foreach ($map as $key => $settingKey) {
-            if ($restaurant->getSetting($settingKey, false)) {
-                $active[$key] = $labels[$key];
-            }
+        foreach ($restaurant->acceptedPaymentMethods() as $method) {
+            $active[$method->value] = $method->label();
         }
 
-        return $active ?: $labels;
+        return $active;
     }
 
     public function rules(): array
@@ -153,9 +144,13 @@ new #[Layout('components.layouts.customer')] class extends Component {
             'customerName'  => 'required|string|max:100',
             'customerPhone' => 'nullable|string|max:20',
             'deliveryType'  => 'required|in:delivery,pickup,dine_in',
-            'paymentMethod' => 'required|string',
+            'paymentMethod' => ['required', 'string', Rule::in(array_keys($this->acceptedPayments))],
             'notes'         => 'nullable|string|max:500',
         ];
+
+        if ($this->paymentMethod === PaymentMethod::Cash->value) {
+            $rules['cashChangeFor'] = 'nullable|numeric|min:' . round($this->total, 2);
+        }
 
         if ($this->deliveryType === 'delivery') {
             $rules['street']       = 'required|string|max:150';
@@ -178,6 +173,15 @@ new #[Layout('components.layouts.customer')] class extends Component {
         return $rules;
     }
 
+    public function messages(): array
+    {
+        return [
+            'paymentMethod.in'  => 'Esta forma de pagamento não está disponível.',
+            'cashChangeFor.numeric' => 'Informe o valor do troco em reais, ex.: 50,00.',
+            'cashChangeFor.min' => 'O valor para troco precisa ser maior ou igual ao total do pedido.',
+        ];
+    }
+
     private function currentCart(): ?Cart
     {
         $restaurant = Restaurant::first();
@@ -190,7 +194,10 @@ new #[Layout('components.layouts.customer')] class extends Component {
     public function placeOrder(): void
     {
         $this->error = null;
+        $this->cashChangeFor = MoneyInput::normalize($this->cashChangeFor);
         $this->validate();
+
+        $paysCash = $this->paymentMethod === PaymentMethod::Cash->value;
 
         $cart = $this->currentCart();
         if (! $cart) {
@@ -219,6 +226,9 @@ new #[Layout('components.layouts.customer')] class extends Component {
                 'city'           => $this->city ?: null,
                 'state'          => $this->state ?: null,
                 'zip'            => $this->zip ?: null,
+                // Payment
+                'payment_method' => $this->paymentMethod,
+                'cash_tendered'  => $paysCash && $this->cashChangeFor !== '' ? (float) $this->cashChangeFor : null,
             ]);
 
             $this->redirect(route('store.order.tracking', $order->token), navigate: true);
@@ -311,19 +321,7 @@ new #[Layout('components.layouts.customer')] class extends Component {
             </div>
 
             {{-- Pagamento --}}
-            <div class="bg-white border border-zinc-200 rounded-2xl p-5">
-                <h2 class="text-sm font-semibold text-zinc-700 mb-3">Forma de pagamento</h2>
-                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    @foreach($this->acceptedPayments as $key => $label)
-                    <label class="cursor-pointer">
-                        <input type="radio" wire:model="paymentMethod" value="{{ $key }}" class="sr-only peer" />
-                        <div class="border-2 rounded-xl px-2.5 py-2 text-sm text-center transition peer-checked:border-orange-500 peer-checked:bg-orange-50 peer-checked:text-orange-600 border-zinc-200 text-zinc-600">
-                            {{ $label }}
-                        </div>
-                    </label>
-                    @endforeach
-                </div>
-            </div>
+            <x-store.checkout-payment :methods="$this->acceptedPayments" :selected="$paymentMethod" />
         </div>
 
         {{-- Order summary sidebar --}}
