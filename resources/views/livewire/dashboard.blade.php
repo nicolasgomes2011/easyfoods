@@ -240,7 +240,7 @@
             <div class="px-5 py-4 space-y-1">
                 @foreach($kitchenQueue as $item)
                 @php
-                    $minutesAgo = \Carbon\Carbon::parse($item->oldest_at)->diffInMinutes(now());
+                    $minutesAgo = (int) \Carbon\Carbon::parse($item->oldest_at)->diffInMinutes(now());
                     $urgent     = $minutesAgo >= 20;
                 @endphp
                 <div class="flex items-center justify-between py-2.5 border-b border-zinc-800/60 last:border-0">

@@ -101,7 +101,7 @@ new #[Layout('components.layouts.app')] class extends Component {
         @foreach($this->orders as $order)
         @php
             $color   = collect($this->buckets)->firstWhere('status', $order->status)['color'] ?? 'gray';
-            $minutes = $order->created_at->diffInMinutes(now());
+            $minutes = (int) $order->created_at->diffInMinutes(now());
             $late    = $minutes > 30;
         @endphp
         <a href="{{ route('admin.orders.show', $order) }}" wire:navigate

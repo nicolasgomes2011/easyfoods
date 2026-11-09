@@ -198,7 +198,9 @@ class Dashboard extends Component
             ->get(['orders.number', 'osh.changed_at as prep_started_at']);
 
         foreach ($delayed as $order) {
-            $minutes = (int) now()->diffInMinutes($order->prep_started_at);
+            // Carbon 3: diffInMinutes() is signed (target − origin) and float,
+            // so go past → now and cast to whole minutes.
+            $minutes = (int) \Illuminate\Support\Carbon::parse($order->prep_started_at)->diffInMinutes(now());
             $result[] = [
                 'level'   => 'error',
                 'title'   => "Pedido #{$order->number} atrasado",
