@@ -34,9 +34,9 @@ class DashboardBlocksTest extends TestCase
     public function test_dashboard_renders_the_new_blocks_on_the_real_route(): void
     {
         Restaurant::factory()->create();
-        $this->actingAs(User::factory()->create());
+        $this->actingAs(User::factory()->create(['role' => \App\Enums\UserRole::Admin]));
 
-        $this->get('/dashboard')
+        $this->get('/admin/dashboard')
             ->assertOk()
             ->assertSee('Salão agora')
             ->assertSee('Entregas')
@@ -107,14 +107,14 @@ class DashboardBlocksTest extends TestCase
             'created_at' => today()->addHours(9),
         ]);
 
-        $this->actingAs(User::factory()->create());
+        $this->actingAs(User::factory()->create(['role' => \App\Enums\UserRole::Admin]));
 
         $comparisons = Livewire::test(Dashboard::class)->instance()->comparisons;
         $this->assertNull($comparisons['orders']['yesterday']);
         $this->assertNull($comparisons['revenue']['yesterday']);
 
         // Division-by-zero guard renders no badge at all.
-        $this->get('/dashboard')->assertOk()->assertDontSee('vs ontem');
+        $this->get('/admin/dashboard')->assertOk()->assertDontSee('vs ontem');
     }
 
     public function test_dashboard_blocks_are_scoped_to_the_panel_restaurant(): void

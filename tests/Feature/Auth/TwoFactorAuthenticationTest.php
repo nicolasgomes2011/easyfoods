@@ -47,7 +47,7 @@ class TwoFactorAuthenticationTest extends TestCase
             ->set('password', 'password')
             ->call('login')
             ->assertHasNoErrors()
-            ->assertRedirect(route('dashboard', absolute: false));
+            ->assertRedirect(route('admin.dashboard', absolute: false));
 
         $this->assertAuthenticated();
     }
@@ -68,7 +68,7 @@ class TwoFactorAuthenticationTest extends TestCase
         LivewireVolt::test('auth.two-factor-challenge')
             ->set('code', $validCode)
             ->call('verify')
-            ->assertRedirect(route('dashboard', absolute: false));
+            ->assertRedirect(route('admin.dashboard', absolute: false));
 
         $this->assertAuthenticated();
         $this->assertFalse(Session::has('two_factor_login_id'));
@@ -106,7 +106,7 @@ class TwoFactorAuthenticationTest extends TestCase
             ->set('useRecoveryCode', true)
             ->set('code', $recoveryCodes[0])
             ->call('verify')
-            ->assertRedirect(route('dashboard', absolute: false));
+            ->assertRedirect(route('admin.dashboard', absolute: false));
 
         $this->assertAuthenticated();
         $this->assertFalse(Session::has('two_factor_login_id'));
