@@ -250,30 +250,8 @@ new #[Layout('components.layouts.customer')] class extends Component {
 
         <div class="lg:col-span-2 space-y-5">
 
-            @if($this->seatedTable)
-            <x-store.checkout-table :table="$this->seatedTable" :kiosk="$this->kiosk" />
-            @else
-            {{-- Tipo de entrega --}}
-            <div class="bg-white border border-zinc-200 rounded-2xl p-5">
-                <h2 class="text-sm font-semibold text-zinc-700 mb-3">Como quer receber?</h2>
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    @foreach([
-                        ['value' => 'delivery', 'label' => 'Delivery',     'show' => $this->restaurant?->accepts_delivery],
-                        ['value' => 'pickup',   'label' => 'Retirada',     'show' => $this->restaurant?->accepts_pickup],
-                        ['value' => 'dine_in',  'label' => 'Mesa (salão)', 'show' => $this->restaurant?->accepts_dine_in],
-                    ] as $type)
-                    @if($type['show'])
-                    <label class="relative cursor-pointer">
-                        <input type="radio" wire:model.live="deliveryType" value="{{ $type['value'] }}" class="sr-only peer" />
-                        <div class="border-2 rounded-xl px-3 py-2.5 text-sm text-center transition peer-checked:border-orange-500 peer-checked:text-orange-600 peer-checked:bg-orange-50 border-zinc-200 text-zinc-600 hover:border-zinc-300">
-                            {{ $type['label'] }}
-                        </div>
-                    </label>
-                    @endif
-                    @endforeach
-                </div>
-            </div>
-            @endif
+            {{-- Tipo de entrega (ou mesa fixa no modo mesa do QR Code) --}}
+            <x-store.checkout-delivery-type :restaurant="$this->restaurant" :table="$this->seatedTable" :kiosk="$this->kiosk" />
 
             {{-- Endereço (delivery only) --}}
             @if($deliveryType === 'delivery')
