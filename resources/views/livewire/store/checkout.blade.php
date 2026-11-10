@@ -10,6 +10,7 @@ use App\Models\DiningTable;
 use App\Models\Restaurant;
 
 new #[Layout('components.layouts.customer')] class extends Component {
+    use \App\Livewire\Concerns\ChecksOutAtTable; // table QR code mode (/mesa/{uuid})
 
     public string $deliveryType = 'delivery';
 
@@ -198,6 +199,11 @@ new #[Layout('components.layouts.customer')] class extends Component {
             return;
         }
 
+        if ($reason = $this->pinSeatedTable()) { // table mode: reserved table / dine-in off
+            $this->error = $reason;
+            return;
+        }
+
         $table = $this->deliveryType === 'dine_in'
             ? DiningTable::find($this->tableId)
             : null;
@@ -244,6 +250,9 @@ new #[Layout('components.layouts.customer')] class extends Component {
 
         <div class="lg:col-span-2 space-y-5">
 
+            @if($this->seatedTable)
+            <x-store.checkout-table :table="$this->seatedTable" :kiosk="$this->kiosk" />
+            @else
             {{-- Tipo de entrega --}}
             <div class="bg-white border border-zinc-200 rounded-2xl p-5">
                 <h2 class="text-sm font-semibold text-zinc-700 mb-3">Como quer receber?</h2>
@@ -264,6 +273,7 @@ new #[Layout('components.layouts.customer')] class extends Component {
                     @endforeach
                 </div>
             </div>
+            @endif
 
             {{-- Endereço (delivery only) --}}
             @if($deliveryType === 'delivery')
@@ -271,7 +281,7 @@ new #[Layout('components.layouts.customer')] class extends Component {
             @endif
 
             {{-- Mesa (dine-in only) --}}
-            @if($deliveryType === 'dine_in')
+            @if($deliveryType === 'dine_in' && ! $this->seatedTable)
             <div class="bg-white border border-zinc-200 rounded-2xl p-5">
                 <h2 class="text-sm font-semibold text-zinc-700 mb-3">Selecione sua mesa</h2>
                 @if($this->tables->isEmpty())
