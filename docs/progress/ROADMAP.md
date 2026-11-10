@@ -7,9 +7,10 @@
 >
 > Cross-cutting work is tracked in [ADJUSTMENTS.md](ADJUSTMENTS.md) (cleanup of fake data, route layer, env) and [TESTING_ROADMAP.md](TESTING_ROADMAP.md) (test coverage).
 
-**Last reconciled against the code: 2026-10-07** (`main` @ `cfb4f79` + `fix/livewire-upgrade`, 220 tests). Checkboxes below
+**Last reconciled against the code: 2026-11-10** (`main` @ `a7778c0`, 242 tests). Checkboxes below
 were re-derived from the actual source, not from the previous plan — where the shipped behavior differs from
-what a bullet specced, the bullet says so instead of being silently ticked.
+what a bullet specced, the bullet says so instead of being silently ticked. Open items link the Linear card
+(`EF-x`, team EasyFoods) that carries them; a card with an open pull request is still `[ ]`/`[~]` here until it is merged.
 
 ---
 
@@ -29,10 +30,10 @@ Mission: remove every piece of demo/fake data so the panel reflects only what wa
 Core infrastructure. Nothing works without this.
 
 - [x] Authentication: login, register, password reset, email verification, 2FA (Volt)
-- [x] Role & permission middleware (`admin`, `manager`, `attendant`, `kitchen`, `delivery`)
+- [x] Role & permission middleware (`admin`, `manager`, `attendant`, `kitchen`, `delivery`) — single access matrix for menu + routes + home screen per role: EF-10
 - [x] Database schema: restaurants, users, customers, products, categories, addons, variants, carts, orders, order items, payments, status history, dining tables, operating hours, delivery zones, store settings
 - [x] Base Livewire layout (`components.layouts.app`) for the restaurant panel
-- [~] Multi-tenant scoping (restaurant_id) enforced at query level — applied **explicitly per query** (`where('restaurant_id', Restaurant::query()->value('id'))`) across catalog/orders/kitchen/dining/driver. A global scope or policy is not implemented yet
+- [~] Multi-tenant scoping (restaurant_id) enforced at query level — applied **explicitly per query** (`where('restaurant_id', Restaurant::query()->value('id'))`) across catalog/orders/kitchen/dining/driver. A global scope or policy is not implemented yet (EF-2, EF-8)
 - [x] Customer-facing layout (`components.layouts.customer`, mobile-first)
 - [~] Driver-facing layout — driver panel reuses the admin/app layout; no dedicated driver shell yet
 
@@ -107,11 +108,11 @@ The customer browses the menu, customizes items, and places an order from their 
 
 ### 3.2 — Storefront & Menu
 - [x] Public storefront route (no auth) — shipped as `GET /store/menu`, see drift note above
-- [~] Restaurant header — logo + cart link only; **open/closed status and hours are not shown**
-- [~] Category navigation — sticky pill tabs that filter server-side (`wire:click`), not smooth-scroll to section anchors
+- [~] Restaurant header — logo + cart link only; **open/closed status and hours are not shown** (EF-54)
+- [~] Category navigation — sticky pill tabs that filter server-side (`wire:click`), not smooth-scroll to section anchors (EF-56)
 - [x] Product grid per category: image, name, price, "Adicionar" button
-- [ ] Unavailable products greyed out with label (never hidden) — **diverges: the menu query calls `->available()`, so paused products are hidden entirely**
-- [ ] Quick search (client-side Alpine filter, no reload)
+- [ ] Unavailable products greyed out with label (never hidden) — **diverges: the menu query calls `->available()`, so paused products are hidden entirely** (EF-55)
+- [ ] Quick search (client-side Alpine filter, no reload) (EF-57)
 - [x] Empty state when restaurant has no products
 
 ### 3.3 — Product Detail & Cart
@@ -121,14 +122,14 @@ The customer browses the menu, customizes items, and places an order from their 
 - [x] Cart (session-based for guests): add, update qty, remove item, order notes
 - [x] Floating cart button with item count (`cartItemCount()`)
 - [x] Cart page with item list, totals and checkout CTA (full page, not a drawer/overlay)
-- [ ] Clear cart with confirmation
+- [ ] Clear cart with confirmation (EF-58)
 
 ### 3.4 — Dine-In via QR / Tablet
 > **Partially built: the data model is complete, the customer entry point is not.** Dine-in ordering works
-> today by picking a table in checkout; the QR/kiosk flow does not exist.
-- [ ] QR code link: `GET /mesa/{table:uuid}` → stores `table_id` in session → redirects to storefront
-- [ ] Storefront auto-detects table session → sets order type to DineIn, shows table number
-- [ ] Kiosk mode: `?kiosk=1` URL param locks order type to DineIn, hides delivery/pickup option
+> today by picking a table in checkout; the QR/kiosk flow does not exist. QR codes in the admin: EF-35; customer QR / kiosk flow: EF-34.
+- [ ] QR code link: `GET /mesa/{table:uuid}` → stores `table_id` in session → redirects to storefront (EF-34)
+- [ ] Storefront auto-detects table session → sets order type to DineIn, shows table number (EF-34)
+- [ ] Kiosk mode: `?kiosk=1` URL param locks order type to DineIn, hides delivery/pickup option (EF-34)
 - [ ] "Chamar Garçom" button (shown only in dine-in session): creates `waiter_call` record — the `CreateWaiterCall` action exists but is not wired to any UI yet
 - [x] Restaurant panel: waiter call widget with table number + acknowledge action (lives in the kitchen panel, `kitchen.index`) — currently unreachable in practice, since no call can be created
 
@@ -139,15 +140,15 @@ The customer browses the menu, customizes items, and places an order from their 
 - [x] Pickup: no address needed, no fee
 - [x] Guest info: name + phone
 - [x] Order notes field
-- [~] Server-side validation at placement: total recalculated, products verified available/not-archived, required addons enforced — **"restaurant must be open" is not checked**
+- [~] Server-side validation at placement: total recalculated, products verified available/not-archived, required addons enforced — **"restaurant must be open" is not checked** (EF-5)
 - [x] `PlaceOrder` action: creates order with `pending_confirmation`, writes `order_status_histories`, sets `order.token`, clears cart, occupies the table and opens/joins its session for dine-in
 - [x] Order confirmation → redirect to the tracking link by `token`
 
 ### 3.6 — Order Tracking (Customer)
 - [x] Public tracking route resolved by `orders.token`, not the enumerable order number (no auth) — `GET /store/order/{token}`
 - [x] Status steps visualization: Recebido → Confirmado → Em preparo → Pronto → Entregue
-- [ ] Each completed step shows exact timestamp
-- [ ] Live countdown: "Pronto às HH:MM" — not built yet. The page itself now refreshes every 10s (`wire:poll.10s`) and stops polling once the order reaches a final status
+- [ ] Each completed step shows exact timestamp (EF-16)
+- [ ] Live countdown: "Pronto às HH:MM" (EF-15) — not built yet. The page itself now refreshes every 10s (`wire:poll.10s`) and stops polling once the order reaches a final status
 - [ ] Delay message when ETA shifts: "Está demorando um pouco mais, novo horário: HH:MM"
 - [x] Shareable link (guest-safe, no login required)
 
@@ -173,7 +174,7 @@ Orders flow from customer to kitchen to delivery.
 - [x] Polling refresh (30s) — `wire:poll.30s` on the component root (same on in-progress orders, waitlist queue and driver queue)
 - [x] Mark order as `in_preparation` — `TransitionOrderStatus` action (kitchen role)
 - [x] Mark order as `ready` (`ready_for_pickup`) — `TransitionOrderStatus` action (kitchen role)
-- [ ] Per-order live countdown timer
+- [ ] Per-order live countdown timer (EF-15)
 - [ ] Item-level checklist (check off each item)
 - [ ] Audio alert on new order
 - [ ] Filter view (dine-in / delivery / pickup)
@@ -214,8 +215,8 @@ The driver receives, accepts, and delivers orders.
 
 The system learns from historical data to produce accurate estimates.
 
-- [ ] Collect prep time per product (capture `created_at` → `ready_at`)
-- [ ] Dynamic prep time calculation (historical average)
+- [ ] Collect prep time per product (capture `created_at` → `ready_at`) — preparation / departure milestones: EF-14
+- [ ] Dynamic prep time calculation (historical average) — base prep time per product first: EF-15
 - [ ] Delivery ETA based on distance + demand
 - [ ] ETA recalculation as orders progress
 

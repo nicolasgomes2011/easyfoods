@@ -1,6 +1,7 @@
 # Realtime Notifications
 
-**Status:** 🔴 Not Started
+**Status:** 🟡 In Progress
+**Current state (2026-11-10):** Polling only: 30s on the operational panels, 10s on customer tracking. Broadcasting (Reverb / Pusher) is not started. See [ROADMAP](ROADMAP.md).
 **Phase:** 4 — Kitchen & Order Flow
 
 ## Description

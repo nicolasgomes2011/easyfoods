@@ -1,6 +1,7 @@
 # Kitchen Panel
 
-**Status:** 🔴 Not Started
+**Status:** 🟡 In Progress
+**Current state (2026-11-10):** Queue with counters, 30s polling and the "start" / "ready" actions (via `TransitionOrderStatus`) are on `main`. Countdown, item checklist, audio alert and filters are not started. See [ROADMAP](ROADMAP.md).
 **Phase:** 4 — Kitchen & Order Flow
 
 ## Description

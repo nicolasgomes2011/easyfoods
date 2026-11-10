@@ -1,6 +1,7 @@
 # Order Tracking (Customer)
 
-**Status:** 🔴 Not Started
+**Status:** 🟡 In Progress
+**Current state (2026-11-10):** Tracking by `orders.token` with status steps and 10s polling is on `main`. Step timestamps (EF-16) and the live countdown (EF-15) are open. See [ROADMAP](ROADMAP.md).
 **Phase:** 5 — Order Tracking
 
 ## Description

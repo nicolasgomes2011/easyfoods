@@ -1,6 +1,7 @@
 # Delivery Driver Panel
 
-**Status:** 🔴 Not Started
+**Status:** 🟡 In Progress
+**Current state (2026-11-10):** Shared ready-for-pickup queue with "pick up" and "delivered" (via `TransitionOrderStatus`) is on `main`. No per-driver assignment, decline or availability toggle yet. Payment / change info for the driver is EF-60. See [ROADMAP](ROADMAP.md).
 **Phase:** 6 — Delivery Driver
 
 ## Description
