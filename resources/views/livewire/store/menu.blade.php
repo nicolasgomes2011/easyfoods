@@ -35,9 +35,11 @@ new #[Layout('components.layouts.customer')] class extends Component {
     public function categories()
     {
         if (! $this->restaurant) return collect();
+        // A tab shows while the category has any non-archived product: paused
+        // ones stay on the menu (greyed out), so the category stays too.
         return Category::where('restaurant_id', $this->restaurant->id)
             ->active()->ordered()
-            ->whereHas('products', fn ($q) => $q->where('availability_status', 'available')->whereNull('archived_at'))
+            ->whereHas('products', fn ($q) => $q->notArchived())
             ->get();
     }
 
@@ -46,8 +48,9 @@ new #[Layout('components.layouts.customer')] class extends Component {
     {
         if (! $this->restaurant) return collect();
 
+        // Paused / out-of-stock products are listed (greyed out, no add action);
+        // only archived ones are hidden. Ordering stays fenced by modalProduct().
         $query = Product::where('restaurant_id', $this->restaurant->id)
-            ->available()
             ->notArchived()
             ->with(['category', 'variants'])
             ->ordered();
