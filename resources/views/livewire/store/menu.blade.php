@@ -217,6 +217,17 @@ new #[Layout('components.layouts.customer')] class extends Component {
             @endif
             <span>{{ $this->restaurant->min_order_minutes }}–{{ $this->restaurant->max_order_minutes }} min</span>
         </div>
+
+        {{-- Open / closed now + today's hours --}}
+        @php($todayHours = $this->restaurant->hoursOn())
+        <div class="flex flex-wrap items-center gap-2 mt-2 text-xs">
+            @if($this->restaurant->isOpenAt())
+            <span data-store-status="open" class="rounded-full bg-green-100 px-2.5 py-0.5 font-semibold text-green-700">Aberto</span>
+            @else
+            <span data-store-status="closed" class="rounded-full bg-zinc-200 px-2.5 py-0.5 font-semibold text-zinc-600">Fechado</span>
+            @endif
+            <span class="text-zinc-500">{{ $todayHours?->isOpenDay() ? 'Hoje: '.$todayHours->rangeLabel() : 'Fechado hoje' }}</span>
+        </div>
     </div>
 
     {{-- Category tabs --}}
