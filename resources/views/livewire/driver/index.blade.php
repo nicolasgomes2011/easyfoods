@@ -53,10 +53,30 @@ new #[Layout('components.layouts.app')] class extends Component {
             ->get();
     }
 
-    /** Deliveries nobody owns yet, minus the ones this driver declined. */
+    /** On pause the driver gets no offers ("Disponíveis" stays empty) but keeps "Minhas entregas". */
+    #[Computed]
+    public function onPause(): bool
+    {
+        return ! auth()->user()?->is_available;
+    }
+
+    public function toggleAvailability(): void
+    {
+        $driver = auth()->user();
+        $driver->update(['is_available' => ! $driver->is_available]);
+
+        $this->error = null;
+        unset($this->onPause, $this->available);
+    }
+
+    /** Deliveries nobody owns yet, minus the ones this driver declined. None while on pause. */
     #[Computed]
     public function available()
     {
+        if ($this->onPause) {
+            return collect();
+        }
+
         return Order::availableForDelivery($this->rid())
             ->whereDoesntHave('deliveryDeclines', fn ($query) => $query->where('user_id', auth()->id()))
             ->with('items')
@@ -125,10 +145,25 @@ new #[Layout('components.layouts.app')] class extends Component {
                 {{ $this->available->count() }} disponíveis
             </p>
         </div>
-        <span class="inline-flex items-center gap-1.5 text-xs text-orange-400 bg-orange-400/10 border border-orange-400/20 rounded-lg px-3 py-1.5">
-            <span class="size-1.5 rounded-full bg-orange-400 animate-pulse"></span>
-            Atualiza a cada 30s
-        </span>
+        <div class="flex items-center gap-2">
+            {{-- Availability: on pause = no delivery offers --}}
+            <button wire:click="toggleAvailability"
+                    wire:loading.attr="disabled"
+                    wire:target="toggleAvailability"
+                    aria-pressed="{{ $this->onPause ? 'false' : 'true' }}"
+                    title="{{ $this->onPause ? 'Voltar a receber entregas' : 'Pausar: parar de receber entregas' }}"
+                    class="inline-flex items-center gap-1.5 text-xs font-semibold rounded-lg px-3 py-1.5 border transition disabled:opacity-50
+                           {{ $this->onPause
+                               ? 'text-zinc-300 bg-zinc-800 border-zinc-700 hover:bg-zinc-700'
+                               : 'text-green-400 bg-green-400/10 border-green-400/20 hover:bg-green-400/15' }}">
+                <span class="size-1.5 rounded-full {{ $this->onPause ? 'bg-zinc-500' : 'bg-green-400' }}"></span>
+                {{ $this->onPause ? 'Em pausa' : 'Disponível' }}
+            </button>
+            <span class="inline-flex items-center gap-1.5 text-xs text-orange-400 bg-orange-400/10 border border-orange-400/20 rounded-lg px-3 py-1.5">
+                <span class="size-1.5 rounded-full bg-orange-400 animate-pulse"></span>
+                Atualiza a cada 30s
+            </span>
+        </div>
     </div>
 
     @if($error)
@@ -185,7 +220,12 @@ new #[Layout('components.layouts.app')] class extends Component {
     <div>
         <h2 class="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3">Disponíveis</h2>
 
-        @if($this->available->isEmpty())
+        @if($this->onPause)
+        <div class="bg-zinc-900 border border-zinc-800 border-dashed rounded-xl px-5 py-12 text-center">
+            <p class="text-zinc-400 text-sm">Você está em pausa e não recebe novas entregas.</p>
+            <p class="text-zinc-500 text-xs mt-1">Toque em "Em pausa" no topo para ficar disponível.</p>
+        </div>
+        @elseif($this->available->isEmpty())
         <div class="bg-zinc-900 border border-zinc-800 border-dashed rounded-xl px-5 py-12 text-center">
             <p class="text-zinc-500 text-sm">Nenhum pedido disponível para entrega.</p>
         </div>

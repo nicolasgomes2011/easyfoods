@@ -11,11 +11,16 @@ use Illuminate\Validation\ValidationException;
  * A driver turns down a delivery from "Disponíveis". The decline is recorded
  * (once per order + driver) and the order stays available to the other drivers;
  * the panel only hides it from who declined. No driver is set.
+ * A driver on pause gets no offers, so there is nothing to decline.
  */
 class DeclineDelivery
 {
     public function execute(?int $restaurantId, int $orderId, User $driver): void
     {
+        if (! $driver->is_available) {
+            throw ValidationException::withMessages(['order' => AcceptDelivery::ON_PAUSE_MESSAGE]);
+        }
+
         $order = Order::query()
             ->whereKey($orderId)
             ->availableForDelivery($restaurantId)

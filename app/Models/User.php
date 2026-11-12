@@ -20,9 +20,15 @@ class User extends Authenticatable
         'password',
         'role',
         'is_active',
+        'is_available',
         'two_factor_secret',
         'two_factor_recovery_codes',
         'two_factor_enabled',
+    ];
+
+    /** Same default as the column, so a fresh model knows it before being reloaded. */
+    protected $attributes = [
+        'is_available' => true,
     ];
 
     protected $hidden = [
@@ -39,6 +45,8 @@ class User extends Authenticatable
             'password'           => 'hashed',
             'two_factor_enabled' => 'boolean',
             'is_active'          => 'boolean',
+            // Driver panel: false = on pause, gets no delivery offers.
+            'is_available'       => 'boolean',
             'role'               => UserRole::class,
         ];
     }
