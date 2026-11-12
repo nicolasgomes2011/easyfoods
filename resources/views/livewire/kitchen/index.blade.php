@@ -3,7 +3,6 @@ use Livewire\Attributes\Layout;
 use Livewire\Attributes\Computed;
 use Livewire\Volt\Component;
 use App\Enums\OrderStatus;
-use App\Enums\DeliveryType;
 use App\Enums\WaiterCallStatus;
 use App\Models\Order;
 use App\Support\CurrentRestaurant;
@@ -157,7 +156,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                         #{{ $order->number }}
                     </span>
                     <span class="text-xs text-zinc-400">
-                        {{ $order->delivery_type === DeliveryType::Delivery ? 'Delivery' : 'Balcão' }}
+                        <x-orders.delivery-type :order="$order" />
                     </span>
                     @if($inPrep)
                     <span class="text-[10px] font-semibold text-orange-400 bg-orange-400/10 border border-orange-400/20 rounded-full px-1.5 py-0.5">

@@ -3,7 +3,6 @@ use Livewire\Attributes\Layout;
 use Livewire\Attributes\Computed;
 use Livewire\Volt\Component;
 use App\Enums\OrderStatus;
-use App\Enums\DeliveryType;
 use App\Models\Order;
 use App\Support\CurrentRestaurant;
 
@@ -111,7 +110,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                 <div>
                     <p class="text-sm font-medium text-white">{{ $order->customer_name ?: '—' }}</p>
                     <p class="text-xs text-zinc-500">
-                        {{ $order->delivery_type === DeliveryType::Delivery ? 'Delivery' : 'Balcão' }}
+                        <x-orders.delivery-type :order="$order" />
                         · há {{ $minutes }} min
                     </p>
                 </div>
