@@ -6,6 +6,7 @@ use App\Enums\DeliveryType;
 use App\Enums\DiningTableStatus;
 use App\Enums\OrderStatus;
 use App\Enums\TableSessionStatus;
+use App\Exceptions\OrderNotPlaceable;
 use App\Models\Cart;
 use App\Models\CartItem;
 use App\Models\DeliveryZone;
@@ -22,14 +23,25 @@ class PlaceOrder
     public function handle(Cart $cart, array $data): Order
     {
         return DB::transaction(function () use ($cart, $data) {
-            $restaurant = Restaurant::findOrFail($cart->restaurant_id);
+            $restaurant = Restaurant::with('operatingHours')->findOrFail($cart->restaurant_id);
             $deliveryType = DeliveryType::from($data['delivery_type']);
+
+            // Orders cannot be placed while the store is closed (same opening rule as
+            // the menu header) nor for an order type the store does not take.
+            if (! $restaurant->isOpenAt()) {
+                throw new OrderNotPlaceable('A loja está fechada agora. Confira o horário de funcionamento no cardápio.');
+            }
+
+            if (! $restaurant->accepts($deliveryType)) {
+                $type = mb_strtolower($deliveryType->label());
+                throw new OrderNotPlaceable("Esta loja não está aceitando pedidos de {$type} no momento.");
+            }
 
             // Build frozen snapshot of items
             $items = $cart->items()->with(['product', 'variant', 'addons.option.group'])->get();
 
             if ($items->isEmpty()) {
-                throw new \RuntimeException('O carrinho está vazio.');
+                throw new OrderNotPlaceable('O carrinho está vazio.');
             }
 
             $subtotal = $items->sum(function ($item) {
@@ -86,13 +98,13 @@ class PlaceOrder
                 $product = $cartItem->product;
                 if (! $product || $product->isArchived() || ! $product->isAvailable()) {
                     $name = $product?->name ?? 'Um dos itens';
-                    throw new \RuntimeException("\"{$name}\" não está mais disponível no cardápio.");
+                    throw new OrderNotPlaceable("\"{$name}\" não está mais disponível no cardápio.");
                 }
 
                 // Same for the chosen variant / addons — and never freeze a price
                 // or name that doesn't belong to this product.
                 if ($error = $this->selectionError($cartItem)) {
-                    throw new \RuntimeException($error);
+                    throw new OrderNotPlaceable($error);
                 }
 
                 $unitPrice = $cartItem->unitPrice();
@@ -188,7 +200,7 @@ class PlaceOrder
         $zone = $zoneId ? $zones->whereKey($zoneId)->first() : null;
 
         if (! $zone) {
-            throw new \RuntimeException('Escolha uma zona de entrega válida para este endereço.');
+            throw new OrderNotPlaceable('Escolha uma zona de entrega válida para este endereço.');
         }
 
         return (float) $zone->fee;
