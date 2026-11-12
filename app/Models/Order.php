@@ -33,6 +33,7 @@ class Order extends Model
         'dining_table_id',
         'table_session_id',
         'table_number',
+        'driver_id',
         'status',
         'delivery_type',
         'delivery_address_street',
@@ -97,6 +98,30 @@ class Order extends Model
     public function tableSession(): BelongsTo
     {
         return $this->belongsTo(TableSession::class);
+    }
+
+    /** The driver who accepted the delivery on the driver panel (null: still available). */
+    public function driver(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'driver_id');
+    }
+
+    public function deliveryDeclines(): HasMany
+    {
+        return $this->hasMany(DeliveryDecline::class);
+    }
+
+    /**
+     * Delivery orders of the restaurant that no driver owns yet and that a driver can
+     * take: ready to leave, or already out for delivery without a driver (sent out
+     * before deliveries had an owner, so someone can still finish them).
+     */
+    public function scopeAvailableForDelivery($query, ?int $restaurantId)
+    {
+        return $query->where('restaurant_id', $restaurantId)
+            ->where('delivery_type', DeliveryType::Delivery->value)
+            ->whereNull('driver_id')
+            ->whereIn('status', [OrderStatus::ReadyForPickup->value, OrderStatus::OutForDelivery->value]);
     }
 
     public function items(): HasMany
