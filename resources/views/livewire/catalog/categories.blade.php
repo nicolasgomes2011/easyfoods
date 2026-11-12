@@ -3,8 +3,8 @@ use Livewire\Attributes\Layout;
 use Livewire\Attributes\Computed;
 use Livewire\Volt\Component;
 use App\Models\Category;
+use App\Rules\UniqueCategoryName;
 use App\Support\CurrentRestaurant;
-use Illuminate\Support\Str;
 
 new #[Layout('components.layouts.app')] class extends Component {
 
@@ -17,7 +17,8 @@ new #[Layout('components.layouts.app')] class extends Component {
     public function rules(): array
     {
         return [
-            'name'        => 'required|string|max:100',
+            // Same slug as another category of this restaurant would hit unique(restaurant_id, slug).
+            'name'        => ['required', 'string', 'max:100', new UniqueCategoryName($this->rid(), $this->editingId ? (int) $this->editingId : null)],
             'description' => 'nullable|string|max:255',
             'isActive'    => 'boolean',
         ];
@@ -61,7 +62,7 @@ new #[Layout('components.layouts.app')] class extends Component {
         if ($this->editingId) {
             Category::where('restaurant_id', $this->rid())->findOrFail($this->editingId)->update([
                 'name'        => $this->name,
-                'slug'        => Str::slug($this->name),
+                'slug'        => UniqueCategoryName::slugFor($this->name),
                 'description' => $this->description ?: null,
                 'is_active'   => $this->isActive,
             ]);
@@ -69,7 +70,7 @@ new #[Layout('components.layouts.app')] class extends Component {
             Category::create([
                 'restaurant_id' => $this->rid(),
                 'name'          => $this->name,
-                'slug'          => Str::slug($this->name),
+                'slug'          => UniqueCategoryName::slugFor($this->name),
                 'description'   => $this->description ?: null,
                 'is_active'     => $this->isActive,
                 // Scoped max: a global max would inherit another restaurant's ordering.

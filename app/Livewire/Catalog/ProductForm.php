@@ -6,11 +6,11 @@ use App\Enums\ProductAvailabilityStatus;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\ProductVariant;
+use App\Rules\UniqueCategoryName;
 use App\Support\CurrentRestaurant;
 use App\Support\ReadyEstimate;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Enum as EnumRule;
 use Livewire\Attributes\Computed;
@@ -117,14 +117,14 @@ class ProductForm extends Component
 
     public function createCategory(): void
     {
-        $this->validate(['newCategoryName' => ['required', 'string', 'max:255']]);
-
         $restaurantId = $this->rid();
+
+        $this->validate(['newCategoryName' => ['required', 'string', 'max:255', new UniqueCategoryName($restaurantId)]]);
 
         $category = Category::create([
             'restaurant_id' => $restaurantId,
             'name'          => $this->newCategoryName,
-            'slug'          => Str::slug($this->newCategoryName),
+            'slug'          => UniqueCategoryName::slugFor($this->newCategoryName),
             'is_active'     => true,
             'sort_order'    => (int) Category::where('restaurant_id', $restaurantId)->max('sort_order') + 1,
         ]);
