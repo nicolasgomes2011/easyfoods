@@ -34,6 +34,7 @@ class Restaurant extends Model
         'accepts_dine_in',
         'min_order_minutes',
         'max_order_minutes',
+        'confirmation_timeout_minutes',
     ];
 
     protected $casts = [
@@ -42,6 +43,8 @@ class Restaurant extends Model
         'accepts_delivery' => 'boolean',
         'accepts_pickup'   => 'boolean',
         'accepts_dine_in'  => 'boolean',
+        // Minutes an order may stay unconfirmed before the scheduler cancels it (0 = never).
+        'confirmation_timeout_minutes' => 'integer',
     ];
 
     public function operatingHours(): HasMany
