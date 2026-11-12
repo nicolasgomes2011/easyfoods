@@ -21,7 +21,8 @@
             <p class="text-xs text-zinc-500 mt-0.5 italic">{{ $item->notes }}</p>
             @endif
             @foreach($item->addons as $addon)
-            <p class="text-xs text-zinc-500 mt-0.5">+ {{ $addon->option_name }}</p>
+            {{-- Frozen snapshot (order_item_addons): "Extras: Bacon", or just the option without a group name --}}
+            <p class="text-xs text-zinc-500 mt-0.5">+ {{ filled($addon->addon_group_name) ? $addon->addon_group_name.': ' : '' }}{{ $addon->addon_option_name }}</p>
             @endforeach
         </div>
         <div class="flex items-center gap-3 ml-4 shrink-0">
