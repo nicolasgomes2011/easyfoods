@@ -194,6 +194,21 @@
                     </div>
 
                     <div>
+                        <label class="block text-sm text-zinc-300 mb-1.5">Tempo de preparo (min)</label>
+                        <input
+                            wire:model="prep_minutes"
+                            type="number"
+                            min="1"
+                            max="240"
+                            class="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500 transition"
+                        />
+                        <p class="text-xs text-zinc-500 mt-1">Base da previsão "Pronto às" (vale o item mais demorado do pedido)</p>
+                        @error('prep_minutes')
+                            <p class="text-xs text-red-400 mt-1">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <div>
                         <label class="block text-sm text-zinc-300 mb-1.5">Ordem de exibição</label>
                         <input
                             wire:model="sort_order"

@@ -6,6 +6,8 @@ use App\Enums\DeliveryType;
 use App\Enums\OrderStatus;
 use App\Models\Order;
 use App\Models\OrderStatusHistory;
+use App\Support\ReadyEstimate;
+use Carbon\CarbonInterface;
 
 new #[Layout('components.layouts.customer')] class extends Component {
 
@@ -94,6 +96,21 @@ new #[Layout('components.layouts.customer')] class extends Component {
         return $steps;
     }
 
+    /**
+     * "Pronto às" clock time while the kitchen works on the order. An overdue
+     * estimate is pushed forward here (at most twice, never backward).
+     */
+    public function readyAt(Order $order): ?CarbonInterface
+    {
+        if (! in_array($order->status, [OrderStatus::Confirmed, OrderStatus::InPreparation], true)) {
+            return null;
+        }
+
+        ReadyEstimate::adjust($order);
+
+        return $order->estimated_ready_at;
+    }
+
     /** The cancel entry of the history (reason in `notes`), if any. */
     public function cancellation(Order $order): ?OrderStatusHistory
     {
@@ -135,6 +152,17 @@ new #[Layout('components.layouts.customer')] class extends Component {
     <div class="inline-flex items-center border rounded-full px-3 py-1 text-sm font-medium mb-6 {{ $colorClass }}">
         {{ $order->status->label() }}
     </div>
+
+    {{-- Ready time as a clock time; it only ever moves forward, with a delay message --}}
+    @if($readyAt = $this->readyAt($order))
+    <div data-ready-at class="bg-orange-50 border border-orange-200 rounded-2xl px-5 py-4 mb-5 text-sm font-semibold text-orange-700">
+        @if($order->eta_adjustments > 0)
+        Está demorando um pouquinho mais, novo horário: {{ $readyAt->format('H:i') }}
+        @else
+        Pronto às {{ $readyAt->format('H:i') }}
+        @endif
+    </div>
+    @endif
 
     @if($order->status === OrderStatus::Canceled)
     {{-- Canceled: say when and why instead of the timeline --}}

@@ -56,6 +56,8 @@ class Order extends Model
         'delivered_at',
         'completed_at',
         'canceled_at',
+        'estimated_ready_at',
+        'eta_adjustments',
     ];
 
     protected $casts = [
@@ -73,6 +75,8 @@ class Order extends Model
         'delivered_at'  => 'datetime',
         'completed_at'  => 'datetime',
         'canceled_at'   => 'datetime',
+        'estimated_ready_at' => 'datetime',
+        'eta_adjustments'    => 'integer',
     ];
 
     public function restaurant(): BelongsTo
