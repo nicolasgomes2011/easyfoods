@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
 class Restaurant extends Model
 {
@@ -45,6 +46,50 @@ class Restaurant extends Model
     public function operatingHours(): HasMany
     {
         return $this->hasMany(OperatingHour::class)->orderBy('weekday');
+    }
+
+    /**
+     * Operating hours of the weekday of $at (default: now, 0 = Sunday), or null when
+     * that weekday was never configured.
+     */
+    public function hoursOn(?\DateTimeInterface $at = null): ?OperatingHour
+    {
+        $weekday = ($at ? Carbon::instance($at) : now())->dayOfWeek;
+
+        return $this->operatingHours->firstWhere('weekday', $weekday);
+    }
+
+    /**
+     * Whether the store is open at $at (default: now), from the operating hours only.
+     * A closed day or a day without hours counts as closed. Hours that cross midnight
+     * (e.g. 18:00–02:00) keep the store open until the closing time of the next day.
+     */
+    public function isOpenAt(?\DateTimeInterface $at = null): bool
+    {
+        $at = $at ? Carbon::instance($at) : now();
+        $time = $at->format('H:i');
+
+        $today = $this->hoursOn($at);
+
+        if ($today?->isOpenDay()) {
+            $opens = $today->opensAt();
+            $closes = $today->closesAt();
+
+            $insideToday = $closes > $opens
+                ? $time >= $opens && $time < $closes
+                : $time >= $opens;
+
+            if ($insideToday) {
+                return true;
+            }
+        }
+
+        $yesterday = $this->hoursOn($at->copy()->subDay());
+
+        return $yesterday !== null
+            && $yesterday->isOpenDay()
+            && $yesterday->closesAt() <= $yesterday->opensAt()
+            && $time < $yesterday->closesAt();
     }
 
     public function deliveryZones(): HasMany
