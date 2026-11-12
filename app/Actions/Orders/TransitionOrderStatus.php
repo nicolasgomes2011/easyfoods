@@ -6,6 +6,7 @@ use App\Enums\OrderStatus;
 use App\Models\Order;
 use App\Models\OrderStatusHistory;
 use App\Models\User;
+use App\Support\ReadyEstimate;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
@@ -56,6 +57,11 @@ class TransitionOrderStatus
             $milestone = self::MILESTONES[$to->value] ?? null;
             if ($milestone !== null && $order->{$milestone} === null) {
                 $order->{$milestone} = now();
+            }
+
+            // The customer's "Pronto às HH:MM" starts at the confirmation (set once).
+            if ($to === OrderStatus::Confirmed) {
+                ReadyEstimate::start($order, now());
             }
 
             $order->save();

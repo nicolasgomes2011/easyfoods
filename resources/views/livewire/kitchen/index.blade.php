@@ -175,6 +175,23 @@ new #[Layout('components.layouts.app')] class extends Component {
                     {{ $minutes }} min
                 </div>
             </div>
+            @if($inPrep && $order->preparation_started_at)
+            {{-- Prep timer: counts from the start of preparation, red past the estimate --}}
+            @php
+                $elapsed = max(0, (int) $order->preparation_started_at->diffInSeconds(now()));
+                $late = $order->estimated_ready_at && now()->gte($order->estimated_ready_at);
+            @endphp
+            <div class="px-4 pt-3 flex items-center justify-between text-xs"
+                 x-data="{ start: {{ $order->preparation_started_at->getTimestampMs() }}, due: {{ $order->estimated_ready_at?->getTimestampMs() ?? 'null' }}, now: Date.now() }"
+                 x-init="setInterval(() => now = Date.now(), 1000)">
+                <span data-prep-timer class="font-mono font-semibold tabular-nums {{ $late ? 'text-red-400' : 'text-zinc-200' }}"
+                      :class="{ 'text-red-400': due && now >= due, 'text-zinc-200': ! (due && now >= due) }"
+                      x-text="(s => String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'))(Math.max(0, Math.floor((now - start) / 1000)))">{{ sprintf('%02d:%02d', intdiv($elapsed, 60), $elapsed % 60) }}</span>
+                @if($order->estimated_ready_at)
+                <span class="text-zinc-500">Previsto {{ $order->estimated_ready_at->format('H:i') }}</span>
+                @endif
+            </div>
+            @endif
             <div class="px-4 py-3 space-y-1.5">
                 @foreach($order->items as $item)
                 <div class="flex items-center gap-2">

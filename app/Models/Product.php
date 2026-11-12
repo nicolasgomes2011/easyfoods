@@ -19,6 +19,7 @@ class Product extends Model
         'description',
         'image',
         'price',
+        'prep_minutes',
         'availability_status',
         'archived_at',
         'sort_order',
@@ -27,6 +28,7 @@ class Product extends Model
 
     protected $casts = [
         'price'               => 'decimal:2',
+        'prep_minutes'        => 'integer',
         'availability_status' => ProductAvailabilityStatus::class,
         'archived_at'         => 'datetime',
         'sort_order'          => 'integer',
