@@ -68,7 +68,7 @@ new #[Layout('components.layouts.customer')] class extends Component {
     public function tables()
     {
         return DiningTable::where('restaurant_id', $this->restaurant?->id)
-            ->where('status', 'free')
+            ->whereIn('status', ['free', 'occupied']) // occupied = open tab, joins it; never reserved
             ->orderBy('number')
             ->get();
     }
@@ -177,7 +177,8 @@ new #[Layout('components.layouts.customer')] class extends Component {
         }
 
         if ($this->deliveryType === 'dine_in') {
-            $rules['tableId'] = 'required|exists:dining_tables,id';
+            $rules['tableId'] = ['required', fn ($attribute, $value, $fail) => $this->tables->contains('id', (int) $value)
+                ? null : $fail('Essa mesa não está disponível. Escolha outra.')]; // only a table offered above
         }
 
         return $rules;
@@ -211,7 +212,7 @@ new #[Layout('components.layouts.customer')] class extends Component {
         }
 
         $table = $this->deliveryType === 'dine_in'
-            ? DiningTable::find($this->tableId)
+            ? $this->tables->firstWhere('id', (int) $this->tableId)
             : null;
 
         try {
@@ -288,7 +289,7 @@ new #[Layout('components.layouts.customer')] class extends Component {
             <div class="bg-white border border-zinc-200 rounded-2xl p-5">
                 <h2 class="text-sm font-semibold text-zinc-700 mb-3">Selecione sua mesa</h2>
                 @if($this->tables->isEmpty())
-                <p class="text-sm text-zinc-500">Nenhuma mesa livre no momento.</p>
+                <p class="text-sm text-zinc-500">Nenhuma mesa disponível no momento.</p>
                 @else
                 <div class="grid grid-cols-4 sm:grid-cols-6 gap-2">
                     @foreach($this->tables as $table)
