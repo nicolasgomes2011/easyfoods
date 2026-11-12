@@ -4,6 +4,7 @@ use Livewire\Attributes\Computed;
 use Livewire\Volt\Component;
 use App\Enums\OrderStatus;
 use App\Enums\WaiterCallStatus;
+use App\Livewire\Concerns\AlertsNewOrders;
 use App\Models\Order;
 use App\Support\CurrentRestaurant;
 use App\Models\WaiterCall;
@@ -11,6 +12,13 @@ use App\Actions\Orders\TransitionOrderStatus;
 use Illuminate\Support\Facades\Gate;
 
 new #[Layout('components.layouts.app')] class extends Component {
+    use AlertsNewOrders;
+
+    /** Kitchen alert: a confirmed order waits for preparation. */
+    protected function alertStatus(): OrderStatus
+    {
+        return OrderStatus::Confirmed;
+    }
 
     #[Computed]
     public function waitingCount(): int
@@ -62,6 +70,9 @@ new #[Layout('components.layouts.app')] class extends Component {
         app(TransitionOrderStatus::class)->execute($order, $to, auth()->user());
 
         unset($this->queueOrders, $this->waitingCount, $this->inPreparationCount, $this->readyCount);
+
+        // Keep the tab title count in step with the queue right away, not on the next poll.
+        $this->checkNewOrders();
     }
 
     #[Computed]
@@ -86,7 +97,7 @@ new #[Layout('components.layouts.app')] class extends Component {
     }
 }; ?>
 
-<div wire:poll.30s>
+<div wire:poll.30s.keep-alive="checkNewOrders">
     {{-- Waiter call alerts --}}
     @if($this->pendingWaiterCalls->isNotEmpty())
     <div class="mb-5 space-y-2">
@@ -115,6 +126,7 @@ new #[Layout('components.layouts.app')] class extends Component {
             <p class="text-sm text-zinc-400 mt-0.5">Fila de preparo em tempo real</p>
         </div>
         <div class="flex items-center gap-2">
+            <x-orders.new-order-alert :count="$alertCount" />
             <span class="inline-flex items-center gap-1.5 text-xs text-orange-400 bg-orange-400/10 border border-orange-400/20 rounded-lg px-3 py-1.5">
                 <span class="size-1.5 rounded-full bg-orange-400 animate-pulse"></span>
                 Em andamento · atualiza a cada 30s
@@ -149,7 +161,8 @@ new #[Layout('components.layouts.app')] class extends Component {
             $minutes = (int) $order->created_at->diffInMinutes(now());
             $urgent  = $inPrep && $minutes >= 20;
         @endphp
-        <div class="bg-zinc-900 border {{ $inPrep || $urgent ? 'border-orange-500/50' : 'border-zinc-800' }} rounded-xl overflow-hidden">
+        <div @if(! $inPrep) data-new-order="{{ $order->id }}" @endif
+             class="bg-zinc-900 border {{ $inPrep || $urgent ? 'border-orange-500/50' : 'border-yellow-400/50 ring-1 ring-yellow-400/30' }} rounded-xl overflow-hidden">
             <div class="flex items-center justify-between px-4 py-3 border-b {{ $inPrep || $urgent ? 'border-orange-500/30 bg-orange-500/5' : 'border-zinc-800' }}">
                 <div class="flex items-center gap-2">
                     <span class="text-sm font-bold font-mono {{ $inPrep || $urgent ? 'text-orange-400' : 'text-white' }}">

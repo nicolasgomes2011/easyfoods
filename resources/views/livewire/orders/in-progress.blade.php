@@ -3,10 +3,18 @@ use Livewire\Attributes\Layout;
 use Livewire\Attributes\Computed;
 use Livewire\Volt\Component;
 use App\Enums\OrderStatus;
+use App\Livewire\Concerns\AlertsNewOrders;
 use App\Models\Order;
 use App\Support\CurrentRestaurant;
 
 new #[Layout('components.layouts.app')] class extends Component {
+    use AlertsNewOrders;
+
+    /** Counter alert: a new order waits for confirmation. */
+    protected function alertStatus(): OrderStatus
+    {
+        return OrderStatus::PendingConfirmation;
+    }
 
     #[Computed]
     public function buckets(): array
@@ -44,13 +52,14 @@ new #[Layout('components.layouts.app')] class extends Component {
     }
 }; ?>
 
-<div wire:poll.30s>
+<div wire:poll.30s.keep-alive="checkNewOrders">
     <div class="flex items-center justify-between mb-6">
         <div>
             <h1 class="text-xl font-bold text-white">Pedidos em andamento</h1>
             <p class="text-sm text-zinc-400 mt-0.5">Pedidos ativos neste momento · atualiza a cada 30s</p>
         </div>
         <div class="flex gap-2">
+            <x-orders.new-order-alert :count="$alertCount" />
             <a href="{{ route('admin.orders.index') }}" wire:navigate
                class="text-sm text-zinc-300 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-lg px-3 py-1.5 transition">
                 Todos os pedidos
@@ -102,11 +111,15 @@ new #[Layout('components.layouts.app')] class extends Component {
             $color   = collect($this->buckets)->firstWhere('status', $order->status)['color'] ?? 'gray';
             $minutes = (int) $order->created_at->diffInMinutes(now());
             $late    = $minutes > 30;
+            $new     = $order->status === OrderStatus::PendingConfirmation;
         @endphp
-        <a href="{{ route('admin.orders.show', $order) }}" wire:navigate
-           class="flex items-center justify-between bg-zinc-900 border {{ $late ? 'border-red-500/30' : 'border-zinc-800' }} rounded-xl px-5 py-4 hover:bg-zinc-800/40 transition">
+        <a href="{{ route('admin.orders.show', $order) }}" wire:navigate @if($new) data-new-order="{{ $order->id }}" @endif
+           class="flex items-center justify-between bg-zinc-900 border {{ $late ? 'border-red-500/30' : ($new ? 'border-yellow-400/50 ring-1 ring-yellow-400/30' : 'border-zinc-800') }} rounded-xl px-5 py-4 hover:bg-zinc-800/40 transition">
             <div class="flex items-center gap-4">
                 <span class="text-xs font-mono text-zinc-500">#{{ $order->number }}</span>
+                @if($new)
+                <span class="text-[10px] font-semibold text-yellow-400 bg-yellow-400/10 border border-yellow-400/20 rounded-full px-1.5 py-0.5 animate-pulse">Novo</span>
+                @endif
                 <div>
                     <p class="text-sm font-medium text-white">{{ $order->customer_name ?: '—' }}</p>
                     <p class="text-xs text-zinc-500">
