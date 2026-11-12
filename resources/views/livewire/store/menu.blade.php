@@ -12,6 +12,7 @@ use App\Support\CurrentRestaurant;
 
 new #[Layout('components.layouts.customer')] class extends Component {
 
+    /** Deep link (?category=slug): the whole menu opens scrolled to that category's section. */
     #[Url]
     public string $category = '';
 
@@ -36,8 +37,8 @@ new #[Layout('components.layouts.customer')] class extends Component {
     public function categories()
     {
         if (! $this->restaurant) return collect();
-        // A tab shows while the category has any non-archived product: paused
-        // ones stay on the menu (greyed out), so the category stays too.
+        // A tab and a section show while the category has any non-archived product:
+        // paused ones stay on the menu (greyed out), so the category stays too.
         return Category::where('restaurant_id', $this->restaurant->id)
             ->active()->ordered()
             ->whereHas('products', fn ($q) => $q->notArchived())
@@ -56,11 +57,14 @@ new #[Layout('components.layouts.customer')] class extends Component {
             ->with(['category', 'variants'])
             ->ordered();
 
-        if ($this->category) {
-            $query->whereHas('category', fn ($q) => $q->where('slug', $this->category));
-        }
-
         return $query->get();
+    }
+
+    /** Products of each category section, keyed by category id (one query for the whole menu). */
+    #[Computed]
+    public function productsByCategory()
+    {
+        return $this->products->groupBy('category_id');
     }
 
     #[Computed]
@@ -230,31 +234,45 @@ new #[Layout('components.layouts.customer')] class extends Component {
         </div>
     </div>
 
-    {{-- Category tabs --}}
-    @if($this->categories->isNotEmpty())
-    <div class="flex gap-2 mb-5 overflow-x-auto pb-1 scrollbar-hide">
-        <button wire:click="$set('category', '')"
-                class="shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium transition {{ !$category ? 'bg-orange-500 text-white' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200' }}">
-            Tudo
-        </button>
-        @foreach($this->categories as $cat)
-        <button wire:click="$set('category', '{{ $cat->slug }}')"
-                class="shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium transition {{ $category === $cat->slug ? 'bg-orange-500 text-white' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200' }}">
-            {{ $cat->name }}
-        </button>
-        @endforeach
-    </div>
-    @endif
-
-    {{-- Product grid --}}
-    @if($this->products->isEmpty())
+    @if($this->categories->isEmpty())
     <div class="py-16 text-center text-zinc-400 text-sm">
         Nenhum produto disponível no momento.
     </div>
     @else
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        @foreach($this->products as $product)
-        <x-store.product-card :product="$product" />
+    {{-- One page, a section per category: the tabs scroll to it in the browser (no server request)
+         and the tab of the section in view is highlighted. --}}
+    <div x-data="{
+            active: @js($this->categories->first()->slug),
+            go(slug) {
+                this.active = slug;
+                document.getElementById('cat-' + slug)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            },
+         }"
+         x-init="
+            const spy = new IntersectionObserver(entries => entries.forEach(e => { if (e.isIntersecting) active = e.target.dataset.category }), { rootMargin: '-120px 0px -60% 0px' });
+            $el.querySelectorAll('[data-category]').forEach(section => spy.observe(section));
+            if ($el.dataset.scrollTo) $nextTick(() => go($el.dataset.scrollTo));
+         "
+         @if($category) data-scroll-to="{{ $category }}" @endif>
+        <div class="sticky top-14 z-40 -mx-4 px-4 py-2 mb-5 bg-zinc-50 flex gap-2 overflow-x-auto scrollbar-hide">
+            @foreach($this->categories as $cat)
+            <button type="button" data-category-tab="{{ $cat->slug }}" @click="go(@js($cat->slug))"
+                    :class="active === @js($cat->slug) ? 'bg-orange-500 text-white' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'"
+                    class="shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium transition">
+                {{ $cat->name }}
+            </button>
+            @endforeach
+        </div>
+
+        @foreach($this->categories as $cat)
+        <section id="cat-{{ $cat->slug }}" data-category="{{ $cat->slug }}" class="mb-8 scroll-mt-32">
+            <h2 class="text-lg font-semibold text-zinc-800 mb-3">{{ $cat->name }}</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                @foreach($this->productsByCategory->get($cat->id, collect()) as $product)
+                <x-store.product-card :product="$product" />
+                @endforeach
+            </div>
+        </section>
         @endforeach
     </div>
     @endif
