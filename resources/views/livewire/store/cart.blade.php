@@ -2,6 +2,7 @@
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Computed;
 use Livewire\Volt\Component;
+use App\Models\CartItemAddon;
 use App\Models\Cart;
 use App\Models\CartItem;
 use App\Models\Restaurant;
@@ -61,11 +62,34 @@ new #[Layout('components.layouts.customer')] class extends Component {
         $item->delete();
         unset($this->cart, $this->subtotal);
     }
+
+    /**
+     * Empty this session's cart: every line and its addons go, the cart row
+     * stays so the chosen order type and table are kept.
+     */
+    public function clear(): void
+    {
+        $cart = $this->cart;
+        if (! $cart) return;
+
+        CartItemAddon::whereIn('cart_item_id', $cart->items()->select('id'))->delete();
+        $cart->items()->delete();
+
+        unset($this->cart, $this->subtotal);
+    }
 }; ?>
 
 <div>
-    <div class="mb-6">
+    <div class="mb-6 flex items-center justify-between gap-4">
         <h1 class="text-2xl font-bold text-zinc-800">Carrinho</h1>
+        @if($this->cart && $this->cart->items->isNotEmpty())
+        <button type="button"
+                wire:click="clear"
+                wire:confirm="Remover todos os itens?"
+                class="text-sm font-medium text-zinc-500 hover:text-red-500 transition">
+            Esvaziar carrinho
+        </button>
+        @endif
     </div>
 
     @if(! $this->cart || $this->cart->items->isEmpty())
