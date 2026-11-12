@@ -207,10 +207,19 @@ new #[Layout('components.layouts.app')] class extends Component {
             @endif
             <div class="px-4 py-3 space-y-1.5">
                 @foreach($order->items as $item)
+                @if($item->wasAddedLater())
+                {{-- Added by the front of house after the order was placed --}}
+                <div data-added-item="{{ $item->id }}" class="flex items-center gap-2 rounded-md bg-yellow-400/10 border border-yellow-400/30 px-2 py-1 -mx-2">
+                    <span class="size-1.5 rounded-full bg-yellow-400 animate-pulse shrink-0"></span>
+                    <span class="text-sm font-medium text-yellow-200">{{ $item->displayName() }} ×{{ $item->quantity }}</span>
+                    <span class="ml-auto text-[10px] font-semibold text-yellow-400 uppercase tracking-wide">Novo · {{ $item->added_at->format('H:i') }}</span>
+                </div>
+                @else
                 <div class="flex items-center gap-2">
                     <span class="size-1.5 rounded-full bg-zinc-600 shrink-0"></span>
                     <span class="text-sm text-zinc-300">{{ $item->displayName() }} ×{{ $item->quantity }}</span>
                 </div>
+                @endif
                 @endforeach
             </div>
             <div class="px-4 py-3 border-t border-zinc-800 flex items-center justify-between">

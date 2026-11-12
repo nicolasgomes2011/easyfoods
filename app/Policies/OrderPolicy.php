@@ -44,4 +44,14 @@ class OrderPolicy
 
         return $user->hasAnyRole(UserRole::Admin, UserRole::Manager, UserRole::Attendant, UserRole::Kitchen);
     }
+
+    /** Add or remove items of an open dine-in order (front of house only). */
+    public function editItems(User $user, Order $order): bool
+    {
+        if (! $order->itemsAreEditable()) {
+            return false;
+        }
+
+        return $user->hasAnyRole(UserRole::Admin, UserRole::Manager, UserRole::Attendant);
+    }
 }

@@ -134,6 +134,12 @@ class Order extends Model
         return $this->hasMany(OrderStatusHistory::class)->orderBy('changed_at');
     }
 
+    /** Items added to / removed from the order after it was placed (append-only log). */
+    public function itemChanges(): HasMany
+    {
+        return $this->hasMany(OrderItemChange::class)->orderBy('changed_at')->orderBy('id');
+    }
+
     public function payment(): HasOne
     {
         return $this->hasOne(Payment::class)->latestOfMany();
@@ -157,6 +163,21 @@ class Order extends Model
     public function isDelivery(): bool
     {
         return $this->delivery_type === DeliveryType::Delivery;
+    }
+
+    /**
+     * Staff may still add or remove items: dine-in orders only, while the order
+     * is not ready yet (pending confirmation, confirmed or in preparation).
+     * Delivery and pickup orders are fixed once placed.
+     */
+    public function itemsAreEditable(): bool
+    {
+        return $this->delivery_type === DeliveryType::DineIn
+            && in_array($this->status, [
+                OrderStatus::PendingConfirmation,
+                OrderStatus::Confirmed,
+                OrderStatus::InPreparation,
+            ], true);
     }
 
     public function scopeByStatus($query, OrderStatus $status)
