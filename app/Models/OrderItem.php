@@ -21,12 +21,15 @@ class OrderItem extends Model
         'quantity',
         'subtotal',
         'notes',
+        'added_at',
     ];
 
     protected $casts = [
         'unit_price' => 'decimal:2',
         'subtotal'   => 'decimal:2',
         'quantity'   => 'integer',
+        // Set when staff added the item to the open order after it was placed.
+        'added_at'   => 'datetime',
     ];
 
     public function order(): BelongsTo
@@ -47,6 +50,12 @@ class OrderItem extends Model
     public function addons(): HasMany
     {
         return $this->hasMany(OrderItemAddon::class);
+    }
+
+    /** Added by staff after the order was placed (the kitchen highlights it). */
+    public function wasAddedLater(): bool
+    {
+        return $this->added_at !== null;
     }
 
     public function displayName(): string

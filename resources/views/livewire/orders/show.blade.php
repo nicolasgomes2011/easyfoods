@@ -4,10 +4,14 @@ use Livewire\Volt\Component;
 use App\Actions\Orders\TransitionOrderStatus;
 use App\Enums\DeliveryType;
 use App\Enums\OrderStatus;
+use App\Livewire\Concerns\EditsOrderItems;
 use App\Models\Order;
 use Illuminate\Support\Facades\Gate;
 
 new #[Layout('components.layouts.app')] class extends Component {
+    // Add / remove items of an open dine-in order (EF-21).
+    use EditsOrderItems;
+
     public Order $order;
 
     public bool $showCancelForm = false;
@@ -16,7 +20,7 @@ new #[Layout('components.layouts.app')] class extends Component {
 
     public function mount(Order $order): void
     {
-        $this->order = $order->load(['items.addons', 'statusHistory', 'payment', 'customer']);
+        $this->order = $order->load(['items.addons', 'statusHistory', 'payment', 'customer', 'itemChanges.changedBy']);
     }
 
     public function confirm(TransitionOrderStatus $action): void
@@ -68,7 +72,7 @@ new #[Layout('components.layouts.app')] class extends Component {
 
     private function reloadOrder(): void
     {
-        $this->order = $this->order->fresh(['items.addons', 'statusHistory', 'payment', 'customer']);
+        $this->order = $this->order->fresh(['items.addons', 'statusHistory', 'payment', 'customer', 'itemChanges.changedBy']);
     }
 }; ?>
 
@@ -180,33 +184,34 @@ new #[Layout('components.layouts.app')] class extends Component {
         <div class="lg:col-span-2 space-y-5">
 
             {{-- Items --}}
+            @php $canEditItems = auth()->user()?->can('editItems', $this->order) ?? false; @endphp
             <div class="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
-                <div class="px-5 py-4 border-b border-zinc-800">
+                <div class="px-5 py-4 border-b border-zinc-800 flex items-center justify-between gap-3">
                     <h2 class="text-sm font-semibold text-white">Itens do pedido</h2>
+                    @if($canEditItems && ! $showAddItem)
+                    <button
+                        wire:click="openAddItem"
+                        class="inline-flex items-center gap-1 text-xs font-medium text-orange-400 bg-orange-400/10 hover:bg-orange-400/15 border border-orange-400/20 rounded-lg px-2.5 py-1.5 transition">
+                        <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                        </svg>
+                        Adicionar item
+                    </button>
+                    @endif
                 </div>
                 <div class="divide-y divide-zinc-800/70">
                     @foreach($this->order->items as $item)
-                    <div class="px-5 py-3.5">
-                        <div class="flex items-start justify-between">
-                            <div class="flex-1 min-w-0">
-                                <p class="text-sm font-medium text-white">
-                                    {{ $item->displayName() }}
-                                    <span class="text-zinc-500">×{{ $item->quantity }}</span>
-                                </p>
-                                @if($item->notes)
-                                <p class="text-xs text-zinc-500 mt-0.5 italic">{{ $item->notes }}</p>
-                                @endif
-                                @foreach($item->addons as $addon)
-                                <p class="text-xs text-zinc-500 mt-0.5">+ {{ $addon->option_name }}</p>
-                                @endforeach
-                            </div>
-                            <span class="text-sm text-zinc-200 tabular-nums ml-4 shrink-0">
-                                R$ {{ number_format($item->subtotal, 2, ',', '.') }}
-                            </span>
-                        </div>
-                    </div>
+                    <x-orders.item-row :item="$item" wire:key="order-item-{{ $item->id }}"
+                        :can-remove="$canEditItems && $this->order->items->count() > 1"
+                        :removing="$canEditItems && $removingItemId === $item->id"
+                        :remove-error="$errors->first('removeReason')" />
                     @endforeach
                 </div>
+
+                @if($canEditItems && $showAddItem)
+                <x-orders.add-item-form :products="$this->menuProducts" :selected="$this->selectedProduct"
+                    :messages="collect(['newProductId', 'newQuantity', 'newNotes', 'newItem'])->mapWithKeys(fn ($f) => [$f => $errors->first($f)])->all()" />
+                @endif
                 <div class="px-5 py-4 border-t border-zinc-800 space-y-2">
                     <div class="flex items-center justify-between text-sm text-zinc-400">
                         <span>Subtotal</span>
@@ -230,6 +235,8 @@ new #[Layout('components.layouts.app')] class extends Component {
                     </div>
                 </div>
             </div>
+
+            <x-orders.item-changes :changes="$this->order->itemChanges" />
 
             {{-- Status history --}}
             @if($this->order->statusHistory->isNotEmpty())
