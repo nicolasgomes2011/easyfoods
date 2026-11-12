@@ -4,7 +4,7 @@ use Livewire\Attributes\Computed;
 use Livewire\Volt\Component;
 use Illuminate\Validation\Rule;
 use App\Actions\Orders\PlaceOrder;
-use App\Enums\DeliveryType;
+use App\Exceptions\OrderNotPlaceable;
 use App\Models\Cart;
 use App\Models\DeliveryZone;
 use App\Models\DiningTable;
@@ -237,7 +237,7 @@ new #[Layout('components.layouts.customer')] class extends Component {
 
             $this->redirect(route('store.order.tracking', $order->token), navigate: true);
         } catch (\Throwable $e) {
-            $this->error = $e->getMessage();
+            $this->error = OrderNotPlaceable::messageFor($e); // only domain reasons reach the customer
         }
     }
 }; ?>
@@ -343,7 +343,7 @@ new #[Layout('components.layouts.customer')] class extends Component {
         {{-- Order summary sidebar --}}
         <div class="lg:col-span-1">
             <x-store.order-summary :cart="$this->cart" :subtotal="$this->subtotal"
-                                   :delivery-fee="$this->deliveryFee" :total="$this->total" />
+                                   :delivery-fee="$this->deliveryFee" :total="$this->total" :open="(bool) $this->restaurant?->isOpenAt()" />
         </div>
 
     </form>

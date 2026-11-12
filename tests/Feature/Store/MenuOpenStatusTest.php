@@ -26,7 +26,7 @@ class MenuOpenStatusTest extends TestCase
     {
         parent::setUp();
 
-        $this->restaurant = Restaurant::factory()->create();
+        $this->restaurant = Restaurant::factory()->withoutHours()->create();
 
         $category = Category::create([
             'restaurant_id' => $this->restaurant->id,

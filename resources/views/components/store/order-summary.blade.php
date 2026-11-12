@@ -1,4 +1,4 @@
-@props(['cart', 'subtotal', 'deliveryFee', 'total'])
+@props(['cart', 'subtotal', 'deliveryFee', 'total', 'open' => true])
 
 <div class="bg-white border border-zinc-200 rounded-2xl p-5 sticky top-24">
     <h2 class="text-sm font-semibold text-zinc-700 mb-4">Resumo do pedido</h2>
@@ -34,8 +34,15 @@
         </div>
     </div>
 
-    <button type="submit" wire:loading.attr="disabled"
-            class="w-full mt-5 py-3.5 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-2xl transition text-sm">
+    {{-- Closed store: PlaceOrder refuses the order anyway; say it before the customer tries. --}}
+    @unless($open)
+    <p data-store-closed class="mt-5 px-3 py-2.5 bg-zinc-100 text-zinc-600 text-sm rounded-xl">
+        A loja está fechada agora. Confira o horário de funcionamento no cardápio.
+    </p>
+    @endunless
+
+    <button type="submit" wire:loading.attr="disabled" @disabled(! $open)
+            class="w-full mt-5 py-3.5 bg-orange-500 hover:bg-orange-600 disabled:bg-zinc-300 disabled:cursor-not-allowed text-white font-semibold rounded-2xl transition text-sm">
         <span wire:loading.remove wire:target="placeOrder">Confirmar pedido</span>
         <span wire:loading wire:target="placeOrder">Processando…</span>
     </button>

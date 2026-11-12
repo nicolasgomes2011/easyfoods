@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\DeliveryType;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -90,6 +91,16 @@ class Restaurant extends Model
             && $yesterday->isOpenDay()
             && $yesterday->closesAt() <= $yesterday->opensAt()
             && $time < $yesterday->closesAt();
+    }
+
+    /** Whether the store takes this order type (the accepts_* flags of Settings › Loja). */
+    public function accepts(DeliveryType $type): bool
+    {
+        return (bool) match ($type) {
+            DeliveryType::Delivery => $this->accepts_delivery,
+            DeliveryType::Pickup   => $this->accepts_pickup,
+            DeliveryType::DineIn   => $this->accepts_dine_in,
+        };
     }
 
     public function deliveryZones(): HasMany
