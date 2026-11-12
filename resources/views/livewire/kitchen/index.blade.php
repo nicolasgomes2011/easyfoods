@@ -46,7 +46,8 @@ new #[Layout('components.layouts.app')] class extends Component {
             OrderStatus::InPreparation->value,
         ])
             ->where('restaurant_id', CurrentRestaurant::id())
-            ->with('items')
+            // Addons come with the items: the card lists them under each line.
+            ->with('items.addons')
             ->orderBy('created_at')
             ->get();
     }
@@ -218,6 +219,17 @@ new #[Layout('components.layouts.app')] class extends Component {
                 <div class="flex items-center gap-2">
                     <span class="size-1.5 rounded-full bg-zinc-600 shrink-0"></span>
                     <span class="text-sm text-zinc-300">{{ $item->displayName() }} ×{{ $item->quantity }}</span>
+                </div>
+                @endif
+                {{-- What to prepare: addons (frozen snapshot) and the item note --}}
+                @if($item->addons->isNotEmpty() || filled($item->notes))
+                <div data-item-details="{{ $item->id }}" class="pl-3.5 space-y-0.5">
+                    @foreach($item->addons as $addon)
+                    <p class="text-xs text-zinc-400">+ {{ filled($addon->addon_group_name) ? $addon->addon_group_name.': ' : '' }}{{ $addon->addon_option_name }}</p>
+                    @endforeach
+                    @if(filled($item->notes))
+                    <p class="text-xs text-orange-300 italic">Obs: {{ $item->notes }}</p>
+                    @endif
                 </div>
                 @endif
                 @endforeach
