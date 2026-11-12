@@ -103,6 +103,18 @@ class Restaurant extends Model
         };
     }
 
+    /** First order type the store takes, in the checkout order delivery → pickup → dine-in (null: none). */
+    public function defaultDeliveryType(): ?DeliveryType
+    {
+        foreach ([DeliveryType::Delivery, DeliveryType::Pickup, DeliveryType::DineIn] as $type) {
+            if ($this->accepts($type)) {
+                return $type;
+            }
+        }
+
+        return null;
+    }
+
     public function deliveryZones(): HasMany
     {
         return $this->hasMany(DeliveryZone::class);
