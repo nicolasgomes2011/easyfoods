@@ -31,7 +31,11 @@ class TransitionOrderStatus
         OrderStatus::Canceled->value => 'canceled_at',
     ];
 
-    public function execute(Order $order, OrderStatus $to, User $actor, ?string $notes = null): Order
+    /**
+     * @param  User|null  $actor  Who made the change; null for the system (e.g. the scheduler
+     *                            expiring an unconfirmed order), stored as changed_by = null.
+     */
+    public function execute(Order $order, OrderStatus $to, ?User $actor, ?string $notes = null): Order
     {
         if ($to === OrderStatus::Canceled && blank($notes)) {
             throw new InvalidArgumentException('A cancellation requires a reason.');
@@ -70,7 +74,7 @@ class TransitionOrderStatus
                 'order_id' => $order->id,
                 'from_status' => $from,
                 'to_status' => $to,
-                'changed_by' => $actor->id,
+                'changed_by' => $actor?->id,
                 'notes' => $notes,
                 'changed_at' => now(),
             ]);

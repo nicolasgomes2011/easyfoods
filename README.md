@@ -151,6 +151,18 @@ DB-specific SQL (e.g. `HAVING` on non-aggregate queries works on MySQL but not S
 
 To wipe demo/seed data from an existing database: `php artisan demo:purge --force`.
 
+### Scheduler
+
+Some work runs on Laravel's scheduler (`routes/console.php`), e.g. canceling orders nobody
+confirmed within the restaurant's window (Settings › Store, "Cancelar pedido não confirmado
+após"). Keep it running:
+
+```bash
+php artisan schedule:work   # dev: runs the schedule every minute in the foreground
+```
+
+In production, add the usual cron entry: `* * * * * php /path/to/artisan schedule:run`.
+
 ## Testing
 
 ```bash

@@ -22,6 +22,7 @@ new #[Layout('components.layouts.app')] class extends Component {
     public bool   $acceptsPickup   = true;
     public int    $minOrderMinutes = 20;
     public int    $maxOrderMinutes = 45;
+    public int    $confirmationTimeoutMinutes = 10;
 
     public bool $saved = false;
 
@@ -45,6 +46,7 @@ new #[Layout('components.layouts.app')] class extends Component {
             $this->acceptsPickup    = $restaurant->accepts_pickup;
             $this->minOrderMinutes  = $restaurant->min_order_minutes ?? 20;
             $this->maxOrderMinutes  = $restaurant->max_order_minutes ?? 45;
+            $this->confirmationTimeoutMinutes = $restaurant->confirmation_timeout_minutes ?? 10;
         }
     }
 
@@ -66,6 +68,8 @@ new #[Layout('components.layouts.app')] class extends Component {
             'acceptsPickup'   => 'boolean',
             'minOrderMinutes' => 'required|integer|min:1|max:240',
             'maxOrderMinutes' => 'required|integer|min:1|max:240',
+            // 0 = never cancel automatically.
+            'confirmationTimeoutMinutes' => 'required|integer|min:0|max:240',
         ];
     }
 
@@ -90,6 +94,7 @@ new #[Layout('components.layouts.app')] class extends Component {
             'accepts_pickup'        => $this->acceptsPickup,
             'min_order_minutes'     => $this->minOrderMinutes,
             'max_order_minutes'     => $this->maxOrderMinutes,
+            'confirmation_timeout_minutes' => $this->confirmationTimeoutMinutes,
             'is_active'             => true,
         ];
 
@@ -242,6 +247,14 @@ new #[Layout('components.layouts.app')] class extends Component {
                            class="w-full bg-zinc-800 border border-zinc-700 text-white text-sm rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-orange-500" />
                     @error('maxOrderMinutes') <p class="text-red-400 text-xs mt-1">{{ $message }}</p> @enderror
                 </div>
+            </div>
+
+            <div class="pt-2 sm:w-1/2 sm:pr-2">
+                <label class="block text-xs font-medium text-zinc-400 mb-1.5">Cancelar pedido não confirmado após (min)</label>
+                <input wire:model="confirmationTimeoutMinutes" type="number" min="0" max="240"
+                       class="w-full bg-zinc-800 border border-zinc-700 text-white text-sm rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-orange-500" />
+                <p class="text-xs text-zinc-500 mt-1">O cliente vê "Não confirmado a tempo". Use 0 para nunca cancelar automaticamente.</p>
+                @error('confirmationTimeoutMinutes') <p class="text-red-400 text-xs mt-1">{{ $message }}</p> @enderror
             </div>
         </div>
 
