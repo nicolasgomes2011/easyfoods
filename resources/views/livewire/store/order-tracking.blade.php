@@ -2,8 +2,10 @@
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Computed;
 use Livewire\Volt\Component;
+use App\Enums\DeliveryType;
 use App\Enums\OrderStatus;
 use App\Models\Order;
+use App\Models\OrderStatusHistory;
 
 new #[Layout('components.layouts.customer')] class extends Component {
 
@@ -25,14 +27,77 @@ new #[Layout('components.layouts.customer')] class extends Component {
             ->first();
     }
 
-    public function statusSteps(): array
+    /**
+     * Customer timeline for the order's delivery type. Each step says whether it
+     * is done, current or pending, and the HH:MM it was reached (from the
+     * append-only status history).
+     *
+     * @return list<array{status: string, label: string, state: string, time: ?string}>
+     */
+    public function steps(Order $order): array
     {
-        return [
-            ['status' => OrderStatus::PendingConfirmation, 'label' => 'Pedido recebido',    'icon' => 'clock'],
-            ['status' => OrderStatus::Confirmed,            'label' => 'Confirmado',         'icon' => 'check'],
-            ['status' => OrderStatus::InPreparation,        'label' => 'Em preparo',         'icon' => 'fire'],
-            ['status' => OrderStatus::ReadyForPickup,       'label' => 'Pronto',             'icon' => 'bell'],
-        ];
+        $labels = [
+            OrderStatus::PendingConfirmation->value => 'Pedido recebido',
+            OrderStatus::Confirmed->value           => 'Confirmado',
+            OrderStatus::InPreparation->value       => 'Em preparo',
+        ] + match ($order->delivery_type) {
+            DeliveryType::Delivery => [
+                OrderStatus::ReadyForPickup->value => 'Pronto',
+                OrderStatus::OutForDelivery->value => 'Saiu para entrega',
+                OrderStatus::Delivered->value      => 'Entregue',
+            ],
+            DeliveryType::Pickup => [
+                OrderStatus::ReadyForPickup->value => 'Pronto para retirada',
+                OrderStatus::Completed->value      => 'Retirado',
+            ],
+            DeliveryType::DineIn => [
+                OrderStatus::ReadyForPickup->value => 'Pronto',
+                OrderStatus::Completed->value      => 'Servido',
+            ],
+        };
+
+        // Lifecycle order: the current step is the last one the order has reached.
+        $rank = array_flip(array_map(fn (OrderStatus $s) => $s->value, [
+            OrderStatus::PendingConfirmation, OrderStatus::Confirmed, OrderStatus::InPreparation,
+            OrderStatus::ReadyForPickup, OrderStatus::OutForDelivery, OrderStatus::Delivered,
+            OrderStatus::Completed,
+        ]));
+        $reached = $rank[$order->status->value] ?? -1;
+        $keys = array_keys($labels);
+        $currentIdx = -1;
+        foreach ($keys as $idx => $status) {
+            if ($rank[$status] <= $reached) {
+                $currentIdx = $idx;
+            }
+        }
+        $lastIdx = count($keys) - 1;
+
+        $steps = [];
+        foreach ($keys as $idx => $status) {
+            $state = match (true) {
+                $idx < $currentIdx => 'done',
+                $idx === $currentIdx => ($order->status->isFinal() || $idx === $lastIdx) ? 'done' : 'current',
+                default => 'pending',
+            };
+
+            $at = $order->statusHistory->firstWhere('to_status', OrderStatus::from($status))?->changed_at
+                ?? ($status === OrderStatus::PendingConfirmation->value ? $order->created_at : null);
+
+            $steps[] = [
+                'status' => $status,
+                'label'  => $labels[$status],
+                'state'  => $state,
+                'time'   => $state !== 'pending' ? $at?->format('H:i') : null,
+            ];
+        }
+
+        return $steps;
+    }
+
+    /** The cancel entry of the history (reason in `notes`), if any. */
+    public function cancellation(Order $order): ?OrderStatusHistory
+    {
+        return $order->statusHistory->firstWhere('to_status', OrderStatus::Canceled);
     }
 }; ?>
 
@@ -71,20 +136,26 @@ new #[Layout('components.layouts.customer')] class extends Component {
         {{ $order->status->label() }}
     </div>
 
-    {{-- Progress steps --}}
-    @if(! $order->status->isFinal())
+    @if($order->status === OrderStatus::Canceled)
+    {{-- Canceled: say when and why instead of the timeline --}}
+    @php $cancel = $this->cancellation($order); $canceledAt = $cancel?->changed_at ?? $order->canceled_at; @endphp
+    <div class="bg-red-50 border border-red-200 rounded-2xl p-5 mb-5 text-sm">
+        <p class="font-semibold text-red-700">
+            Pedido cancelado {{ $canceledAt ? 'às '.$canceledAt->format('H:i') : '' }}
+        </p>
+        @if($cancel?->notes)
+        <p class="text-red-600 mt-1"><span class="text-red-400">Motivo: </span>{{ $cancel->notes }}</p>
+        @endif
+    </div>
+    @else
+    {{-- Progress steps (by delivery type), each with the time it was reached --}}
+    @php $steps = $this->steps($order); $last = count($steps) - 1; @endphp
     <div class="bg-white border border-zinc-200 rounded-2xl p-5 mb-5">
-        <div class="flex items-center">
-            @foreach($this->statusSteps() as $i => $step)
-            @php
-            $statuses = array_column($this->statusSteps(), 'status');
-            $currentIdx = array_search($order->status, $statuses);
-            $stepIdx = $i;
-            $done = $currentIdx !== false && $stepIdx <= $currentIdx;
-            $active = $currentIdx !== false && $stepIdx === $currentIdx;
-            @endphp
+        <div class="flex items-start">
+            @foreach($steps as $i => $step)
+            @php $done = $step['state'] !== 'pending'; $active = $step['state'] === 'current'; @endphp
 
-            <div class="flex flex-col items-center {{ $i < count($this->statusSteps()) - 1 ? 'flex-1' : '' }}">
+            <div data-step="{{ $step['status'] }}" data-state="{{ $step['state'] }}" class="flex flex-col items-center">
                 <div class="size-8 rounded-full flex items-center justify-center text-xs font-bold transition
                     {{ $done ? 'bg-orange-500 text-white' : 'bg-zinc-100 text-zinc-400' }}
                     {{ $active ? 'ring-2 ring-orange-300 ring-offset-1' : '' }}">
@@ -95,10 +166,13 @@ new #[Layout('components.layouts.customer')] class extends Component {
                     @endif
                 </div>
                 <p class="text-[10px] text-zinc-500 mt-1 text-center leading-tight max-w-[60px]">{{ $step['label'] }}</p>
+                @if($step['time'])
+                <p class="text-[10px] text-zinc-400 tabular-nums">{{ $step['time'] }}</p>
+                @endif
             </div>
 
-            @if($i < count($this->statusSteps()) - 1)
-            <div class="flex-1 h-0.5 mb-5 mx-1 {{ $done && $stepIdx < $currentIdx ? 'bg-orange-400' : 'bg-zinc-200' }}"></div>
+            @if($i < $last)
+            <div class="flex-1 h-0.5 mt-4 mx-1 {{ $step['state'] === 'done' && $steps[$i + 1]['state'] !== 'pending' ? 'bg-orange-400' : 'bg-zinc-200' }}"></div>
             @endif
             @endforeach
         </div>
