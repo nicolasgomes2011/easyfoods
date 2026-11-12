@@ -240,13 +240,20 @@ new #[Layout('components.layouts.customer')] class extends Component {
     </div>
     @else
     {{-- One page, a section per category: the tabs scroll to it in the browser (no server request)
-         and the tab of the section in view is highlighted. --}}
+         and the tab of the section in view is highlighted. The quick search (q) filters products,
+         sections and tabs in the browser too, against each product's accent-free data-search. --}}
     <div x-data="{
             active: @js($this->categories->first()->slug),
+            q: '',
             go(slug) {
                 this.active = slug;
                 document.getElementById('cat-' + slug)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
             },
+            get term() {
+                return this.q.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+            },
+            matches(text) { return ! this.term || (text ?? '').includes(this.term); },
+            anyMatch(el) { return ! this.term || [...(el?.querySelectorAll('[data-search]') ?? [])].some(p => this.matches(p.dataset.search)); },
          }"
          x-init="
             const spy = new IntersectionObserver(entries => entries.forEach(e => { if (e.isIntersecting) active = e.target.dataset.category }), { rootMargin: '-120px 0px -60% 0px' });
@@ -254,9 +261,12 @@ new #[Layout('components.layouts.customer')] class extends Component {
             if ($el.dataset.scrollTo) $nextTick(() => go($el.dataset.scrollTo));
          "
          @if($category) data-scroll-to="{{ $category }}" @endif>
+        <x-store.menu-search />
+
         <div class="sticky top-14 z-40 -mx-4 px-4 py-2 mb-5 bg-zinc-50 flex gap-2 overflow-x-auto scrollbar-hide">
             @foreach($this->categories as $cat)
             <button type="button" data-category-tab="{{ $cat->slug }}" @click="go(@js($cat->slug))"
+                    x-show="anyMatch(document.getElementById(@js('cat-'.$cat->slug)))"
                     :class="active === @js($cat->slug) ? 'bg-orange-500 text-white' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'"
                     class="shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium transition">
                 {{ $cat->name }}
@@ -265,15 +275,21 @@ new #[Layout('components.layouts.customer')] class extends Component {
         </div>
 
         @foreach($this->categories as $cat)
-        <section id="cat-{{ $cat->slug }}" data-category="{{ $cat->slug }}" class="mb-8 scroll-mt-32">
+        <section id="cat-{{ $cat->slug }}" data-category="{{ $cat->slug }}" x-show="anyMatch($el)" class="mb-8 scroll-mt-32">
             <h2 class="text-lg font-semibold text-zinc-800 mb-3">{{ $cat->name }}</h2>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 @foreach($this->productsByCategory->get($cat->id, collect()) as $product)
-                <x-store.product-card :product="$product" />
+                <div data-search="{{ $product->searchText() }}" x-show="matches($el.dataset.search)">
+                    <x-store.product-card :product="$product" />
+                </div>
                 @endforeach
             </div>
         </section>
         @endforeach
+
+        <p x-show="! anyMatch($root)" style="display: none" class="py-16 text-center text-zinc-400 text-sm">
+            Nenhum produto encontrado.
+        </p>
     </div>
     @endif
 
