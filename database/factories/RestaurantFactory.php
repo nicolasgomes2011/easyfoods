@@ -14,7 +14,9 @@ class RestaurantFactory extends Factory
 
         return [
             'name'              => $name,
-            'slug'              => Str::slug($name),
+            // restaurants.slug is unique and the pt_BR company() names repeat often:
+            // a random suffix keeps tests with several restaurants from colliding.
+            'slug'              => Str::slug($name).'-'.Str::lower(Str::random(8)),
             'description'       => $this->faker->sentence(10),
             'phone'             => $this->faker->numerify('(##) #####-####'),
             'email'             => $this->faker->companyEmail(),
