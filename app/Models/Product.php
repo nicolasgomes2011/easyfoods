@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Str;
 
 class Product extends Model
 {
@@ -68,6 +69,12 @@ class Product extends Model
     public function isArchived(): bool
     {
         return $this->archived_at !== null;
+    }
+
+    /** Name + description without accents, lower case and single-spaced: what the menu quick search matches. */
+    public function searchText(): string
+    {
+        return (string) Str::of($this->name.' '.$this->description)->ascii()->lower()->squish();
     }
 
     public function scopeAvailable($query)
