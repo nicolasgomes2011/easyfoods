@@ -146,7 +146,7 @@ new #[Layout('components.layouts.app')] class extends Component {
         @foreach($this->queueOrders as $order)
         @php
             $inPrep  = $order->status === OrderStatus::InPreparation;
-            $minutes = $order->created_at->diffInMinutes(now());
+            $minutes = (int) $order->created_at->diffInMinutes(now());
             $urgent  = $inPrep && $minutes >= 20;
         @endphp
         <div class="bg-zinc-900 border {{ $inPrep || $urgent ? 'border-orange-500/50' : 'border-zinc-800' }} rounded-xl overflow-hidden">
