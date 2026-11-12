@@ -3,7 +3,7 @@ use Livewire\Attributes\Layout;
 use Livewire\Attributes\Computed;
 use Livewire\Volt\Component;
 use App\Models\Category;
-use App\Models\Restaurant;
+use App\Support\CurrentRestaurant;
 use Illuminate\Support\Str;
 
 new #[Layout('components.layouts.app')] class extends Component {
@@ -25,7 +25,7 @@ new #[Layout('components.layouts.app')] class extends Component {
 
     private function rid(): ?int
     {
-        return Restaurant::query()->value('id');
+        return CurrentRestaurant::id();
     }
 
     #[Computed]

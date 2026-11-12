@@ -5,13 +5,14 @@ use Livewire\Volt\Component;
 use App\Models\Cart;
 use App\Models\CartItem;
 use App\Models\Restaurant;
+use App\Support\CurrentRestaurant;
 
 new #[Layout('components.layouts.customer')] class extends Component {
 
     #[Computed]
     public function restaurant(): ?Restaurant
     {
-        return Restaurant::first();
+        return CurrentRestaurant::get();
     }
 
     #[Computed]

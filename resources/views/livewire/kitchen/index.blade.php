@@ -6,7 +6,7 @@ use App\Enums\OrderStatus;
 use App\Enums\DeliveryType;
 use App\Enums\WaiterCallStatus;
 use App\Models\Order;
-use App\Models\Restaurant;
+use App\Support\CurrentRestaurant;
 use App\Models\WaiterCall;
 use App\Actions\Orders\TransitionOrderStatus;
 use Illuminate\Support\Facades\Gate;
@@ -38,7 +38,7 @@ new #[Layout('components.layouts.app')] class extends Component {
             OrderStatus::Confirmed->value,
             OrderStatus::InPreparation->value,
         ])
-            ->where('restaurant_id', Restaurant::query()->value('id'))
+            ->where('restaurant_id', CurrentRestaurant::id())
             ->with('items')
             ->orderBy('created_at')
             ->get();
@@ -68,7 +68,7 @@ new #[Layout('components.layouts.app')] class extends Component {
     #[Computed]
     public function pendingWaiterCalls()
     {
-        $restaurant = Restaurant::first();
+        $restaurant = CurrentRestaurant::get();
         if (! $restaurant) return collect();
         return WaiterCall::with('diningTable')
             ->where('restaurant_id', $restaurant->id)

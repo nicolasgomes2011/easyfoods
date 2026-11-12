@@ -6,7 +6,7 @@ use App\Actions\Orders\TransitionOrderStatus;
 use App\Enums\DeliveryType;
 use App\Enums\OrderStatus;
 use App\Models\Order;
-use App\Models\Restaurant;
+use App\Support\CurrentRestaurant;
 
 new #[Layout('components.layouts.app')] class extends Component {
 
@@ -14,7 +14,7 @@ new #[Layout('components.layouts.app')] class extends Component {
 
     private function rid(): ?int
     {
-        return Restaurant::query()->value('id');
+        return CurrentRestaurant::id();
     }
 
     #[Computed]

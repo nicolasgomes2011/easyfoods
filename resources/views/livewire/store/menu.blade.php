@@ -8,6 +8,7 @@ use App\Models\Cart;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\Restaurant;
+use App\Support\CurrentRestaurant;
 
 new #[Layout('components.layouts.customer')] class extends Component {
 
@@ -28,7 +29,7 @@ new #[Layout('components.layouts.customer')] class extends Component {
     #[Computed]
     public function restaurant(): ?Restaurant
     {
-        return Restaurant::first();
+        return CurrentRestaurant::get();
     }
 
     #[Computed]

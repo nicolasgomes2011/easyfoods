@@ -2,6 +2,7 @@
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
 use App\Models\Restaurant;
+use App\Support\CurrentRestaurant;
 use Illuminate\Support\Str;
 
 new #[Layout('components.layouts.app')] class extends Component {
@@ -26,7 +27,7 @@ new #[Layout('components.layouts.app')] class extends Component {
 
     public function mount(): void
     {
-        $restaurant = Restaurant::first();
+        $restaurant = CurrentRestaurant::get();
 
         if ($restaurant) {
             $this->name         = $restaurant->name;
@@ -92,7 +93,7 @@ new #[Layout('components.layouts.app')] class extends Component {
             'is_active'             => true,
         ];
 
-        $restaurant = Restaurant::first();
+        $restaurant = CurrentRestaurant::get();
 
         if ($restaurant) {
             $restaurant->update($data);

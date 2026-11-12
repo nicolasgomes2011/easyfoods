@@ -2,7 +2,7 @@
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Computed;
 use Livewire\Volt\Component;
-use App\Models\Restaurant;
+use App\Support\CurrentRestaurant;
 use App\Models\DeliveryZone;
 
 new #[Layout('components.layouts.app')] class extends Component {
@@ -31,7 +31,7 @@ new #[Layout('components.layouts.app')] class extends Component {
     #[Computed]
     public function zones()
     {
-        $restaurant = Restaurant::first();
+        $restaurant = CurrentRestaurant::get();
         if (! $restaurant) return collect();
         return $restaurant->deliveryZones()->orderBy('name')->get();
     }
@@ -60,7 +60,7 @@ new #[Layout('components.layouts.app')] class extends Component {
     {
         $this->validate();
 
-        $restaurant = Restaurant::first();
+        $restaurant = CurrentRestaurant::get();
         if (! $restaurant) return;
 
         $data = [

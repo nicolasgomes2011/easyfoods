@@ -5,7 +5,7 @@ use Livewire\Volt\Component;
 use App\Enums\OrderStatus;
 use App\Enums\DeliveryType;
 use App\Models\Order;
-use App\Models\Restaurant;
+use App\Support\CurrentRestaurant;
 
 new #[Layout('components.layouts.app')] class extends Component {
 
@@ -30,7 +30,7 @@ new #[Layout('components.layouts.app')] class extends Component {
         );
 
         return Order::whereIn('status', $activeStatuses)
-            ->where('restaurant_id', Restaurant::query()->value('id'))
+            ->where('restaurant_id', CurrentRestaurant::id())
             ->orderBy('created_at')
             ->get();
     }

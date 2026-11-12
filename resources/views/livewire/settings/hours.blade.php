@@ -2,7 +2,7 @@
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Computed;
 use Livewire\Volt\Component;
-use App\Models\Restaurant;
+use App\Support\CurrentRestaurant;
 use App\Models\OperatingHour;
 
 new #[Layout('components.layouts.app')] class extends Component {
@@ -12,7 +12,7 @@ new #[Layout('components.layouts.app')] class extends Component {
 
     public function mount(): void
     {
-        $restaurant = Restaurant::first();
+        $restaurant = CurrentRestaurant::get();
 
         if (! $restaurant) {
             return;
@@ -56,7 +56,7 @@ new #[Layout('components.layouts.app')] class extends Component {
 
     public function save(): void
     {
-        $restaurant = Restaurant::first();
+        $restaurant = CurrentRestaurant::get();
 
         if (! $restaurant) {
             return;

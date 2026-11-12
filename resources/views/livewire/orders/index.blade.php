@@ -7,7 +7,7 @@ use Livewire\WithPagination;
 use App\Enums\OrderStatus;
 use App\Enums\DeliveryType;
 use App\Models\Order;
-use App\Models\Restaurant;
+use App\Support\CurrentRestaurant;
 
 new #[Layout('components.layouts.app')] class extends Component {
     use WithPagination;
@@ -27,7 +27,7 @@ new #[Layout('components.layouts.app')] class extends Component {
     public function orders()
     {
         return Order::query()
-            ->where('restaurant_id', Restaurant::query()->value('id'))
+            ->where('restaurant_id', CurrentRestaurant::id())
             ->when($this->search, fn ($q) => $q->where(function ($q) {
                 $q->where('number', 'like', "%{$this->search}%")
                   ->orWhere('customer_name', 'like', "%{$this->search}%");

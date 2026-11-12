@@ -6,7 +6,7 @@ use App\Enums\ProductAvailabilityStatus;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\ProductVariant;
-use App\Models\Restaurant;
+use App\Support\CurrentRestaurant;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -98,7 +98,7 @@ class ProductForm extends Component
 
     private function rid(): ?int
     {
-        return Restaurant::query()->value('id');
+        return CurrentRestaurant::id();
     }
 
     #[Computed]

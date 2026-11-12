@@ -7,6 +7,7 @@ use App\Enums\UserRole;
 use App\Models\Order;
 use App\Models\Restaurant;
 use App\Models\User;
+use App\Support\CurrentRestaurant;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Volt\Volt;
 use Tests\TestCase;
@@ -20,7 +21,7 @@ class DriverPanelTest extends TestCase
         return User::factory()->create(['role' => UserRole::Delivery]);
     }
 
-    /** Driver panel scopes to the single restaurant via Restaurant::query()->value('id'). */
+    /** Driver panel scopes to the single restaurant via CurrentRestaurant::id(). */
     private function restaurant(): Restaurant
     {
         return Restaurant::factory()->create();
@@ -93,11 +94,9 @@ class DriverPanelTest extends TestCase
         $restaurantA = $this->restaurant();
         $restaurantB = $this->restaurant();
 
-        // rid() = Restaurant::query()->value('id') has no ORDER BY, so SQLite may
-        // serve rows in index (e.g. slug) order — "first created" is NOT guaranteed
-        // to be the panel's restaurant. Resolve what the panel will actually scope
-        // to and place the foreign order in the other restaurant.
-        $panelRestaurantId = Restaurant::query()->value('id');
+        // Resolve what the panel will actually scope to and place the foreign
+        // order in the other restaurant.
+        $panelRestaurantId = CurrentRestaurant::id();
         $foreignRestaurant = $panelRestaurantId === $restaurantA->id ? $restaurantB : $restaurantA;
 
         $foreignOrder = Order::factory()->for($foreignRestaurant)->create([
