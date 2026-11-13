@@ -179,9 +179,14 @@ new #[Layout('components.layouts.app')] class extends Component {
 }; ?>
 
 <div class="max-w-5xl">
-    <div class="mb-6">
-        <h1 class="text-xl font-bold text-white">Desperdício</h1>
-        <p class="text-sm text-zinc-400 mt-0.5">Registre o que foi jogado fora: insumo, quantidade e motivo.</p>
+    <div class="flex items-start justify-between gap-3 mb-6">
+        <div>
+            <h1 class="text-xl font-bold text-white">Desperdício</h1>
+            <p class="text-sm text-zinc-400 mt-0.5">Registre o que foi jogado fora: insumo, quantidade e motivo.</p>
+        </div>
+        @if($this->canSeeCosts)
+        <a href="{{ route('admin.reports.waste') }}" wire:navigate class="text-sm text-orange-400 hover:text-orange-300 whitespace-nowrap">Relatório de perdas →</a>
+        @endif
     </div>
 
     @if($statusMessage)
