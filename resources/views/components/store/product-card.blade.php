@@ -1,4 +1,5 @@
-@props(['product'])
+{{-- most-ordered: the product is in the menu's "Mais pedidos" ranking (badge on its card in the category). --}}
+@props(['product', 'mostOrdered' => false])
 
 @php($orderable = $product->isAvailable())
 
@@ -26,8 +27,15 @@
             </div>
             @if(! $orderable)
             <span class="shrink-0 text-[10px] font-semibold text-zinc-600 bg-zinc-100 rounded-full px-1.5 py-0.5">Indisponível no momento</span>
-            @elseif($product->is_featured)
-            <span class="shrink-0 text-[10px] font-semibold text-orange-500 bg-orange-50 rounded-full px-1.5 py-0.5">destaque</span>
+            @elseif($mostOrdered || $product->is_featured)
+            <div class="shrink-0 flex flex-col items-end gap-1">
+                @if($mostOrdered)
+                <span data-most-ordered-badge class="text-[10px] font-semibold text-white bg-orange-500 rounded-full px-1.5 py-0.5">Mais pedido</span>
+                @endif
+                @if($product->is_featured)
+                <span class="text-[10px] font-semibold text-orange-500 bg-orange-50 rounded-full px-1.5 py-0.5">destaque</span>
+                @endif
+            </div>
             @endif
         </div>
 
