@@ -1,7 +1,9 @@
 <?php
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Computed;
+use Livewire\Attributes\Session;
 use Livewire\Volt\Component;
+use App\Enums\DeliveryType;
 use App\Enums\OrderItemChangeType;
 use App\Enums\OrderStatus;
 use App\Enums\WaiterCallStatus;
@@ -21,32 +23,75 @@ new #[Layout('components.layouts.app')] class extends Component {
         return OrderStatus::Confirmed;
     }
 
+    /** Order type shown on the queue ('all' or a DeliveryType value); kept in the user's session. */
+    #[Session]
+    public string $typeFilter = 'all';
+
+    /** Filter buttons: value => label. */
+    #[Computed]
+    public function filters(): array
+    {
+        return ['all' => 'Todos', 'dine_in' => 'Mesa', 'delivery' => 'Delivery', 'pickup' => 'Retirada'];
+    }
+
+    public function filterBy(string $type): void
+    {
+        $this->typeFilter = DeliveryType::tryFrom($type)?->value ?? 'all';
+        unset($this->queueOrders, $this->waitingCount, $this->inPreparationCount, $this->readyCount, $this->hiddenByFilterCount);
+    }
+
+    /** Queue orders of other types while a filter is on: shown as a notice, never hidden silently. */
+    #[Computed]
+    public function hiddenByFilterCount(): int
+    {
+        $type = DeliveryType::tryFrom($this->typeFilter);
+
+        if ($type === null) {
+            return 0;
+        }
+
+        return Order::where('restaurant_id', CurrentRestaurant::id())
+            ->whereIn('status', [OrderStatus::Confirmed->value, OrderStatus::InPreparation->value])
+            ->where('delivery_type', '!=', $type->value)
+            ->count();
+    }
+
+    /** This restaurant's orders of the selected type: the queue and the counters. */
+    private function kitchenOrders()
+    {
+        return Order::where('restaurant_id', CurrentRestaurant::id())
+            ->when(
+                DeliveryType::tryFrom($this->typeFilter),
+                fn ($query, DeliveryType $type) => $query->where('delivery_type', $type->value)
+            );
+    }
+
     #[Computed]
     public function waitingCount(): int
     {
-        return Order::byStatus(OrderStatus::Confirmed)->count();
+        return $this->kitchenOrders()->byStatus(OrderStatus::Confirmed)->count();
     }
 
     #[Computed]
     public function inPreparationCount(): int
     {
-        return Order::byStatus(OrderStatus::InPreparation)->count();
+        return $this->kitchenOrders()->byStatus(OrderStatus::InPreparation)->count();
     }
 
     #[Computed]
     public function readyCount(): int
     {
-        return Order::byStatus(OrderStatus::ReadyForPickup)->count();
+        return $this->kitchenOrders()->byStatus(OrderStatus::ReadyForPickup)->count();
     }
 
     #[Computed]
     public function queueOrders()
     {
-        return Order::whereIn('status', [
-            OrderStatus::Confirmed->value,
-            OrderStatus::InPreparation->value,
-        ])
-            ->where('restaurant_id', CurrentRestaurant::id())
+        return $this->kitchenOrders()
+            ->whereIn('status', [
+                OrderStatus::Confirmed->value,
+                OrderStatus::InPreparation->value,
+            ])
             // Addons come with the items: the card lists them under each line.
             // Removals too: the card keeps a removed item struck through.
             ->with([
@@ -75,7 +120,7 @@ new #[Layout('components.layouts.app')] class extends Component {
 
         app(TransitionOrderStatus::class)->execute($order, $to, auth()->user());
 
-        unset($this->queueOrders, $this->waitingCount, $this->inPreparationCount, $this->readyCount);
+        unset($this->queueOrders, $this->waitingCount, $this->inPreparationCount, $this->readyCount, $this->hiddenByFilterCount);
 
         // Keep the tab title count in step with the queue right away, not on the next poll.
         $this->checkNewOrders();
@@ -117,7 +162,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                 <span class="text-xs text-yellow-500">{{ $call->called_at->diffForHumans() }}</span>
             </div>
             <button wire:click="acknowledgeWaiterCall({{ $call->id }})"
-                    class="text-xs text-yellow-400 hover:text-yellow-300 bg-yellow-400/10 hover:bg-yellow-400/20 rounded-lg px-2.5 py-1.5 transition">
+                    class="min-h-12 text-sm font-semibold text-yellow-300 hover:text-yellow-200 bg-yellow-400/10 hover:bg-yellow-400/20 rounded-xl px-4 transition">
                 Atender
             </button>
         </div>
@@ -140,143 +185,76 @@ new #[Layout('components.layouts.app')] class extends Component {
         </div>
     </div>
 
-    {{-- Status summary --}}
+    {{-- Order type filter (kept in the session) --}}
+    <div class="flex flex-wrap gap-2 mb-4" role="group" aria-label="Filtrar a fila por tipo de pedido">
+        @foreach($this->filters as $value => $label)
+        <button type="button"
+                data-kitchen-filter="{{ $value }}"
+                wire:click="filterBy('{{ $value }}')"
+                aria-pressed="{{ $typeFilter === $value ? 'true' : 'false' }}"
+                class="min-h-12 min-w-24 rounded-xl border px-4 text-base font-semibold transition {{ $typeFilter === $value ? 'border-orange-500 bg-orange-500/15 text-white' : 'border-zinc-700 bg-zinc-900 text-zinc-300 hover:border-zinc-500' }}">
+            {{ $label }}
+        </button>
+        @endforeach
+    </div>
+    @if($this->hiddenByFilterCount > 0)
+    <div data-kitchen-hidden class="flex items-center justify-between gap-3 mb-4 rounded-xl border border-yellow-400/30 bg-yellow-400/10 px-4 py-2">
+        <span class="text-sm text-yellow-200">
+            {{ $this->hiddenByFilterCount }} {{ $this->hiddenByFilterCount === 1 ? 'pedido de outro tipo' : 'pedidos de outros tipos' }} na fila
+        </span>
+        <button type="button" wire:click="filterBy('all')"
+                class="min-h-12 text-sm font-semibold text-yellow-200 hover:text-white rounded-xl px-4 transition">
+            Ver todos
+        </button>
+    </div>
+    @endif
+
+    {{-- Status summary: this restaurant, selected type --}}
     <div class="grid grid-cols-3 gap-3 mb-6">
         @foreach([
-            ['label' => 'Aguardando preparo', 'value' => $this->waitingCount],
-            ['label' => 'Em preparo',          'value' => $this->inPreparationCount],
-            ['label' => 'Prontos',             'value' => $this->readyCount],
+            ['key' => 'waiting',        'label' => 'Aguardando preparo', 'value' => $this->waitingCount],
+            ['key' => 'in_preparation', 'label' => 'Em preparo',          'value' => $this->inPreparationCount],
+            ['key' => 'ready',          'label' => 'Prontos',             'value' => $this->readyCount],
         ] as $stat)
-        <div class="bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-center">
-            <p class="text-2xl font-bold text-white tabular-nums">{{ $stat['value'] }}</p>
-            <p class="text-xs text-zinc-400 mt-1">{{ $stat['label'] }}</p>
+        <div data-kitchen-count="{{ $stat['key'] }}" class="bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-center">
+            <p class="text-3xl font-bold text-white tabular-nums">{{ $stat['value'] }}</p>
+            <p class="text-sm text-zinc-400 mt-1">{{ $stat['label'] }}</p>
         </div>
         @endforeach
     </div>
 
-    {{-- Queue cards --}}
+    {{-- Queue: waiting first, then in preparation --}}
     @if($this->queueOrders->isEmpty())
     <div class="bg-zinc-900 border border-zinc-800 rounded-xl px-5 py-12 text-center">
-        <p class="text-zinc-500 text-sm">Fila vazia. Nenhum pedido aguardando preparo.</p>
+        <p class="text-zinc-500 text-base">
+            @if($typeFilter === 'all')
+            Fila vazia. Nenhum pedido aguardando preparo.
+            @else
+            Nenhum pedido de {{ mb_strtolower($this->filters[$typeFilter]) }} na fila.
+            @endif
+        </p>
     </div>
     @else
-    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-        @foreach($this->queueOrders as $order)
-        @php
-            $inPrep  = $order->status === OrderStatus::InPreparation;
-            $minutes = (int) $order->created_at->diffInMinutes(now());
-            $urgent  = $inPrep && $minutes >= 20;
-        @endphp
-        <div @if(! $inPrep) data-new-order="{{ $order->id }}" @endif
-             class="bg-zinc-900 border {{ $inPrep || $urgent ? 'border-orange-500/50' : 'border-yellow-400/50 ring-1 ring-yellow-400/30' }} rounded-xl overflow-hidden">
-            <div class="flex items-center justify-between px-4 py-3 border-b {{ $inPrep || $urgent ? 'border-orange-500/30 bg-orange-500/5' : 'border-zinc-800' }}">
-                <div class="flex items-center gap-2">
-                    <span class="text-sm font-bold font-mono {{ $inPrep || $urgent ? 'text-orange-400' : 'text-white' }}">
-                        #{{ $order->number }}
-                    </span>
-                    <span class="text-xs text-zinc-400">
-                        <x-orders.delivery-type :order="$order" />
-                    </span>
-                    @if($inPrep)
-                    <span class="text-[10px] font-semibold text-orange-400 bg-orange-400/10 border border-orange-400/20 rounded-full px-1.5 py-0.5">
-                        Em preparo
-                    </span>
-                    @else
-                    <span class="text-[10px] font-semibold text-yellow-400 bg-yellow-400/10 border border-yellow-400/20 rounded-full px-1.5 py-0.5">
-                        Aguardando
-                    </span>
-                    @endif
-                </div>
-                <div class="flex items-center gap-1.5 text-xs {{ $urgent ? 'text-red-400' : 'text-zinc-400' }}">
-                    <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                    </svg>
-                    {{ $minutes }} min
-                </div>
-            </div>
-            @if($inPrep && $order->preparation_started_at)
-            {{-- Prep timer: counts from the start of preparation, red past the estimate --}}
-            @php
-                $elapsed = max(0, (int) $order->preparation_started_at->diffInSeconds(now()));
-                $late = $order->estimated_ready_at && now()->gte($order->estimated_ready_at);
-            @endphp
-            <div class="px-4 pt-3 flex items-center justify-between text-xs"
-                 x-data="{ start: {{ $order->preparation_started_at->getTimestampMs() }}, due: {{ $order->estimated_ready_at?->getTimestampMs() ?? 'null' }}, now: Date.now() }"
-                 x-init="setInterval(() => now = Date.now(), 1000)">
-                <span data-prep-timer class="font-mono font-semibold tabular-nums {{ $late ? 'text-red-400' : 'text-zinc-200' }}"
-                      :class="{ 'text-red-400': due && now >= due, 'text-zinc-200': ! (due && now >= due) }"
-                      x-text="(s => String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'))(Math.max(0, Math.floor((now - start) / 1000)))">{{ sprintf('%02d:%02d', intdiv($elapsed, 60), $elapsed % 60) }}</span>
-                @if($order->estimated_ready_at)
-                <span class="text-zinc-500">Previsto {{ $order->estimated_ready_at->format('H:i') }}</span>
-                @endif
+    <div class="space-y-6">
+        @foreach([
+            ['status' => OrderStatus::Confirmed,     'label' => 'Aguardando preparo', 'empty' => 'Nenhum pedido aguardando preparo.'],
+            ['status' => OrderStatus::InPreparation, 'label' => 'Em preparo',         'empty' => 'Nenhum pedido em preparo.'],
+        ] as $group)
+        @php $groupOrders = $this->queueOrders->filter(fn ($order) => $order->status === $group['status']); @endphp
+        <section data-kitchen-group="{{ $group['status']->value }}">
+            <h2 class="text-base font-semibold text-zinc-200 mb-3">
+                {{ $group['label'] }} <span class="text-zinc-500 tabular-nums">· {{ $groupOrders->count() }}</span>
+            </h2>
+            @if($groupOrders->isEmpty())
+            <p class="text-sm text-zinc-500 bg-zinc-900 border border-dashed border-zinc-800 rounded-xl px-4 py-4">{{ $group['empty'] }}</p>
+            @else
+            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                @foreach($groupOrders as $order)
+                <x-kitchen.order-card :order="$order" wire:key="kitchen-order-{{ $order->id }}" />
+                @endforeach
             </div>
             @endif
-            <div class="px-4 py-3 space-y-1.5">
-                @foreach($order->items as $item)
-                @if($item->wasAddedLater())
-                {{-- Added by the front of house after the order was placed --}}
-                <div data-added-item="{{ $item->id }}" class="flex items-center gap-2 rounded-md bg-yellow-400/10 border border-yellow-400/30 px-2 py-1 -mx-2">
-                    <span class="size-1.5 rounded-full bg-yellow-400 animate-pulse shrink-0"></span>
-                    <span class="text-sm font-medium text-yellow-200">{{ $item->displayName() }} ×{{ $item->quantity }}</span>
-                    <span class="ml-auto text-[10px] font-semibold text-yellow-400 uppercase tracking-wide">Novo · {{ $item->added_at->format('H:i') }}</span>
-                </div>
-                @else
-                <div class="flex items-center gap-2">
-                    <span class="size-1.5 rounded-full bg-zinc-600 shrink-0"></span>
-                    <span class="text-sm text-zinc-300">{{ $item->displayName() }} ×{{ $item->quantity }}</span>
-                </div>
-                @endif
-                {{-- What to prepare: addons (frozen snapshot) and the item note --}}
-                @if($item->addons->isNotEmpty() || filled($item->notes))
-                <div data-item-details="{{ $item->id }}" class="pl-3.5 space-y-0.5">
-                    @foreach($item->addons as $addon)
-                    <p class="text-xs text-zinc-400">+ {{ filled($addon->addon_group_name) ? $addon->addon_group_name.': ' : '' }}{{ $addon->addon_option_name }}</p>
-                    @endforeach
-                    @if(filled($item->notes))
-                    <p class="text-xs text-orange-300 italic">Obs: {{ $item->notes }}</p>
-                    @endif
-                </div>
-                @endif
-                @endforeach
-                @foreach($order->removalsSeenByKitchen() as $removal)
-                {{-- Removed by the front of house after the kitchen got the order: stop preparing it --}}
-                <div data-removed-item="{{ $removal->id }}" class="rounded-md bg-red-500/10 border border-red-500/30 px-2 py-1 -mx-2">
-                    <div class="flex items-center gap-2">
-                        <span class="size-1.5 rounded-full bg-red-400 shrink-0"></span>
-                        <span class="text-sm font-medium text-red-300 line-through">{{ $removal->displayName() }} ×{{ $removal->quantity }}</span>
-                        <span class="ml-auto text-[10px] font-semibold text-red-400 uppercase tracking-wide">Removido · {{ $removal->changed_at->format('H:i') }}</span>
-                    </div>
-                    @if(filled($removal->reason))
-                    <p class="pl-3.5 text-xs text-red-300/80">Motivo: {{ $removal->reason }}</p>
-                    @endif
-                </div>
-                @endforeach
-            </div>
-            <div class="px-4 py-3 border-t border-zinc-800 flex items-center justify-between">
-                <span class="text-xs text-zinc-500 tabular-nums">
-                    R$ {{ number_format($order->total, 2, ',', '.') }}
-                </span>
-                @can('transitionInKitchen', $order)
-                    @if($order->status === OrderStatus::Confirmed)
-                    <button
-                        wire:click="startPreparing({{ $order->id }})"
-                        wire:loading.attr="disabled"
-                        wire:target="startPreparing({{ $order->id }})"
-                        class="inline-flex items-center gap-1.5 text-xs font-semibold text-orange-400 bg-orange-400/10 hover:bg-orange-400/15 border border-orange-400/20 rounded-lg px-3 py-1.5 transition disabled:opacity-50">
-                        Iniciar preparo
-                    </button>
-                    @elseif($order->status === OrderStatus::InPreparation)
-                    <button
-                        wire:click="markReady({{ $order->id }})"
-                        wire:loading.attr="disabled"
-                        wire:target="markReady({{ $order->id }})"
-                        class="inline-flex items-center gap-1.5 text-xs font-semibold text-green-400 bg-green-400/10 hover:bg-green-400/15 border border-green-400/20 rounded-lg px-3 py-1.5 transition disabled:opacity-50">
-                        Marcar pronto
-                    </button>
-                    @endif
-                @endcan
-            </div>
-        </div>
+        </section>
         @endforeach
     </div>
     @endif
