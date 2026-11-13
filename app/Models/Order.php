@@ -3,7 +3,9 @@
 namespace App\Models;
 
 use App\Enums\DeliveryType;
+use App\Enums\OrderItemChangeType;
 use App\Enums\OrderStatus;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -138,6 +140,21 @@ class Order extends Model
     public function itemChanges(): HasMany
     {
         return $this->hasMany(OrderItemChange::class)->orderBy('changed_at')->orderBy('id');
+    }
+
+    /**
+     * Items removed after the kitchen got the order (from its confirmation on):
+     * the kitchen card keeps them struck through so nobody keeps preparing them.
+     * Removals before the confirmation were never seen by the kitchen.
+     *
+     * @return Collection<int, OrderItemChange>
+     */
+    public function removalsSeenByKitchen(): Collection
+    {
+        return $this->itemChanges
+            ->filter(fn (OrderItemChange $change) => $change->type === OrderItemChangeType::Removed
+                && ($this->confirmed_at === null || $change->changed_at->gte($this->confirmed_at)))
+            ->values();
     }
 
     public function payment(): HasOne

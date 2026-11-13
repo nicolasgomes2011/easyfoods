@@ -2,6 +2,7 @@
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Computed;
 use Livewire\Volt\Component;
+use App\Enums\OrderItemChangeType;
 use App\Enums\OrderStatus;
 use App\Enums\WaiterCallStatus;
 use App\Livewire\Concerns\AlertsNewOrders;
@@ -47,7 +48,11 @@ new #[Layout('components.layouts.app')] class extends Component {
         ])
             ->where('restaurant_id', CurrentRestaurant::id())
             // Addons come with the items: the card lists them under each line.
-            ->with('items.addons')
+            // Removals too: the card keeps a removed item struck through.
+            ->with([
+                'items.addons',
+                'itemChanges' => fn ($query) => $query->where('type', OrderItemChangeType::Removed->value),
+            ])
             ->orderBy('created_at')
             ->get();
     }
@@ -232,6 +237,19 @@ new #[Layout('components.layouts.app')] class extends Component {
                     @endif
                 </div>
                 @endif
+                @endforeach
+                @foreach($order->removalsSeenByKitchen() as $removal)
+                {{-- Removed by the front of house after the kitchen got the order: stop preparing it --}}
+                <div data-removed-item="{{ $removal->id }}" class="rounded-md bg-red-500/10 border border-red-500/30 px-2 py-1 -mx-2">
+                    <div class="flex items-center gap-2">
+                        <span class="size-1.5 rounded-full bg-red-400 shrink-0"></span>
+                        <span class="text-sm font-medium text-red-300 line-through">{{ $removal->displayName() }} ×{{ $removal->quantity }}</span>
+                        <span class="ml-auto text-[10px] font-semibold text-red-400 uppercase tracking-wide">Removido · {{ $removal->changed_at->format('H:i') }}</span>
+                    </div>
+                    @if(filled($removal->reason))
+                    <p class="pl-3.5 text-xs text-red-300/80">Motivo: {{ $removal->reason }}</p>
+                    @endif
+                </div>
                 @endforeach
             </div>
             <div class="px-4 py-3 border-t border-zinc-800 flex items-center justify-between">
