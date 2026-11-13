@@ -183,7 +183,7 @@ new #[Layout('components.layouts.app')] class extends Component {
         @else
         <div class="space-y-3">
             @foreach($this->myEnRoute as $order)
-            <x-driver.order-card :order="$order" accent="border-indigo-500/30" wire:key="en-route-{{ $order->id }}">
+            <x-driver.order-card :order="$order" accent="border-indigo-500/30" :contact="true" wire:key="en-route-{{ $order->id }}">
                 <x-slot:badge>
                     <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-indigo-400/10 text-indigo-400">Em rota</span>
                 </x-slot:badge>
@@ -199,7 +199,7 @@ new #[Layout('components.layouts.app')] class extends Component {
             @endforeach
 
             @foreach($this->myPickups as $order)
-            <x-driver.order-card :order="$order" accent="border-orange-500/30" :items="true" wire:key="pickup-{{ $order->id }}">
+            <x-driver.order-card :order="$order" accent="border-orange-500/30" :items="true" :contact="true" wire:key="pickup-{{ $order->id }}">
                 <x-slot:badge>
                     <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-orange-400/10 text-orange-400">Aceito · retirar no balcão</span>
                 </x-slot:badge>

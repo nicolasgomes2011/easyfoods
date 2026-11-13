@@ -4,8 +4,11 @@ namespace App\Livewire;
 
 use App\Enums\DiningTableStatus;
 use App\Enums\OrderStatus;
+use App\Enums\UserRole;
 use App\Models\Order;
+use App\Models\User;
 use App\Support\CurrentRestaurant;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -14,6 +17,9 @@ use Livewire\Component;
 #[Layout('components.layouts.app')]
 class Dashboard extends Component
 {
+    /** Display order of the "Entregadores ativos" block: busy drivers first. */
+    private const DRIVER_STATE_ORDER = ['en_route' => 0, 'pickup' => 1, 'available' => 2, 'paused' => 3];
+
     private function rid(): ?int
     {
         return CurrentRestaurant::id();
@@ -80,6 +86,50 @@ class Dashboard extends Component
     {
         return Order::byStatus(OrderStatus::OutForDelivery)
             ->where('restaurant_id', $this->rid())->count();
+    }
+
+    /**
+     * "Entregadores ativos": drivers with an active account, available or on
+     * pause, each with the deliveries they hold right now in this restaurant
+     * (accepted and waiting at the counter, or en route). Two queries for the
+     * whole block. A driver holding a delivery is busy even while on pause.
+     *
+     * @return Collection<int, array{id: int, name: string, state: string, deliveries: Collection<int, Order>}>
+     */
+    #[Computed]
+    public function activeDrivers(): Collection
+    {
+        $drivers = User::where('role', UserRole::Delivery->value)
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'is_available']);
+
+        $deliveries = Order::where('restaurant_id', $this->rid())
+            ->whereIn('driver_id', $drivers->modelKeys())
+            ->whereIn('status', [OrderStatus::ReadyForPickup->value, OrderStatus::OutForDelivery->value])
+            ->orderBy('id')
+            ->get(['id', 'number', 'status', 'driver_id'])
+            ->groupBy('driver_id');
+
+        return $drivers
+            ->map(function (User $driver) use ($deliveries): array {
+                $held = $deliveries->get($driver->id, collect());
+
+                return [
+                    'id'         => $driver->id,
+                    'name'       => $driver->name,
+                    'state'      => match (true) {
+                        $held->contains(fn (Order $order) => $order->status === OrderStatus::OutForDelivery) => 'en_route',
+                        $held->isNotEmpty()  => 'pickup',
+                        $driver->is_available => 'available',
+                        default              => 'paused',
+                    },
+                    'deliveries' => $held,
+                ];
+            })
+            // Stable sort: inside each state the drivers stay in name order.
+            ->sortBy(fn (array $driver) => self::DRIVER_STATE_ORDER[$driver['state']])
+            ->values();
     }
 
     #[Computed]
@@ -235,6 +285,7 @@ class Dashboard extends Component
             'topItemsToday'      => $this->topItemsToday,
             'alerts'             => $this->alerts,
             'outForDeliveryCount' => $this->outForDeliveryCount,
+            'activeDrivers'      => $this->activeDrivers,
             'tablesSnapshot'     => $this->tablesSnapshot,
             'comparisons'        => $this->comparisons,
         ]);

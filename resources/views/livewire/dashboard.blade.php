@@ -166,6 +166,9 @@
 
     </div>
 
+    {{-- ── Entregadores ativos ─────────────────────────────────────────── --}}
+    <x-dashboard.active-drivers :drivers="$activeDrivers" class="mb-6" />
+
     {{-- ── Middle section ──────────────────────────────────────────────── --}}
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
 
