@@ -66,6 +66,24 @@ class User extends Authenticatable
         return $this->role === UserRole::Admin;
     }
 
+    /** Área do painel liberada para o papel do usuário (matriz em UserRole). */
+    public function canAccess(string $area): bool
+    {
+        return $this->role?->canAccess($area) ?? false;
+    }
+
+    /** Rota da tela inicial do usuário conforme o papel. */
+    public function homeRoute(): string
+    {
+        return $this->role?->homeRoute() ?? 'admin.dashboard';
+    }
+
+    /** Conta ativa (null conta como ativa, igual ao RoleMiddleware). */
+    public function isActive(): bool
+    {
+        return $this->is_active !== false;
+    }
+
     public function initials(): string
     {
         return Str::of($this->name)

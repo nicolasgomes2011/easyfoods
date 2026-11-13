@@ -64,7 +64,7 @@ new #[Layout('components.layouts.auth')] class extends Component {
         Session::forget(['two_factor_login_id', 'two_factor_remember']);
         Session::regenerate();
         
-        $this->redirectIntended(default: route('dashboard', absolute: false), navigate: true);
+        $this->redirectIntended(default: route($user->homeRoute(), absolute: false), navigate: true);
     }
     
     /**
