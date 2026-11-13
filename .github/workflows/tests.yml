@@ -1,0 +1,107 @@
+name: tests
+
+# Runs on every pull request and on pushes to main: a guard for debug calls and
+# private files, then the full test suite on SQLite (dev) and MySQL 8 (prod).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  guard:
+    name: guard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: No dd() / dump() / var_dump()
+        run: |
+          if grep -rnE '\b(dd|dump|var_dump)\(' app config database resources routes tests; then
+            echo "::error::Remove the debug calls listed above before merging."
+            exit 1
+          fi
+
+      - name: No private project memory or .env in the repository
+        run: |
+          files=$(git ls-files | grep -E '^docs/memory/|(^|/)\.env$|(^|/)\.env\.(local|production)$' || true)
+          if [ -n "$files" ]; then
+            echo "::error::Private files are tracked and must be removed:"
+            echo "$files"
+            exit 1
+          fi
+
+  tests:
+    name: tests (${{ matrix.db }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        db: [sqlite, mysql]
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: password
+          MYSQL_DATABASE: testing
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -ppassword"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo_sqlite, pdo_mysql, gd, intl, bcmath
+          coverage: none
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+          cache: npm
+
+      - name: Composer install
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Prepare .env
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      # phpunit.xml defaults to SQLite :memory:; variables already set in the
+      # environment win over it, so the MySQL leg only needs these.
+      - name: Point the tests at MySQL
+        if: matrix.db == 'mysql'
+        run: |
+          {
+            echo "DB_CONNECTION=mysql"
+            echo "DB_HOST=127.0.0.1"
+            echo "DB_PORT=3306"
+            echo "DB_DATABASE=testing"
+            echo "DB_USERNAME=root"
+            echo "DB_PASSWORD=password"
+          } >> "$GITHUB_ENV"
+
+      - name: Build assets
+        run: |
+          npm ci
+          npm run build
+
+      - name: Tests
+        run: |
+          php artisan view:clear
+          php artisan test
