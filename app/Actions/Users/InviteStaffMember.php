@@ -9,9 +9,10 @@ use Illuminate\Support\Facades\Password;
 class InviteStaffMember
 {
     /**
-     * Create an inactive staff account and send a password-set link.
+     * Create an active staff account with a random password and send a
+     * password-set link, so the new member chooses their own password.
      *
-     * Returns the reset URL so the admin can share it manually if mail is not configured.
+     * Returns the created user and whether the link e-mail was sent.
      */
     public function handle(string $name, string $email, UserRole $role): array
     {
