@@ -1,6 +1,7 @@
 # Product Catalog
 
-**Status:** 🔴 Not Started
+**Status:** 🟢 Completed
+**Current state (2026-11-10):** Products, categories (with reorder), addon groups, variants, image upload, archive and availability toggle are on `main`. See [ROADMAP](ROADMAP.md).
 **Phase:** 2 — Restaurant Backoffice
 
 ## Description

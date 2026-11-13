@@ -1,6 +1,7 @@
 # Cart & Checkout
 
-**Status:** 🔴 Not Started
+**Status:** 🟡 In Progress
+**Current state (2026-11-10):** Session cart, checkout (dine-in / delivery / pickup), guest info and `PlaceOrder` are on `main`. Open cards: EF-4, EF-5, EF-6, EF-9, EF-51, EF-58. See [ROADMAP](ROADMAP.md).
 **Phase:** 3 — Customer Ordering
 
 ## Description

@@ -1,6 +1,7 @@
 # Restaurant Dashboard
 
-**Status:** 🔴 Not Started
+**Status:** 🟡 In Progress
+**Current state (2026-11-10):** KPIs, recent orders, kitchen snippet, top items, alerts, tables snapshot, quick actions and the today-vs-baseline badges are on `main`. "Drivers active" is still a proxy (out-for-delivery count) until drivers have an online status. See [ROADMAP](ROADMAP.md).
 **Phase:** 2 — Restaurant Backoffice
 
 ## Description

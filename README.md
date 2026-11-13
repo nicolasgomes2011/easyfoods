@@ -75,7 +75,7 @@ picture as of this writing:
 
 ## Architecture
 
-**Stack:** Laravel 12 (PHP 8.2+) · Livewire 3 + Volt (single-file components) · Alpine.js (UI
+**Stack:** Laravel 12 (PHP 8.4+) · Livewire 4 + Volt (single-file components) · Alpine.js (UI
 interactivity only, never business logic) · Tailwind CSS 4 · SQLite (dev) / MySQL (prod target) ·
 Vite.
 
@@ -91,8 +91,7 @@ app/
 resources/views/livewire/   Volt single-file components (kitchen, orders, dining, store, driver, settings, ...)
 routes/
   default_routes_web.php    actual web entry point loaded by bootstrap/app.php
-  admin.php, customer.php, auth.php
-  web.php                   legacy/unused — do not add routes here
+  admin.php, customer.php, auth.php   (there is no routes/web.php)
 
 database/migrations/        schema (36+ migrations)
 tests/Feature/, tests/Unit/ PHPUnit — Auth, Catalog, Dining, Driver, Order, Settings, Store

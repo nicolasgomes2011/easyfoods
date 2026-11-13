@@ -1,6 +1,7 @@
 # Customer Storefront & Menu
 
-**Status:** 🔴 Not Started
+**Status:** 🟡 In Progress
+**Current state (2026-11-10):** Public menu at `/store/menu` with categories, product modal and cart is on `main`. Open cards: EF-54 (open/closed), EF-55 (unavailable greyed out), EF-56 (category scroll), EF-57 (search), EF-34 (table QR / kiosk). See [ROADMAP](ROADMAP.md).
 **Phase:** 3 — Customer Ordering
 
 ## Description

@@ -1,6 +1,7 @@
 # Table Management
 
-**Status:** 🔴 Not Started
+**Status:** 🟢 Completed
+**Current state (2026-11-10):** Tables CRUD, status counters, waitlist, auto-occupy on dine-in orders, table sessions and the delete guard are on `main`. Open cards: EF-35 (table QR codes), EF-53. See [ROADMAP](ROADMAP.md).
 **Phase:** 2 — Restaurant Backoffice / 4 — Kitchen & Order Flow
 
 ## Description

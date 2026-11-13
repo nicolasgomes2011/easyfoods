@@ -1,6 +1,7 @@
 # Authentication & Roles
 
-**Status:** 🔴 Not Started
+**Status:** 🟡 In Progress
+**Current state (2026-11-10):** Login, password reset, email verification, 2FA and the role middleware are on `main`. Per-role access matrix (menu, routes, home screen) is EF-10. Customers order as guests (no customer accounts). See [ROADMAP](ROADMAP.md).
 **Phase:** 1 — Foundation
 
 ## Description

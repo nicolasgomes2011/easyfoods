@@ -1,6 +1,7 @@
 # Order Management (Restaurant)
 
-**Status:** 🔴 Not Started
+**Status:** 🟡 In Progress
+**Current state (2026-11-10):** List / in-progress / history / detail and the confirm, reject, cancel-with-reason and complete transitions are on `main`. Item edits on open dine-in orders, new-order alert and auto-expiry are not started. See [ROADMAP](ROADMAP.md).
 **Phase:** 4 — Kitchen & Order Flow
 
 ## Description

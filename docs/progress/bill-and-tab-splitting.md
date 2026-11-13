@@ -1,6 +1,7 @@
 # Bill & Tab Splitting
 
-**Status:** 🔴 Not Started
+**Status:** 🟡 In Progress
+**Current state (2026-11-10):** The per-table tab (`TableSession`) and the manual close ("Fechar mesa") are on `main`. Per-person items and split options are not started. See [ROADMAP](ROADMAP.md).
 **Phase:** 8 — Advanced
 
 ## Description
