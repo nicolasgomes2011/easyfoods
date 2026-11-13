@@ -9,6 +9,7 @@ use App\Models\Category;
 use App\Models\Product;
 use App\Models\Restaurant;
 use App\Support\CurrentRestaurant;
+use App\Support\MostOrderedProducts;
 
 new #[Layout('components.layouts.customer')] class extends Component {
 
@@ -31,6 +32,15 @@ new #[Layout('components.layouts.customer')] class extends Component {
     public function restaurant(): ?Restaurant
     {
         return CurrentRestaurant::get();
+    }
+
+    /** "Mais pedidos": ranked products that can be ordered now (MostOrderedProducts); empty for a new restaurant. */
+    #[Computed]
+    public function mostOrdered()
+    {
+        if (! $this->restaurant) return collect();
+
+        return MostOrderedProducts::forMenu($this->restaurant->id, $this->products, $this->categories->pluck('id'));
     }
 
     #[Computed]
@@ -274,13 +284,15 @@ new #[Layout('components.layouts.customer')] class extends Component {
             @endforeach
         </div>
 
+        <x-store.most-ordered :products="$this->mostOrdered" />
+
         @foreach($this->categories as $cat)
         <section id="cat-{{ $cat->slug }}" data-category="{{ $cat->slug }}" x-show="anyMatch($el)" class="mb-8 scroll-mt-32">
             <h2 class="text-lg font-semibold text-zinc-800 mb-3">{{ $cat->name }}</h2>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 @foreach($this->productsByCategory->get($cat->id, collect()) as $product)
                 <div data-search="{{ $product->searchText() }}" x-show="matches($el.dataset.search)">
-                    <x-store.product-card :product="$product" />
+                    <x-store.product-card :product="$product" :most-ordered="$this->mostOrdered->contains('id', $product->id)" />
                 </div>
                 @endforeach
             </div>
