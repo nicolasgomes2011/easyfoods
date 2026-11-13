@@ -36,9 +36,7 @@ trait EditsOpenOrder
         $locked = Order::query()->lockForUpdate()->findOrFail($order->id);
 
         if (! $locked->itemsAreEditable()) {
-            throw new OrderNotEditable(
-                'Só dá para mudar os itens de pedidos de mesa que ainda não ficaram prontos.'
-            );
+            throw new OrderNotEditable(OrderNotEditable::ITEMS_LOCKED);
         }
 
         $settled = $locked->payments()
