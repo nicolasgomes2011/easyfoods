@@ -70,6 +70,11 @@ class TransitionOrderStatus
 
             $order->save();
 
+            // Real prep time of each product feeds the learned ETA (append-only history).
+            if ($to === OrderStatus::ReadyForPickup) {
+                app(RecordPrepSamples::class)->execute($order);
+            }
+
             OrderStatusHistory::create([
                 'order_id' => $order->id,
                 'from_status' => $from,

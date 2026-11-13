@@ -4,13 +4,12 @@ namespace App\Support;
 
 use App\Enums\OrderStatus;
 use App\Models\Order;
-use App\Models\Product;
 use Carbon\CarbonInterface;
 
 /**
- * Static ready-time estimate of an order: the slowest item's base prep time
- * (products.prep_minutes), counted from the confirmation. The learned ETA
- * (history, kitchen load) comes later and replaces prepMinutes().
+ * Ready-time estimate of an order, counted from the confirmation. The prep
+ * time comes from LearnedPrepTime: the slowest item's learned time (or its
+ * base prep_minutes while it has little history) × the kitchen load factor.
  *
  * Customer-facing rules (docs/scope/customer-side.md): the time shown never
  * goes backward, and an overdue estimate is pushed forward at most twice.
@@ -24,13 +23,13 @@ final class ReadyEstimate
 
     public const DEFAULT_PREP_MINUTES = 15;
 
-    /** Base prep time of the order: its slowest product (default when no product is left). */
-    public static function prepMinutes(Order $order): int
+    /**
+     * Prep time of the order: its slowest product, learned from the history
+     * (default base time when no product is left), × the kitchen load factor.
+     */
+    public static function prepMinutes(Order $order, ?CarbonInterface $at = null): int
     {
-        $productIds = $order->items()->whereNotNull('product_id')->pluck('product_id');
-        $slowest = Product::whereIn('id', $productIds)->max('prep_minutes');
-
-        return max(1, (int) ($slowest ?? self::DEFAULT_PREP_MINUTES));
+        return LearnedPrepTime::minutes($order, $at);
     }
 
     /** First estimate, set on confirmation. An estimate already shown is never replaced. */
@@ -40,7 +39,8 @@ final class ReadyEstimate
             return;
         }
 
-        $order->estimated_ready_at = ($from ?? now())->copy()->addMinutes(self::prepMinutes($order));
+        $from = ($from ?? now())->copy();
+        $order->estimated_ready_at = $from->copy()->addMinutes(self::prepMinutes($order, $from));
     }
 
     /**
