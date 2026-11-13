@@ -30,6 +30,8 @@ class OrderItem extends Model
         'quantity'   => 'integer',
         // Set when staff added the item to the open order after it was placed.
         'added_at'   => 'datetime',
+        // Kitchen checklist: set when the kitchen ticked the item off (never mass-assigned).
+        'prepared_at' => 'datetime',
     ];
 
     public function order(): BelongsTo
@@ -56,6 +58,12 @@ class OrderItem extends Model
     public function wasAddedLater(): bool
     {
         return $this->added_at !== null;
+    }
+
+    /** Ticked off on the kitchen checklist. */
+    public function isPrepared(): bool
+    {
+        return $this->prepared_at !== null;
     }
 
     public function displayName(): string

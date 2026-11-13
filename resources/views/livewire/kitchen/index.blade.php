@@ -9,6 +9,7 @@ use App\Enums\OrderStatus;
 use App\Enums\WaiterCallStatus;
 use App\Livewire\Concerns\AlertsNewOrders;
 use App\Models\Order;
+use App\Models\OrderItem;
 use App\Support\CurrentRestaurant;
 use App\Models\WaiterCall;
 use App\Actions\Orders\TransitionOrderStatus;
@@ -107,9 +108,45 @@ new #[Layout('components.layouts.app')] class extends Component {
         $this->applyTransition($orderId, OrderStatus::InPreparation);
     }
 
+    /** Shown when "Marcar pronto" was refused because items are still to tick. */
+    public ?string $readyNotice = null;
+
+    /** Kitchen checklist: tick an item off (or back on) while its order is in preparation. */
+    public function toggleItemPrepared(int $itemId): void
+    {
+        // Restaurant-fenced: another restaurant's item is a 404.
+        $item = OrderItem::whereHas('order', fn ($query) => $query->where('restaurant_id', CurrentRestaurant::id()))
+            ->with('order')
+            ->findOrFail($itemId);
+
+        Gate::authorize('transitionInKitchen', $item->order);
+
+        if ($item->order->status !== OrderStatus::InPreparation) {
+            return;
+        }
+
+        $item->forceFill(['prepared_at' => $item->isPrepared() ? null : now()])->save();
+
+        $this->readyNotice = null;
+        unset($this->queueOrders);
+    }
+
+    /** Ready only with every item ticked: checked here too, not just by the disabled button. */
     public function markReady(int $orderId): void
     {
-        $this->applyTransition($orderId, OrderStatus::ReadyForPickup);
+        $order = Order::where('restaurant_id', CurrentRestaurant::id())->findOrFail($orderId);
+
+        Gate::authorize('transitionInKitchen', $order);
+
+        if ($order->items()->whereNull('prepared_at')->exists()) {
+            $this->readyNotice = "Marque todos os itens do pedido #{$order->number} antes de marcar pronto.";
+            unset($this->queueOrders);
+
+            return;
+        }
+
+        $this->readyNotice = null;
+        $this->applyTransition($order->id, OrderStatus::ReadyForPickup);
     }
 
     private function applyTransition(int $orderId, OrderStatus $to): void
@@ -222,6 +259,12 @@ new #[Layout('components.layouts.app')] class extends Component {
         </div>
         @endforeach
     </div>
+
+    @if($readyNotice)
+    <div data-kitchen-ready-notice role="alert" class="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-base font-medium text-red-300">
+        {{ $readyNotice }}
+    </div>
+    @endif
 
     {{-- Queue: waiting first, then in preparation --}}
     @if($this->queueOrders->isEmpty())
