@@ -2,6 +2,7 @@
 
 namespace App\Actions\Orders;
 
+use App\Actions\Customers\ResolveCheckoutCustomer;
 use App\Enums\DeliveryType;
 use App\Enums\DiningTableStatus;
 use App\Enums\OrderStatus;
@@ -44,6 +45,14 @@ class PlaceOrder
                 throw new OrderNotPlaceable('O carrinho está vazio.');
             }
 
+            // Guest checkout: the phone identifies the restaurant's customer (found
+            // or created) so the order shows up under Customers. The order keeps
+            // its own name/phone snapshot either way.
+            $customerId = $cart->customer_id
+                ?? app(ResolveCheckoutCustomer::class)
+                    ->handle($restaurant, $data['customer_name'] ?? null, $data['customer_phone'] ?? null)
+                    ?->id;
+
             $subtotal = $items->sum(function ($item) {
                 return $item->lineTotal();
             });
@@ -66,7 +75,7 @@ class PlaceOrder
                 'number'          => $number,
                 'sequence'        => $sequence,
                 'restaurant_id'   => $restaurant->id,
-                'customer_id'     => $cart->customer_id,
+                'customer_id'     => $customerId,
                 'status'          => OrderStatus::PendingConfirmation,
                 'delivery_type'   => $deliveryType,
                 'dining_table_id' => $data['dining_table_id'] ?? null,
