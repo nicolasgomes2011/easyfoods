@@ -44,6 +44,7 @@ Route::middleware(['auth', 'role:admin,manager,attendant,kitchen,delivery'])
             Route::get('/products/{product}',        fn (Product $product) => view('admin.catalog.product-edit', compact('product')))->name('products.edit');
             Volt::route('/categories',        'catalog.categories')->name('categories');
             Volt::route('/addons',            'catalog.addons')->name('addons');
+            Volt::route('/ingredients',       'catalog.ingredients')->name('ingredients');
         });
 
         // ── CLIENTES ─────────────────────────────────────────────────────────
