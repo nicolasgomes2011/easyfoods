@@ -199,6 +199,12 @@ new #[Layout('components.layouts.app')] class extends Component {
                     </button>
                     @endif
                 </div>
+                @if(! $canEditItems && ($errors->has('newItem') || $errors->has('removeReason')))
+                {{-- The order moved on while this screen was open (e.g. the kitchen marked it ready) --}}
+                <div data-items-locked class="px-5 py-3 border-b border-zinc-800 bg-amber-500/10 text-sm text-amber-300">
+                    {{ $errors->first('newItem') ?: $errors->first('removeReason') }}
+                </div>
+                @endif
                 <div class="divide-y divide-zinc-800/70">
                     @foreach($this->order->items as $item)
                     <x-orders.item-row :item="$item" wire:key="order-item-{{ $item->id }}"

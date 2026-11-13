@@ -13,8 +13,10 @@ use Livewire\Attributes\Computed;
  * Add / remove items of an open dine-in order on the order screen (orders/show).
  *
  * The using component provides `public Order $order`, `public ?string $statusMessage`
- * and `reloadOrder()`. Every action re-checks the `editItems` policy; the business
- * rules (and their messages) live in AddOrderItem / RemoveOrderItem.
+ * and `reloadOrder()`. Every action re-checks the role (`editItemsAsRole` policy: 403)
+ * and then the order state: the kitchen may have moved the order on while the screen
+ * was open, which gets a message, not a 403. The business rules (and their messages)
+ * live in AddOrderItem / RemoveOrderItem.
  */
 trait EditsOrderItems
 {
@@ -60,7 +62,9 @@ trait EditsOrderItems
 
     public function openAddItem(): void
     {
-        Gate::authorize('editItems', $this->order);
+        if (! $this->itemsStillEditable('newItem')) {
+            return;
+        }
 
         $this->resetAddItemForm();
         $this->showAddItem = true;
@@ -87,7 +91,9 @@ trait EditsOrderItems
 
     public function addItem(AddOrderItem $action): void
     {
-        Gate::authorize('editItems', $this->order);
+        if (! $this->itemsStillEditable('newItem')) {
+            return;
+        }
 
         $this->validate([
             'newProductId' => ['required', 'integer'],
@@ -121,7 +127,7 @@ trait EditsOrderItems
                 auth()->user(),
             );
         } catch (OrderNotEditable $e) {
-            $this->addError('newItem', $e->getMessage());
+            $this->refuseItemChange('newItem', $e->getMessage());
 
             return;
         }
@@ -133,7 +139,9 @@ trait EditsOrderItems
 
     public function startRemoving(int $itemId): void
     {
-        Gate::authorize('editItems', $this->order);
+        if (! $this->itemsStillEditable('removeReason')) {
+            return;
+        }
 
         $this->resetErrorBag('removeReason');
         $this->removeReason = '';
@@ -148,7 +156,9 @@ trait EditsOrderItems
 
     public function removeItem(RemoveOrderItem $action): void
     {
-        Gate::authorize('editItems', $this->order);
+        if (! $this->itemsStillEditable('removeReason')) {
+            return;
+        }
 
         $this->validate(
             [
@@ -162,7 +172,7 @@ trait EditsOrderItems
         try {
             $action->execute($this->order, (int) $this->removingItemId, $this->removeReason, auth()->user());
         } catch (OrderNotEditable $e) {
-            $this->addError('removeReason', $e->getMessage());
+            $this->refuseItemChange('removeReason', $e->getMessage());
 
             return;
         }
@@ -170,6 +180,40 @@ trait EditsOrderItems
         $this->reset('removingItemId', 'removeReason');
         $this->reloadOrder();
         $this->statusMessage = 'Item removido do pedido.';
+    }
+
+    /**
+     * Role first: kitchen and delivery get a 403. Then the state: if the order
+     * moved on while the screen was open, the change is refused with a message.
+     */
+    private function itemsStillEditable(string $errorKey): bool
+    {
+        Gate::authorize('editItemsAsRole', $this->order);
+
+        if ($this->order->itemsAreEditable()) {
+            return true;
+        }
+
+        $this->refuseItemChange($errorKey, OrderNotEditable::ITEMS_LOCKED);
+
+        return false;
+    }
+
+    /**
+     * Shows why a change was refused. When the order can no longer change its
+     * items at all, the screen is refreshed and the forms close (the message is
+     * then shown above the item list).
+     */
+    private function refuseItemChange(string $errorKey, string $message): void
+    {
+        $this->reloadOrder();
+
+        if (! $this->order->itemsAreEditable()) {
+            $this->reset('showAddItem', 'newProductId', 'newVariantId', 'newAddons', 'newQuantity', 'newNotes', 'removingItemId', 'removeReason');
+            unset($this->menuProducts, $this->selectedProduct);
+        }
+
+        $this->addError($errorKey, $message);
     }
 
     private function resetAddItemForm(): void

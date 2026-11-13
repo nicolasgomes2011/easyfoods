@@ -4,6 +4,7 @@ namespace Tests\Feature\Order;
 
 use App\Actions\Orders\AddOrderItem;
 use App\Actions\Orders\RemoveOrderItem;
+use App\Actions\Orders\TransitionOrderStatus;
 use App\Enums\DeliveryType;
 use App\Enums\OrderItemChangeType;
 use App\Enums\OrderStatus;
@@ -468,6 +469,113 @@ class EditOpenOrderItemsTest extends TestCase
             ->assertSeeHtml('data-added-item="'.$added->id.'"')
             ->assertDontSeeHtml('data-added-item="'.$original->id.'"')
             ->assertSee('Novo · '.$added->added_at->format('H:i'));
+    }
+
+    /** The kitchen moves the order on (in preparation, then ready) while the order screen is open. */
+    private function kitchenMarksReady(Order $order): void
+    {
+        $kitchen = User::factory()->create(['role' => UserRole::Kitchen]);
+        $transition = app(TransitionOrderStatus::class);
+
+        $transition->execute($order->fresh(), OrderStatus::InPreparation, $kitchen);
+        $transition->execute($order->fresh(), OrderStatus::ReadyForPickup, $kitchen);
+    }
+
+    public function test_adding_after_the_kitchen_marked_the_order_ready_shows_the_message_instead_of_403(): void
+    {
+        $order = $this->order();
+        $this->actingAs($this->attendant);
+
+        $component = Volt::test('orders.show', ['order' => $order])
+            ->call('openAddItem')
+            ->set('newProductId', (string) $this->soda->id);
+
+        $this->kitchenMarksReady($order);
+
+        $component
+            ->call('addItem')
+            ->assertStatus(200)
+            ->assertHasErrors('newItem')
+            ->assertSee(OrderNotEditable::ITEMS_LOCKED)
+            ->assertSet('showAddItem', false)
+            ->assertDontSee('Adicionar item');
+
+        $this->assertSame(1, $order->items()->count());
+        $this->assertSame(0, $order->itemChanges()->count());
+    }
+
+    public function test_removing_after_the_kitchen_marked_the_order_ready_shows_the_message_instead_of_403(): void
+    {
+        $order = $this->order(extraLines: [[$this->soda, 1, 6.00]]);
+        $soda = $order->items()->where('product_name', 'Refrigerante')->sole();
+        $this->actingAs($this->attendant);
+
+        $component = Volt::test('orders.show', ['order' => $order])
+            ->call('startRemoving', $soda->id)
+            ->set('removeReason', 'cliente desistiu');
+
+        $this->kitchenMarksReady($order);
+
+        $component
+            ->call('removeItem')
+            ->assertStatus(200)
+            ->assertHasErrors('removeReason')
+            ->assertSee(OrderNotEditable::ITEMS_LOCKED)
+            ->assertSet('removingItemId', null);
+
+        $this->assertSame(2, $order->items()->count());
+        $this->assertSame(0, $order->itemChanges()->count());
+    }
+
+    public function test_opening_the_forms_after_the_order_moved_on_shows_the_message_instead_of_403(): void
+    {
+        $order = $this->order(extraLines: [[$this->soda, 1, 6.00]]);
+        $soda = $order->items()->where('product_name', 'Refrigerante')->sole();
+        $this->actingAs($this->attendant);
+
+        $component = Volt::test('orders.show', ['order' => $order])->assertSee('Adicionar item');
+
+        $this->kitchenMarksReady($order);
+
+        $component
+            ->call('openAddItem')
+            ->assertStatus(200)
+            ->assertHasErrors('newItem')
+            ->assertSet('showAddItem', false)
+            ->assertSee(OrderNotEditable::ITEMS_LOCKED)
+            ->assertDontSee('Adicionar item');
+
+        $component
+            ->call('startRemoving', $soda->id)
+            ->assertStatus(200)
+            ->assertHasErrors('removeReason')
+            ->assertSet('removingItemId', null);
+    }
+
+    public function test_kitchen_and_delivery_roles_still_get_403_on_add_and_remove(): void
+    {
+        $open = $this->order(extraLines: [[$this->soda, 1, 6.00]]);
+        $ready = $this->order(OrderStatus::ReadyForPickup, extraLines: [[$this->soda, 1, 6.00]]);
+
+        foreach ([UserRole::Kitchen, UserRole::Delivery] as $role) {
+            $this->actingAs(User::factory()->create(['role' => $role]));
+
+            foreach ([$open, $ready] as $order) {
+                Volt::test('orders.show', ['order' => $order])
+                    ->set('newProductId', (string) $this->soda->id)
+                    ->call('addItem')
+                    ->assertForbidden();
+
+                Volt::test('orders.show', ['order' => $order])
+                    ->set('removingItemId', $order->items()->first()->id)
+                    ->set('removeReason', 'tentativa')
+                    ->call('removeItem')
+                    ->assertForbidden();
+            }
+        }
+
+        $this->assertSame(2, $open->items()->count());
+        $this->assertSame(2, $ready->items()->count());
     }
 
     private function assertRefused(callable $attempt): void

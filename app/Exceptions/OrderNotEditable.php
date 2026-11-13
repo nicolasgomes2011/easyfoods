@@ -11,4 +11,6 @@ use RuntimeException;
  */
 final class OrderNotEditable extends RuntimeException
 {
+    /** The order is not an open dine-in order any more (e.g. the kitchen marked it ready). */
+    public const ITEMS_LOCKED = 'Só dá para mudar os itens de pedidos de mesa que ainda não ficaram prontos.';
 }

@@ -52,6 +52,16 @@ class OrderPolicy
             return false;
         }
 
+        return $this->editItemsAsRole($user, $order);
+    }
+
+    /**
+     * The role part of editItems only: whether this user may change order items
+     * at all. The order screen actions check it first (403), then the order state,
+     * which the kitchen may have moved on meanwhile (a message, not a 403).
+     */
+    public function editItemsAsRole(User $user, Order $order): bool
+    {
         return $user->hasAnyRole(UserRole::Admin, UserRole::Manager, UserRole::Attendant);
     }
 }
