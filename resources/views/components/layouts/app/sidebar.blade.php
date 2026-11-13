@@ -129,6 +129,13 @@
                         >
                             Complementos
                         </flux:navlist.item>
+                        <flux:navlist.item
+                            :href="route('admin.catalog.ingredients')"
+                            :current="request()->routeIs('admin.catalog.ingredients')"
+                            wire:navigate
+                        >
+                            Insumos
+                        </flux:navlist.item>
                     </flux:navlist.group>
 
                     <flux:navlist.item
