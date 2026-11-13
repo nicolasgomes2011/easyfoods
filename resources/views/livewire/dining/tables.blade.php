@@ -156,6 +156,10 @@ new #[Layout('components.layouts.app')] class extends Component {
                class="text-sm text-zinc-300 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-lg px-3 py-1.5 transition">
                 Fila de espera
             </a>
+            <a href="{{ route('admin.dining.tables.qr.print') }}" target="_blank"
+               class="text-sm text-zinc-300 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-lg px-3 py-1.5 transition">
+                Imprimir QR Codes
+            </a>
             <button wire:click="openCreate"
                     class="text-sm text-white bg-orange-500 hover:bg-orange-600 rounded-lg px-3 py-1.5 transition">
                 + Nova mesa
@@ -307,6 +311,10 @@ new #[Layout('components.layouts.app')] class extends Component {
                                 Reservar
                             </button>
                             @endif
+                            <a href="{{ route('admin.dining.tables.qr', $table->id) }}" wire:navigate
+                               class="text-xs text-zinc-400 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-lg px-2.5 py-1.5 transition">
+                                QR Code
+                            </a>
                             <button wire:click="openEdit({{ $table->id }})"
                                     class="text-xs text-zinc-400 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-lg px-2.5 py-1.5 transition">
                                 Editar
