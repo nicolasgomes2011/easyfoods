@@ -1,8 +1,9 @@
 {{--
     One order on the kitchen queue (kitchen/index), sized for a tablet read at 1–2 m:
     order type / table and notes stand out, action buttons are at least 48px tall
-    (wired to the kitchen component: startPreparing, markReady). Expects
-    `items.addons` and the removed `itemChanges` loaded.
+    (wired to the kitchen component: startPreparing, toggleItemPrepared, markReady).
+    In preparation, each item has a checklist box; "Marcar pronto" is enabled only
+    when every item is ticked. Expects `items.addons` and the removed `itemChanges` loaded.
 --}}
 @props(['order'])
 
@@ -10,6 +11,13 @@
     $inPrep  = $order->status === \App\Enums\OrderStatus::InPreparation;
     $minutes = (int) $order->created_at->diffInMinutes(now());
     $urgent  = $inPrep && $minutes >= 20;
+    $canAct  = auth()->user()?->can('transitionInKitchen', $order) ?? false;
+
+    // Kitchen checklist (in preparation only)
+    $itemCount     = $order->items->count();
+    $preparedCount = $order->items->filter(fn ($item) => $item->isPrepared())->count();
+    $allPrepared   = $preparedCount === $itemCount;
+    $showChecklist = $inPrep && $canAct;
 @endphp
 
 <div {{ $attributes }} data-kitchen-order="{{ $order->id }}" @if(! $inPrep) data-new-order="{{ $order->id }}" @endif
@@ -57,19 +65,24 @@
         @endif
     </div>
     @endif
+    @if($showChecklist && $itemCount > 0)
+    <p data-kitchen-progress="{{ $order->id }}" class="px-4 pt-3 text-sm font-medium {{ $allPrepared ? 'text-green-400' : 'text-zinc-400' }}">
+        {{ $preparedCount }} de {{ $itemCount }} itens
+    </p>
+    @endif
     <div class="px-4 py-3 space-y-2">
         @foreach($order->items as $item)
         @if($item->wasAddedLater())
         {{-- Added by the front of house after the order was placed --}}
         <div data-added-item="{{ $item->id }}" class="flex items-center gap-2 rounded-md bg-yellow-400/10 border border-yellow-400/30 px-2 py-1 -mx-2">
-            <span class="size-2 rounded-full bg-yellow-400 animate-pulse shrink-0"></span>
-            <span class="text-base font-medium text-yellow-200">{{ $item->displayName() }} ×{{ $item->quantity }}</span>
+            <x-kitchen.item-check :item="$item" :checklist="$showChecklist" dot-class="bg-yellow-400 animate-pulse" />
+            <span class="text-base font-medium {{ $showChecklist && $item->isPrepared() ? 'text-yellow-200/60 line-through' : 'text-yellow-200' }}">{{ $item->displayName() }} ×{{ $item->quantity }}</span>
             <span class="ml-auto text-xs font-semibold text-yellow-400 uppercase tracking-wide">Novo · {{ $item->added_at->format('H:i') }}</span>
         </div>
         @else
         <div class="flex items-center gap-2">
-            <span class="size-2 rounded-full bg-zinc-600 shrink-0"></span>
-            <span class="text-base text-zinc-200">{{ $item->displayName() }} ×{{ $item->quantity }}</span>
+            <x-kitchen.item-check :item="$item" :checklist="$showChecklist" />
+            <span class="text-base {{ $showChecklist && $item->isPrepared() ? 'text-zinc-500 line-through' : 'text-zinc-200' }}">{{ $item->displayName() }} ×{{ $item->quantity }}</span>
         </div>
         @endif
         {{-- What to prepare: addons (frozen snapshot) and the item note --}}
@@ -102,7 +115,7 @@
         <span class="text-xs text-zinc-500 tabular-nums">
             R$ {{ number_format($order->total, 2, ',', '.') }}
         </span>
-        @can('transitionInKitchen', $order)
+        @if($canAct)
             @if($order->status === \App\Enums\OrderStatus::Confirmed)
             <button
                 data-kitchen-action="start"
@@ -112,7 +125,7 @@
                 class="inline-flex min-h-12 items-center justify-center gap-1.5 text-base font-semibold text-orange-300 bg-orange-400/10 hover:bg-orange-400/20 border border-orange-400/30 rounded-xl px-5 transition disabled:opacity-50">
                 Iniciar preparo
             </button>
-            @elseif($order->status === \App\Enums\OrderStatus::InPreparation)
+            @elseif($order->status === \App\Enums\OrderStatus::InPreparation && $allPrepared)
             <button
                 data-kitchen-action="ready"
                 wire:click="markReady({{ $order->id }})"
@@ -121,7 +134,16 @@
                 class="inline-flex min-h-12 items-center justify-center gap-1.5 text-base font-semibold text-green-300 bg-green-400/10 hover:bg-green-400/20 border border-green-400/30 rounded-xl px-5 transition disabled:opacity-50">
                 Marcar pronto
             </button>
+            @elseif($order->status === \App\Enums\OrderStatus::InPreparation)
+            {{-- Items still to tick: the server refuses markReady too --}}
+            <button type="button" disabled
+                data-kitchen-action="ready"
+                data-kitchen-ready-blocked="{{ $order->id }}"
+                title="Marque todos os itens para liberar"
+                class="inline-flex min-h-12 items-center justify-center gap-1.5 text-base font-semibold text-zinc-500 bg-zinc-800 border border-zinc-700 rounded-xl px-5 cursor-not-allowed">
+                Marcar pronto
+            </button>
             @endif
-        @endcan
+        @endif
     </div>
 </div>
