@@ -85,6 +85,9 @@ class KitchenRemovedItemsTest extends TestCase
 
     public function test_item_removed_while_in_preparation_shows_as_removed_on_the_kitchen_card(): void
     {
+        // Fix the clock before the order exists, so the removal at 12:34 always
+        // comes after the confirmation (12:20), whatever time the suite runs.
+        $this->travelTo(now()->setTime(12, 30));
         $order = $this->inPreparationOrder();
         $this->travelTo(now()->setTime(12, 34));
         $this->remove($order, 'Hambúrguer', 'cliente desistiu');
