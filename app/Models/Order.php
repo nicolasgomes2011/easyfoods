@@ -165,6 +165,45 @@ class Order extends Model
         return $this->delivery_type === DeliveryType::Delivery;
     }
 
+    /** `tel:` link to call the customer (digits only, keeps a leading +), or null without a phone. */
+    public function customerPhoneUri(): ?string
+    {
+        $phone = trim((string) $this->customer_phone);
+        $digits = preg_replace('/\D/', '', $phone);
+
+        if ($digits === '') {
+            return null;
+        }
+
+        return 'tel:'.(str_starts_with($phone, '+') ? '+' : '').$digits;
+    }
+
+    /**
+     * Google Maps link to the delivery address (opens the maps app on the phone),
+     * or null without a street. The complement (apartment, block) is left out: it
+     * does not help to find the place on the map.
+     */
+    public function deliveryMapUrl(): ?string
+    {
+        if (blank($this->delivery_address_street)) {
+            return null;
+        }
+
+        $cityAndState = collect([$this->delivery_address_city, $this->delivery_address_state])
+            ->filter(fn ($part) => filled($part))
+            ->implode(' - ');
+
+        $address = collect([
+            $this->delivery_address_street,
+            $this->delivery_address_number,
+            $this->delivery_address_neighborhood,
+            $cityAndState,
+            $this->delivery_address_zip,
+        ])->filter(fn ($part) => filled($part))->implode(', ');
+
+        return 'https://www.google.com/maps/search/?api=1&query='.rawurlencode($address);
+    }
+
     /**
      * Staff may still add or remove items: dine-in orders only, while the order
      * is not ready yet (pending confirmation, confirmed or in preparation).
