@@ -25,6 +25,11 @@ Route::middleware(['auth', 'role:admin,manager,attendant,kitchen,delivery'])
             Volt::route('/', 'kitchen.index')->name('index');
         });
 
+        // ── DESPERDÍCIO — kitchen records, admin/manager follow up ───────────
+        Route::middleware('role:admin,manager,kitchen')->prefix('waste')->name('waste.')->group(function () {
+            Volt::route('/', 'waste.index')->name('index');
+        });
+
         // ── ENTREGAS ─────────────────────────────────────────────────────────
         Route::middleware('role:admin,manager,delivery')->prefix('driver')->name('driver.')->group(function () {
             Volt::route('/', 'driver.index')->name('index');
