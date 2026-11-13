@@ -87,6 +87,17 @@
                         Cozinha
                     </flux:navlist.item>
 
+                    @if(auth()->user()?->hasAnyRole(\App\Enums\UserRole::Admin, \App\Enums\UserRole::Manager, \App\Enums\UserRole::Kitchen))
+                    <flux:navlist.item
+                        icon="trash"
+                        :href="route('admin.waste.index')"
+                        :current="request()->routeIs('admin.waste.*')"
+                        wire:navigate
+                    >
+                        Desperdício
+                    </flux:navlist.item>
+                    @endif
+
                     @if(auth()->user()?->hasAnyRole(\App\Enums\UserRole::Admin, \App\Enums\UserRole::Manager, \App\Enums\UserRole::Delivery))
                     <flux:navlist.item
                         icon="truck"
