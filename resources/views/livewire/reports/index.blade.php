@@ -14,6 +14,21 @@ new #[Layout('components.layouts.app')] class extends Component {}; ?>
 
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
         @if(auth()->user()?->hasAnyRole(\App\Enums\UserRole::Admin, \App\Enums\UserRole::Manager))
+        <a href="{{ route('admin.reports.sales') }}" wire:navigate data-report="sales"
+           class="bg-zinc-900 border border-zinc-800 hover:border-orange-500/60 rounded-xl p-5 transition">
+            <div class="flex items-start gap-3 mb-3">
+                <div class="size-8 rounded-lg bg-orange-500/15 flex items-center justify-center shrink-0">
+                    <svg class="size-4 text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                    </svg>
+                </div>
+                <h3 class="text-sm font-semibold text-white leading-tight pt-1">Vendas por período</h3>
+            </div>
+            <p class="text-xs text-zinc-400 leading-relaxed">Faturamento, pedidos e ticket médio por dia, semana ou mês, comparados com o período anterior. Exporta CSV.</p>
+            <div class="mt-4">
+                <span class="text-xs text-orange-300 bg-orange-500/10 rounded-full px-2.5 py-1">Ver relatório</span>
+            </div>
+        </a>
         <a href="{{ route('admin.reports.waste') }}" wire:navigate data-report="waste"
            class="bg-zinc-900 border border-zinc-800 hover:border-orange-500/60 rounded-xl p-5 transition">
             <div class="flex items-start gap-3 mb-3">
@@ -31,7 +46,6 @@ new #[Layout('components.layouts.app')] class extends Component {}; ?>
         </a>
         @endif
         @foreach([
-            ['title' => 'Vendas por período',     'desc' => 'Faturamento diário, semanal e mensal com comparativo de períodos anteriores.',         'icon' => 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z'],
             ['title' => 'Itens mais pedidos',     'desc' => 'Ranking de produtos por volume de pedidos e receita gerada no período selecionado.',    'icon' => 'M4 6h16M4 10h16M4 14h16M4 18h16'],
             ['title' => 'Horários de pico',       'desc' => 'Distribuição de pedidos por hora do dia e dia da semana para planejamento de equipe.', 'icon' => 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z'],
             ['title' => 'Tempo de preparo',       'desc' => 'Tempo médio da cozinha por produto, por categoria e por turno de trabalho.',            'icon' => 'M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z'],
