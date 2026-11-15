@@ -167,7 +167,11 @@ new #[Layout('components.layouts.customer')] class extends Component {
             $rules['addressNumber']= 'required|string|max:20';
             $rules['city']         = 'nullable|string|max:100';
             $rules['state']        = 'nullable|string|max:2';
-            $rules['zip']          = 'nullable|string|max:10';
+            // Same lengths as the orders columns (zip is 9: "01234-567"); MySQL strict
+            // refuses a longer value, so it must be a field error here.
+            $rules['zip']          = 'nullable|string|max:9';
+            $rules['complement']   = 'nullable|string|max:100';
+            $rules['neighborhood'] = 'nullable|string|max:100';
 
             // When the restaurant configured delivery zones, the customer must pick one
             // (it drives the delivery fee). With no zones configured, delivery is free.
