@@ -3,6 +3,7 @@
 namespace App\Actions\Cart;
 
 use App\Enums\DeliveryType;
+use App\Exceptions\CartItemNotAddable;
 use App\Models\Cart;
 use App\Models\CartItem;
 use App\Models\Product;
@@ -64,12 +65,30 @@ class AddItemToCart
     }
 
     /**
-     * Re-validates the selection itself, so nothing reaches the cart through a
-     * caller that skipped selectionError().
+     * Customer-facing reason the quantity can't be added, or null when it's
+     * valid (1 to CartItem::MAX_QUANTITY). The quantity comes from the client.
+     */
+    public function quantityError(int $quantity): ?string
+    {
+        if ($quantity < 1) {
+            return 'Escolha pelo menos 1 unidade.';
+        }
+
+        if ($quantity > CartItem::MAX_QUANTITY) {
+            return 'Máximo de '.CartItem::MAX_QUANTITY.' unidades por item.';
+        }
+
+        return null;
+    }
+
+    /**
+     * Re-validates the quantity and the selection itself, so nothing reaches
+     * the cart through a caller that skipped quantityError() / selectionError().
+     * Merging into an equal line only adds units, never past the ceiling.
      *
      * @param array<int,mixed> $selectedAddons groupId => optionId (single) | array of optionIds (multi)
      *
-     * @throws \RuntimeException when the product or the selection is not valid
+     * @throws CartItemNotAddable when the product, the quantity or the selection is not valid
      */
     public function handle(
         Restaurant $restaurant,
@@ -81,11 +100,15 @@ class AddItemToCart
         ?string $notes,
     ): CartItem {
         if ((int) $product->restaurant_id !== (int) $restaurant->id) {
-            throw new \RuntimeException('Produto não encontrado.');
+            throw new CartItemNotAddable('Produto não encontrado.');
+        }
+
+        if ($error = $this->quantityError($quantity)) {
+            throw new CartItemNotAddable($error);
         }
 
         if ($error = $this->selectionError($product, $variantId, $selectedAddons)) {
-            throw new \RuntimeException($error);
+            throw new CartItemNotAddable($error);
         }
 
         $addonOptionIds = collect($selectedAddons)
@@ -111,6 +134,12 @@ class AddItemToCart
             });
 
         if ($existing) {
+            if ($existing->quantity + $quantity > CartItem::MAX_QUANTITY) {
+                throw new CartItemNotAddable(
+                    'Máximo de '.CartItem::MAX_QUANTITY.' unidades por item. Você já tem '.$existing->quantity.' no carrinho.'
+                );
+            }
+
             $existing->increment('quantity', $quantity);
 
             return $existing;

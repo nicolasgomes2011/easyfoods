@@ -44,6 +44,15 @@ class PlaceOrder
                 throw new OrderNotPlaceable('O carrinho está vazio.');
             }
 
+            // Last defense for carts already stored: a line below 1 unit would
+            // lower the frozen total (and reach the kitchen as "−10×").
+            foreach ($items as $cartItem) {
+                if ($cartItem->quantity < 1) {
+                    $name = $cartItem->product?->name ?? 'um dos itens';
+                    throw new OrderNotPlaceable("A quantidade de \"{$name}\" no carrinho não é válida. Ajuste o carrinho e tente de novo.");
+                }
+            }
+
             $subtotal = $items->sum(function ($item) {
                 return $item->lineTotal();
             });
