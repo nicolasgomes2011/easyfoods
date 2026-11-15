@@ -41,6 +41,12 @@ class TableSession extends Model
         return $this->hasMany(Order::class);
     }
 
+    /** People at the table (comanda), in the order they were added. */
+    public function guests(): HasMany
+    {
+        return $this->hasMany(TableSessionGuest::class)->orderBy('id');
+    }
+
     public function isOpen(): bool
     {
         return $this->status === TableSessionStatus::Open;

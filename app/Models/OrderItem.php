@@ -32,6 +32,8 @@ class OrderItem extends Model
         'added_at'   => 'datetime',
         // Kitchen checklist: set when the kitchen ticked the item off (never mass-assigned).
         'prepared_at' => 'datetime',
+        // Comanda: the person at the table this item belongs to (null = shared; never mass-assigned).
+        'table_session_guest_id' => 'integer',
     ];
 
     public function order(): BelongsTo
@@ -47,6 +49,12 @@ class OrderItem extends Model
     public function variant(): BelongsTo
     {
         return $this->belongsTo(ProductVariant::class, 'product_variant_id');
+    }
+
+    /** The person at the table (comanda) this item belongs to; null = shared. */
+    public function guest(): BelongsTo
+    {
+        return $this->belongsTo(TableSessionGuest::class, 'table_session_guest_id');
     }
 
     public function addons(): HasMany
