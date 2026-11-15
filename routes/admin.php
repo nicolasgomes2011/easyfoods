@@ -63,6 +63,7 @@ Route::middleware(['auth', 'role:admin,manager,attendant,kitchen,delivery'])
         Route::prefix('reports')->name('reports.')->group(function () {
             Volt::route('/', 'reports.index')->name('index');
             Volt::route('/waste', 'reports.waste')->middleware('role:admin,manager')->name('waste');
+            Volt::route('/sales', 'reports.sales')->middleware('role:admin,manager')->name('sales');
         });
 
         // ── CONFIGURAÇÕES — admin/manager only ───────────────────────────────
