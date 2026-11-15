@@ -40,6 +40,8 @@ Route::middleware(['auth', 'role:admin,manager,attendant,kitchen,delivery'])
             Route::get('/', fn () => redirect()->route('admin.dining.tables'));
             Volt::route('/tables', 'dining.tables')->name('tables');
             Volt::route('/queue',  'dining.queue')->name('queue');
+            // Comanda da mesa: shows money, so dining room staff only.
+            Volt::route('/sessions/{tableSession}', 'dining.tab')->middleware('role:admin,manager,attendant')->name('tab');
         });
 
         // ── CARDÁPIO — admin/manager only ─────────────────────────────────────
