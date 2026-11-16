@@ -44,8 +44,16 @@ new #[Layout('components.layouts.app')] class extends Component {
         $this->showForm = true;
     }
 
-    public function openEdit(DeliveryZone $zone): void
+    /** Restaurant-fenced: another restaurant's zone is a 404. */
+    private function zone(int|string $zoneId): DeliveryZone
     {
+        return DeliveryZone::where('restaurant_id', CurrentRestaurant::id())->findOrFail($zoneId);
+    }
+
+    public function openEdit(int $zoneId): void
+    {
+        $zone = $this->zone($zoneId);
+
         $this->editingId        = (string) $zone->id;
         $this->name             = $zone->name;
         $this->neighborhood     = $zone->neighborhood ?? '';
@@ -74,7 +82,7 @@ new #[Layout('components.layouts.app')] class extends Component {
         ];
 
         if ($this->editingId) {
-            DeliveryZone::findOrFail($this->editingId)->update($data);
+            $this->zone($this->editingId)->update($data);
         } else {
             DeliveryZone::create($data);
         }
@@ -85,15 +93,16 @@ new #[Layout('components.layouts.app')] class extends Component {
         unset($this->zones);
     }
 
-    public function toggleActive(DeliveryZone $zone): void
+    public function toggleActive(int $zoneId): void
     {
+        $zone = $this->zone($zoneId);
         $zone->update(['is_active' => ! $zone->is_active]);
         unset($this->zones);
     }
 
-    public function delete(DeliveryZone $zone): void
+    public function delete(int $zoneId): void
     {
-        $zone->delete();
+        $this->zone($zoneId)->delete();
         unset($this->zones);
     }
 

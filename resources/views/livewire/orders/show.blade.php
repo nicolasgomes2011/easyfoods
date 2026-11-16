@@ -20,6 +20,7 @@ new #[Layout('components.layouts.app')] class extends Component {
 
     public function mount(Order $order): void
     {
+        abort_unless(auth()->user()?->worksAt($order->restaurant_id), 404); // another restaurant's order: 404
         $this->order = $order->load(['items.addons', 'statusHistory', 'payment', 'customer', 'itemChanges.changedBy']);
     }
 
