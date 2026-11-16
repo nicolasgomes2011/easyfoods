@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Order;
 
+use App\Actions\Orders\ToggleOrderItemPrepared;
 use App\Actions\Orders\TransitionOrderStatus;
 use App\Enums\OrderStatus;
 use App\Enums\UserRole;
@@ -249,5 +250,70 @@ class KitchenItemChecklistTest extends TestCase
         app(TransitionOrderStatus::class)->execute($order, OrderStatus::ReadyForPickup, auth()->user());
 
         $this->assertSame(OrderStatus::ReadyForPickup, $order->fresh()->status);
+    }
+
+    // ── EF-85: ticking/unticking runs under the order lock ──
+
+    public function test_an_order_marked_ready_between_the_screen_read_and_the_untick_keeps_its_items_ticked(): void
+    {
+        [$order, $burger, $fries] = $this->orderInPreparation();
+        $burger->forceFill(['prepared_at' => now()])->save();
+        $fries->forceFill(['prepared_at' => now()])->save();
+
+        // Another kitchen screen marks the order ready right after this screen
+        // read the item (order still in preparation) and right before the write.
+        $this->app->bind(ToggleOrderItemPrepared::class, fn () => new class extends ToggleOrderItemPrepared {
+            public function execute(OrderItem $item): bool
+            {
+                app(TransitionOrderStatus::class)->execute($item->order, OrderStatus::ReadyForPickup, auth()->user());
+
+                return parent::execute($item);
+            }
+        });
+
+        Volt::test('kitchen.index')
+            ->call('toggleItemPrepared', $fries->id)
+            ->assertHasNoErrors();
+
+        $this->assertSame(OrderStatus::ReadyForPickup, $order->fresh()->status);
+        $this->assertNotNull($fries->fresh()->prepared_at);
+        $this->assertSame(0, $order->items()->whereNull('prepared_at')->count());
+    }
+
+    public function test_the_toggle_does_not_write_once_the_order_left_preparation(): void
+    {
+        [$order, $burger, $fries] = $this->orderInPreparation();
+        $burger->forceFill(['prepared_at' => now()])->save();
+        $fries->forceFill(['prepared_at' => now()])->save();
+        $readWhileInPreparation = $fries->fresh()->load('order');
+
+        app(TransitionOrderStatus::class)->execute($order, OrderStatus::ReadyForPickup, auth()->user());
+
+        $this->assertFalse(app(ToggleOrderItemPrepared::class)->execute($readWhileInPreparation));
+        $this->assertNotNull($fries->fresh()->prepared_at);
+    }
+
+    public function test_the_toggle_flips_the_stored_value_not_a_stale_copy(): void
+    {
+        [, $burger] = $this->orderInPreparation();
+        $readBeforeTheTick = $burger->fresh()->load('order');
+        $toggle = app(ToggleOrderItemPrepared::class);
+
+        $this->assertTrue($toggle->execute($burger));
+        $this->assertNotNull($burger->fresh()->prepared_at);
+
+        // The old copy still says "not prepared"; the stored row says prepared, so it unticks.
+        $this->assertTrue($toggle->execute($readBeforeTheTick));
+        $this->assertNull($burger->fresh()->prepared_at);
+    }
+
+    public function test_the_toggle_does_not_write_an_item_that_left_the_order(): void
+    {
+        [, $burger] = $this->orderInPreparation();
+        $readBeforeRemoval = $burger->fresh()->load('order');
+        $burger->delete();
+
+        $this->assertFalse(app(ToggleOrderItemPrepared::class)->execute($readBeforeRemoval));
+        $this->assertDatabaseMissing('order_items', ['id' => $burger->id]);
     }
 }
