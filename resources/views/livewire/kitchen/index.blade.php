@@ -12,6 +12,7 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Support\CurrentRestaurant;
 use App\Models\WaiterCall;
+use App\Actions\Orders\ToggleOrderItemPrepared;
 use App\Actions\Orders\TransitionOrderStatus;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
@@ -112,7 +113,11 @@ new #[Layout('components.layouts.app')] class extends Component {
     /** Shown when "Marcar pronto" was refused because items are still to tick. */
     public ?string $readyNotice = null;
 
-    /** Kitchen checklist: tick an item off (or back on) while its order is in preparation. */
+    /**
+     * Kitchen checklist: tick an item off (or back on) while its order is in preparation.
+     * The status check and the write run under the order lock (ToggleOrderItemPrepared),
+     * so an order another screen has just marked "Pronto" keeps its items ticked.
+     */
     public function toggleItemPrepared(int $itemId): void
     {
         // Restaurant-fenced: another restaurant's item is a 404.
@@ -122,11 +127,9 @@ new #[Layout('components.layouts.app')] class extends Component {
 
         Gate::authorize('transitionInKitchen', $item->order);
 
-        if ($item->order->status !== OrderStatus::InPreparation) {
-            return;
+        if (! app(ToggleOrderItemPrepared::class)->execute($item)) {
+            return; // the order is no longer in preparation (or the item left it)
         }
-
-        $item->forceFill(['prepared_at' => $item->isPrepared() ? null : now()])->save();
 
         $this->readyNotice = null;
         unset($this->queueOrders);
