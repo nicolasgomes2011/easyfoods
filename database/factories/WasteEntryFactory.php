@@ -5,6 +5,7 @@ namespace Database\Factories;
 use App\Enums\IngredientUnit;
 use App\Enums\WasteReason;
 use App\Models\Restaurant;
+use App\Support\CurrentRestaurant;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -15,7 +16,7 @@ class WasteEntryFactory extends Factory
     public function definition(): array
     {
         return [
-            'restaurant_id'   => Restaurant::factory(),
+            'restaurant_id'   => fn () => CurrentRestaurant::id() ?? Restaurant::factory(),
             'ingredient_id'   => null,
             'ingredient_name' => ucfirst($this->faker->words(2, true)),
             'unit'            => IngredientUnit::Kilogram,

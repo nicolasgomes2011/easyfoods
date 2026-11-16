@@ -6,6 +6,7 @@ use App\Actions\Orders\TransitionOrderStatus;
 use App\Enums\OrderStatus;
 use App\Models\Order;
 use App\Models\Restaurant;
+use App\Support\CurrentRestaurant;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Support\Facades\DB;
 use Throwable;
@@ -31,23 +32,30 @@ class ExpireUnconfirmedOrders
             ->get(['id', 'confirmation_timeout_minutes']);
 
         foreach ($restaurants as $restaurant) {
-            // Deadline computed in PHP: date arithmetic in SQL differs between SQLite and MySQL.
-            $deadline = now()->subMinutes($restaurant->confirmation_timeout_minutes);
+            // No logged-in user here: each restaurant's orders are read and changed
+            // with that restaurant as the current one (tenant scope of the models).
+            CurrentRestaurant::runAs($restaurant->id, fn () => $this->expireFor($transition, $restaurant));
+        }
+    }
 
-            // Orders are created already in pending_confirmation, so created_at is when the wait began.
-            $expired = Order::query()
-                ->where('restaurant_id', $restaurant->id)
-                ->where('status', OrderStatus::PendingConfirmation->value)
-                ->where('created_at', '<=', $deadline)
-                ->pluck('id');
+    private function expireFor(TransitionOrderStatus $transition, Restaurant $restaurant): void
+    {
+        // Deadline computed in PHP: date arithmetic in SQL differs between SQLite and MySQL.
+        $deadline = now()->subMinutes($restaurant->confirmation_timeout_minutes);
 
-            foreach ($expired as $orderId) {
-                try {
-                    $this->expire($transition, $orderId);
-                } catch (Throwable $e) {
-                    // One bad order must not keep the others waiting forever.
-                    report($e);
-                }
+        // Orders are created already in pending_confirmation, so created_at is when the wait began.
+        $expired = Order::query()
+            ->where('restaurant_id', $restaurant->id)
+            ->where('status', OrderStatus::PendingConfirmation->value)
+            ->where('created_at', '<=', $deadline)
+            ->pluck('id');
+
+        foreach ($expired as $orderId) {
+            try {
+                $this->expire($transition, $orderId);
+            } catch (Throwable $e) {
+                // One bad order must not keep the others waiting forever.
+                report($e);
             }
         }
     }

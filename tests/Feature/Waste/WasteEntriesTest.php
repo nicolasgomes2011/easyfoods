@@ -12,6 +12,7 @@ use App\Exceptions\WasteNotRecordable;
 use App\Models\Ingredient;
 use App\Models\Restaurant;
 use App\Models\User;
+use App\Models\Scopes\RestaurantScope;
 use App\Models\WasteEntry;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use LogicException;
@@ -258,7 +259,8 @@ class WasteEntriesTest extends TestCase
             ->call('saveCorrection')
             ->assertStatus(404);
 
-        $this->assertSame(1, WasteEntry::count());
+        // The other restaurant's entry is still there untouched (counted across restaurants).
+        $this->assertSame(1, WasteEntry::withoutGlobalScope(RestaurantScope::class)->count());
     }
 
     public function test_entries_from_previous_days_are_not_in_todays_list(): void
