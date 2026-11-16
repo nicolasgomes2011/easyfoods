@@ -174,7 +174,8 @@ new #[Layout('components.layouts.app')] class extends Component {
 
     private function applyTransition(int $orderId, OrderStatus $to): void
     {
-        $order = Order::findOrFail($orderId);
+        // Restaurant-fenced: another restaurant's order is a 404.
+        $order = Order::where('restaurant_id', CurrentRestaurant::id())->findOrFail($orderId);
 
         Gate::authorize('transitionInKitchen', $order);
 
@@ -200,8 +201,13 @@ new #[Layout('components.layouts.app')] class extends Component {
 
     public function acknowledgeWaiterCall(int $callId): void
     {
-        WaiterCall::where('id', $callId)->update([
-            'status'          => WaiterCallStatus::Acknowledged->value,
+        // Restaurant-fenced (404) and checked by the policy, like the order actions.
+        $call = WaiterCall::where('restaurant_id', CurrentRestaurant::id())->findOrFail($callId);
+
+        Gate::authorize('acknowledge', $call);
+
+        $call->update([
+            'status'          => WaiterCallStatus::Acknowledged,
             'acknowledged_at' => now(),
         ]);
         unset($this->pendingWaiterCalls);

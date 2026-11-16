@@ -6,6 +6,10 @@ use App\Enums\UserRole;
 use App\Models\Order;
 use App\Models\User;
 
+/**
+ * Every check on a given order also requires the order to belong to the
+ * user's restaurant (User::worksAt): another restaurant's order is never allowed.
+ */
 class OrderPolicy
 {
     public function viewAny(User $user): bool
@@ -15,12 +19,13 @@ class OrderPolicy
 
     public function view(User $user, Order $order): bool
     {
-        return $user->role?->canManageOrders() ?? false;
+        return $user->worksAt($order->restaurant_id)
+            && ($user->role?->canManageOrders() ?? false);
     }
 
     public function updateStatus(User $user, Order $order): bool
     {
-        if ($order->isInFinalState()) {
+        if (! $user->worksAt($order->restaurant_id) || $order->isInFinalState()) {
             return false;
         }
 
@@ -29,7 +34,7 @@ class OrderPolicy
 
     public function cancel(User $user, Order $order): bool
     {
-        if (! $order->isCancelable()) {
+        if (! $user->worksAt($order->restaurant_id) || ! $order->isCancelable()) {
             return false;
         }
 
@@ -38,7 +43,7 @@ class OrderPolicy
 
     public function transitionInKitchen(User $user, Order $order): bool
     {
-        if ($order->isInFinalState()) {
+        if (! $user->worksAt($order->restaurant_id) || $order->isInFinalState()) {
             return false;
         }
 
@@ -62,6 +67,7 @@ class OrderPolicy
      */
     public function editItemsAsRole(User $user, Order $order): bool
     {
-        return $user->hasAnyRole(UserRole::Admin, UserRole::Manager, UserRole::Attendant);
+        return $user->worksAt($order->restaurant_id)
+            && $user->hasAnyRole(UserRole::Admin, UserRole::Manager, UserRole::Attendant);
     }
 }

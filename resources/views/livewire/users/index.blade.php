@@ -5,6 +5,7 @@ use Livewire\Volt\Component;
 use App\Actions\Users\InviteStaffMember;
 use App\Enums\UserRole;
 use App\Models\User;
+use App\Support\CurrentRestaurant;
 
 new #[Layout('components.layouts.app')] class extends Component {
 
@@ -36,10 +37,17 @@ new #[Layout('components.layouts.app')] class extends Component {
         ];
     }
 
+    /** Only the team of the current restaurant. */
     #[Computed]
     public function staff()
     {
-        return User::orderBy('name')->get();
+        return User::ofRestaurant(CurrentRestaurant::id())->orderBy('name')->get();
+    }
+
+    /** Restaurant-fenced: a member of another restaurant's team is a 404. */
+    private function member(int $userId): User
+    {
+        return User::ofRestaurant(CurrentRestaurant::id())->findOrFail($userId);
     }
 
     #[Computed]
@@ -82,8 +90,10 @@ new #[Layout('components.layouts.app')] class extends Component {
         $this->reset('inviteName', 'inviteEmail', 'inviteRole', 'inviteSuccess', 'inviteError');
     }
 
-    public function toggleActive(User $user): void
+    public function toggleActive(int $userId): void
     {
+        $user = $this->member($userId);
+
         if ($user->id === auth()->id()) {
             return;
         }
@@ -92,8 +102,10 @@ new #[Layout('components.layouts.app')] class extends Component {
         unset($this->staff);
     }
 
-    public function updateRole(User $user, string $role): void
+    public function updateRole(int $userId, string $role): void
     {
+        $user = $this->member($userId);
+
         if ($user->id === auth()->id()) {
             return;
         }
