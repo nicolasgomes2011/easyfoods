@@ -35,7 +35,10 @@ new #[Layout('components.layouts.customer')] class extends Component {
 
     public function increment(int $itemId): void
     {
-        CartItem::where('id', $itemId)->where('cart_id', $this->cart?->id)->increment('quantity');
+        CartItem::where('id', $itemId)
+            ->where('cart_id', $this->cart?->id)
+            ->where('quantity', '<', CartItem::MAX_QUANTITY)
+            ->increment('quantity');
         unset($this->cart, $this->subtotal);
     }
 

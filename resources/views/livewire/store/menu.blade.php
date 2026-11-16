@@ -4,6 +4,7 @@ use Livewire\Attributes\Computed;
 use Livewire\Attributes\Url;
 use Livewire\Volt\Component;
 use App\Actions\Cart\AddItemToCart;
+use App\Exceptions\CartItemNotAddable;
 use App\Models\Cart;
 use App\Models\Category;
 use App\Models\Product;
@@ -179,18 +180,27 @@ new #[Layout('components.layouts.customer')] class extends Component {
 
         $action = app(AddItemToCart::class);
 
-        $this->modalError = $action->selectionError($product, $this->selectedVariant, $this->selectedAddons);
+        // qty is client-controlled (the − / + buttons only limit it in the browser).
+        $this->modalError = $action->quantityError($this->qty)
+            ?? $action->selectionError($product, $this->selectedVariant, $this->selectedAddons);
         if ($this->modalError) return;
 
-        $action->handle(
-            $restaurant,
-            session()->getId(),
-            $product,
-            $this->selectedVariant,
-            $this->selectedAddons,
-            $this->qty,
-            $this->notes ?: null,
-        );
+        try {
+            $action->handle(
+                $restaurant,
+                session()->getId(),
+                $product,
+                $this->selectedVariant,
+                $this->selectedAddons,
+                $this->qty,
+                $this->notes ?: null,
+            );
+        } catch (CartItemNotAddable $e) {
+            // e.g. merging into the equal line would pass the ceiling
+            $this->modalError = $e->getMessage();
+
+            return;
+        }
 
         $this->closeProduct();
         $this->flashMessage = "'{$product->name}' adicionado ao carrinho.";
