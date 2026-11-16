@@ -117,18 +117,25 @@ class AddItemToCart
             ->values()
             ->all();
 
+        $notes = $this->normalizeNotes($notes);
+
         $cart = Cart::firstOrCreate(
             ['session_id' => $sessionId, 'restaurant_id' => $restaurant->id],
             ['delivery_type' => DeliveryType::Delivery->value]
         );
 
-        // Merge only into a line with the exact same variant AND addon set.
+        // Merge only into a line with the exact same variant, addon set AND note:
+        // a different note is another line, so it reaches the order and the kitchen.
         $existing = CartItem::with('addons')
             ->where('cart_id', $cart->id)
             ->where('product_id', $product->id)
             ->where('product_variant_id', $variantId)
             ->get()
-            ->first(function (CartItem $item) use ($addonOptionIds) {
+            ->first(function (CartItem $item) use ($addonOptionIds, $notes) {
+                if ($this->normalizeNotes($item->notes) !== $notes) {
+                    return false;
+                }
+
                 $itemIds = $item->addons->pluck('addon_option_id')->map('intval')->sort()->values()->all();
                 return $itemIds === collect($addonOptionIds)->sort()->values()->all();
             });
@@ -161,6 +168,14 @@ class AddItemToCart
         }
 
         return $item;
+    }
+
+    /** The note as stored and compared: trimmed, blank = null. */
+    private function normalizeNotes(?string $notes): ?string
+    {
+        $notes = trim((string) $notes);
+
+        return $notes === '' ? null : $notes;
     }
 
     /** @return int[] the non-empty, unique option ids of one group's selection */
