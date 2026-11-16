@@ -221,7 +221,11 @@ class TableSessionTest extends TestCase
 
         // Scoped findOrFail on a foreign id → 404.
         Volt::test('dining.tables')->call('closeSession', $foreignTable->id)->assertStatus(404);
-        $this->assertSame(TableSessionStatus::Open, $foreignTable->openSession->status);
+        // Read from the table: the panel's tenant scope hides the other restaurant's session.
+        $this->assertDatabaseHas('table_sessions', [
+            'dining_table_id' => $foreignTable->id,
+            'status'          => TableSessionStatus::Open->value,
+        ]);
 
         Volt::test('dining.tables')->call('delete', $foreignTable->id)->assertStatus(404);
         $this->assertDatabaseHas('dining_tables', ['id' => $foreignTable->id]);

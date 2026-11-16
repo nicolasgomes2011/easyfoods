@@ -16,11 +16,22 @@ use App\Models\OrderItem;
 use App\Models\OrderStatusHistory;
 use App\Models\Restaurant;
 use App\Models\TableSession;
+use App\Support\CurrentRestaurant;
 use Illuminate\Support\Facades\DB;
 
 class PlaceOrder
 {
+    /**
+     * The order is placed for the cart's restaurant: everything read and written
+     * here (hours, zones, tables, numbering) runs with that restaurant as the
+     * current one, so the tenant scope of the models follows the cart.
+     */
     public function handle(Cart $cart, array $data): Order
+    {
+        return CurrentRestaurant::runAs($cart->restaurant_id, fn () => $this->place($cart, $data));
+    }
+
+    private function place(Cart $cart, array $data): Order
     {
         return DB::transaction(function () use ($cart, $data) {
             $restaurant = Restaurant::with('operatingHours')->findOrFail($cart->restaurant_id);

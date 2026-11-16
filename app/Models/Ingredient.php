@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\IngredientCategory;
 use App\Enums\IngredientUnit;
+use App\Models\Concerns\BelongsToRestaurant;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /** An ingredient (insumo) the restaurant buys, with its cost per unit. */
 class Ingredient extends Model
 {
-    use HasFactory;
+    use BelongsToRestaurant, HasFactory;
 
     protected $fillable = [
         'restaurant_id',

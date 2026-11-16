@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\IngredientUnit;
 use App\Enums\WasteReason;
+use App\Models\Concerns\BelongsToRestaurant;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -19,7 +20,7 @@ use LogicException;
  */
 class WasteEntry extends Model
 {
-    use HasFactory;
+    use BelongsToRestaurant, HasFactory;
 
     public const UPDATED_AT = null;
 

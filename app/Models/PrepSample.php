@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\TimeBand;
+use App\Models\Concerns\BelongsToRestaurant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use LogicException;
@@ -15,6 +16,8 @@ use LogicException;
  */
 class PrepSample extends Model
 {
+    use BelongsToRestaurant;
+
     public const UPDATED_AT = null;
 
     protected $fillable = [

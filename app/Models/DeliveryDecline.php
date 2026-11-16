@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToRestaurant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /** A driver turned down a delivery on the driver panel (one row per order + driver). */
 class DeliveryDecline extends Model
 {
+    use BelongsToRestaurant;
+
     protected $fillable = [
         'restaurant_id',
         'order_id',

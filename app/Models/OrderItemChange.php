@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\OrderItemChangeType;
+use App\Models\Concerns\BelongsToRestaurant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -12,6 +13,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class OrderItemChange extends Model
 {
+    use BelongsToRestaurant;
+
     public $timestamps = false;
 
     protected $fillable = [

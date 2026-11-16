@@ -6,6 +6,7 @@ use App\Enums\DeliveryType;
 use App\Enums\OrderStatus;
 use App\Models\Customer;
 use App\Models\Restaurant;
+use App\Support\CurrentRestaurant;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 class OrderFactory extends Factory
@@ -23,7 +24,7 @@ class OrderFactory extends Factory
         return [
             'number'         => str_pad($sequence, 5, '0', STR_PAD_LEFT),
             'sequence'       => $sequence,
-            'restaurant_id'  => Restaurant::factory(),
+            'restaurant_id'  => fn () => CurrentRestaurant::id() ?? Restaurant::factory(),
             'customer_id'    => Customer::factory(),
             'status'         => OrderStatus::PendingConfirmation,
             'delivery_type'  => DeliveryType::Delivery,

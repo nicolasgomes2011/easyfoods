@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\DeliveryType;
 use App\Enums\OrderItemChangeType;
 use App\Enums\OrderStatus;
+use App\Models\Concerns\BelongsToRestaurant;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -15,7 +16,7 @@ use Illuminate\Support\Str;
 
 class Order extends Model
 {
-    use HasFactory;
+    use BelongsToRestaurant, HasFactory;
 
     protected static function boot(): void
     {
