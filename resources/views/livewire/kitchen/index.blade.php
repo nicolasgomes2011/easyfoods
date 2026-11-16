@@ -14,6 +14,7 @@ use App\Support\CurrentRestaurant;
 use App\Models\WaiterCall;
 use App\Actions\Orders\TransitionOrderStatus;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\ValidationException;
 
 new #[Layout('components.layouts.app')] class extends Component {
     use AlertsNewOrders;
@@ -131,7 +132,11 @@ new #[Layout('components.layouts.app')] class extends Component {
         unset($this->queueOrders);
     }
 
-    /** Ready only with every item ticked: checked here too, not just by the disabled button. */
+    /**
+     * Ready only with every item ticked. This check is the quick UX path; the
+     * rule itself is enforced by TransitionOrderStatus under the order lock
+     * (an item added at the same moment is refused there).
+     */
     public function markReady(int $orderId): void
     {
         $order = Order::where('restaurant_id', CurrentRestaurant::id())->findOrFail($orderId);
@@ -139,14 +144,29 @@ new #[Layout('components.layouts.app')] class extends Component {
         Gate::authorize('transitionInKitchen', $order);
 
         if ($order->items()->whereNull('prepared_at')->exists()) {
-            $this->readyNotice = "Marque todos os itens do pedido #{$order->number} antes de marcar pronto.";
-            unset($this->queueOrders);
+            $this->refuseReady($order);
 
             return;
         }
 
         $this->readyNotice = null;
-        $this->applyTransition($order->id, OrderStatus::ReadyForPickup);
+
+        try {
+            $this->applyTransition($order->id, OrderStatus::ReadyForPickup);
+        } catch (ValidationException $e) {
+            // An item came in between the check above and the locked transition.
+            if (! $order->items()->whereNull('prepared_at')->exists()) {
+                throw $e;
+            }
+
+            $this->refuseReady($order);
+        }
+    }
+
+    private function refuseReady(Order $order): void
+    {
+        $this->readyNotice = TransitionOrderStatus::itemsNotPreparedMessage($order);
+        unset($this->queueOrders);
     }
 
     private function applyTransition(int $orderId, OrderStatus $to): void

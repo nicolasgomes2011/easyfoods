@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Order;
 
+use App\Actions\Orders\TransitionOrderStatus;
 use App\Enums\OrderStatus;
 use App\Enums\UserRole;
 use App\Models\Order;
@@ -9,6 +10,7 @@ use App\Models\OrderItem;
 use App\Models\Restaurant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Validation\ValidationException;
 use Livewire\Volt\Volt;
 use Tests\TestCase;
 
@@ -173,5 +175,79 @@ class KitchenItemChecklistTest extends TestCase
             ->assertSee('data-item-check="'.$burger->id.'"', false)
             ->assertSee('data-item-check="'.$fries->id.'"', false)
             ->assertSee('data-kitchen-ready-blocked="'.$order->id.'"', false);
+    }
+
+    // ── EF-80: the rule is enforced by the transition, under the order lock ──
+
+    public function test_the_transition_refuses_ready_while_an_item_is_not_prepared(): void
+    {
+        [$order, $burger] = $this->orderInPreparation();
+        $burger->forceFill(['prepared_at' => now()])->save();
+
+        try {
+            app(TransitionOrderStatus::class)->execute($order, OrderStatus::ReadyForPickup, auth()->user());
+            $this->fail('TransitionOrderStatus should refuse "Pronto" with an item not prepared.');
+        } catch (ValidationException $e) {
+            $this->assertSame(
+                'Marque todos os itens do pedido #'.$order->number.' antes de marcar pronto.',
+                $e->errors()['status'][0]
+            );
+        }
+
+        $order->refresh();
+        $this->assertSame(OrderStatus::InPreparation, $order->status);
+        $this->assertNull($order->ready_at);
+        $this->assertDatabaseMissing('order_status_histories', [
+            'order_id'  => $order->id,
+            'to_status' => OrderStatus::ReadyForPickup->value,
+        ]);
+        $this->assertDatabaseCount('prep_samples', 0);
+    }
+
+    public function test_an_item_added_between_the_screen_check_and_the_transition_keeps_the_order_in_preparation(): void
+    {
+        [$order, $burger, $fries] = $this->orderInPreparation();
+        $burger->forceFill(['prepared_at' => now()])->save();
+        $fries->forceFill(['prepared_at' => now()])->save();
+
+        // The attendant's item lands right after the kitchen screen checked the
+        // items and right before the locked transition runs.
+        $this->app->bind(TransitionOrderStatus::class, fn () => new class extends TransitionOrderStatus {
+            public function execute(Order $order, OrderStatus $to, ?User $actor, ?string $notes = null): Order
+            {
+                OrderItem::create([
+                    'order_id'     => $order->id,
+                    'product_name' => 'Refrigerante',
+                    'unit_price'   => 6.00,
+                    'quantity'     => 1,
+                    'subtotal'     => 6.00,
+                    'added_at'     => now(),
+                ]);
+
+                return parent::execute($order, $to, $actor, $notes);
+            }
+        });
+
+        Volt::test('kitchen.index')
+            ->call('markReady', $order->id)
+            ->assertHasNoErrors()
+            ->assertSee('Marque todos os itens do pedido #'.$order->number.' antes de marcar pronto.');
+
+        $this->assertSame(OrderStatus::InPreparation, $order->fresh()->status);
+        $this->assertDatabaseMissing('order_status_histories', [
+            'order_id'  => $order->id,
+            'to_status' => OrderStatus::ReadyForPickup->value,
+        ]);
+    }
+
+    public function test_an_order_with_every_item_prepared_still_goes_ready_through_the_transition(): void
+    {
+        [$order, $burger, $fries] = $this->orderInPreparation();
+        $burger->forceFill(['prepared_at' => now()])->save();
+        $fries->forceFill(['prepared_at' => now()])->save();
+
+        app(TransitionOrderStatus::class)->execute($order, OrderStatus::ReadyForPickup, auth()->user());
+
+        $this->assertSame(OrderStatus::ReadyForPickup, $order->fresh()->status);
     }
 }

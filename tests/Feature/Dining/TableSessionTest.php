@@ -168,6 +168,7 @@ class TableSessionTest extends TestCase
         $transition = app(TransitionOrderStatus::class);
         $transition->execute($order->fresh(), OrderStatus::Confirmed, $actor);
         $transition->execute($order->fresh(), OrderStatus::InPreparation, $actor);
+        $order->items()->update(['prepared_at' => now()]); // the kitchen ticks every item
         $transition->execute($order->fresh(), OrderStatus::ReadyForPickup, $actor);
         $transition->execute($order->fresh(), OrderStatus::Completed, $actor);
 
