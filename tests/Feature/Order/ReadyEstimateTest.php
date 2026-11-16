@@ -194,6 +194,7 @@ class ReadyEstimateTest extends TestCase
 
         $order = $this->transition($order, OrderStatus::Confirmed);
         $order = $this->transition($order, OrderStatus::InPreparation);
+        $order->items()->update(['prepared_at' => now()]); // the kitchen ticks every item
         $order = $this->transition($order, OrderStatus::ReadyForPickup);
 
         $this->get(route('store.order.tracking', $order->token))->assertOk()->assertDontSee('Pronto às');

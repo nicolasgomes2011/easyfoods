@@ -56,6 +56,15 @@ class TransitionOrderStatus
                 ]);
             }
 
+            // Ready only with every item prepared (kitchen checklist). Checked here,
+            // under the order lock, so an item added at the same moment (AddOrderItem
+            // locks the same row) can't reach "Pronto" without being prepared.
+            if ($to === OrderStatus::ReadyForPickup && $order->items()->whereNull('prepared_at')->exists()) {
+                throw ValidationException::withMessages([
+                    'status' => self::itemsNotPreparedMessage($order),
+                ]);
+            }
+
             $order->status = $to;
 
             $milestone = self::MILESTONES[$to->value] ?? null;
@@ -86,5 +95,11 @@ class TransitionOrderStatus
 
             return $order;
         });
+    }
+
+    /** Message shown when "Pronto" is refused because an item is not ticked yet. */
+    public static function itemsNotPreparedMessage(Order $order): string
+    {
+        return "Marque todos os itens do pedido #{$order->number} antes de marcar pronto.";
     }
 }

@@ -478,6 +478,7 @@ class EditOpenOrderItemsTest extends TestCase
         $transition = app(TransitionOrderStatus::class);
 
         $transition->execute($order->fresh(), OrderStatus::InPreparation, $kitchen);
+        $order->items()->update(['prepared_at' => now()]); // the kitchen ticks every item
         $transition->execute($order->fresh(), OrderStatus::ReadyForPickup, $kitchen);
     }
 

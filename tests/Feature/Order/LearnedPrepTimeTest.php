@@ -113,6 +113,7 @@ class LearnedPrepTimeTest extends TestCase
         $order = $this->transition($order, OrderStatus::Confirmed);
         $order = $this->transition($order, OrderStatus::InPreparation);
         $this->travel($minutes)->minutes();
+        $order->items()->update(['prepared_at' => now()]); // the kitchen ticks every item
 
         return $this->transition($order, OrderStatus::ReadyForPickup);
     }
