@@ -3,14 +3,16 @@
 namespace Tests\Feature;
 
 use App\Models\Restaurant;
+use App\Models\User;
 use App\Support\CurrentRestaurant;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * The panel/store "current restaurant" must resolve deterministically:
- * always the lowest id, regardless of other indexes (e.g. the unique slug)
- * the planner could otherwise serve rows from.
+ * The panel/store "current restaurant" must resolve deterministically: the
+ * logged-in staff member's restaurant (EF-81), otherwise the lowest id,
+ * regardless of other indexes (e.g. the unique slug) the planner could
+ * otherwise serve rows from.
  */
 class CurrentRestaurantTest extends TestCase
 {
@@ -34,6 +36,40 @@ class CurrentRestaurantTest extends TestCase
         $restaurant = Restaurant::factory()->create();
 
         $this->assertSame($restaurant->id, CurrentRestaurant::id());
+    }
+
+    public function test_logged_in_staff_resolves_to_their_own_restaurant(): void
+    {
+        Restaurant::factory()->create(); // lowest id: the default
+        $theirs = Restaurant::factory()->create();
+
+        $this->actingAs(User::factory()->create(['restaurant_id' => $theirs->id]));
+
+        $this->assertSame($theirs->id, CurrentRestaurant::id());
+        $this->assertTrue(CurrentRestaurant::get()->is($theirs));
+    }
+
+    public function test_guests_and_staff_without_a_restaurant_get_the_default_one(): void
+    {
+        $default = Restaurant::factory()->create();
+        Restaurant::factory()->create();
+
+        $this->assertSame($default->id, CurrentRestaurant::id()); // guest (storefront)
+
+        $this->actingAs(User::factory()->create()); // no restaurant_id yet
+        $this->assertSame($default->id, CurrentRestaurant::id());
+    }
+
+    public function test_switching_the_logged_in_user_switches_the_restaurant(): void
+    {
+        $first  = Restaurant::factory()->create();
+        $second = Restaurant::factory()->create();
+
+        $this->actingAs(User::factory()->create(['restaurant_id' => $second->id]));
+        $this->assertSame($second->id, CurrentRestaurant::id());
+
+        $this->actingAs(User::factory()->create(['restaurant_id' => $first->id]));
+        $this->assertSame($first->id, CurrentRestaurant::id());
     }
 
     public function test_get_returns_fresh_attributes(): void

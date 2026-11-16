@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\UserRole;
 use App\Models\Concerns\HasTwoFactorAuthentication;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Str;
@@ -48,7 +49,14 @@ class User extends Authenticatable
             // Driver panel: false = on pause, gets no delivery offers.
             'is_available'       => 'boolean',
             'role'               => UserRole::class,
+            // Tenant: the restaurant this staff member works in (never mass-assigned).
+            'restaurant_id'      => 'integer',
         ];
+    }
+
+    public function restaurant(): BelongsTo
+    {
+        return $this->belongsTo(Restaurant::class);
     }
 
     public function hasRole(UserRole $role): bool
