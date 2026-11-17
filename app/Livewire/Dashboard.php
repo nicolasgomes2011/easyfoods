@@ -89,17 +89,20 @@ class Dashboard extends Component
     }
 
     /**
-     * "Entregadores ativos": drivers with an active account, available or on
-     * pause, each with the deliveries they hold right now in this restaurant
-     * (accepted and waiting at the counter, or en route). Two queries for the
-     * whole block. A driver holding a delivery is busy even while on pause.
+     * "Entregadores ativos": drivers of this restaurant with an active account,
+     * available or on pause, each with the deliveries they hold right now in
+     * this restaurant (accepted and waiting at the counter, or en route). Two
+     * queries for the whole block. A driver holding a delivery is busy even
+     * while on pause.
      *
      * @return Collection<int, array{id: int, name: string, state: string, deliveries: Collection<int, Order>}>
      */
     #[Computed]
     public function activeDrivers(): Collection
     {
-        $drivers = User::where('role', UserRole::Delivery->value)
+        // User has no tenant scope (login reads it first): fence it here.
+        $drivers = User::ofRestaurant($this->rid())
+            ->where('role', UserRole::Delivery->value)
             ->where('is_active', true)
             ->orderBy('name')
             ->get(['id', 'name', 'is_available']);
