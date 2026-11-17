@@ -44,10 +44,23 @@ new #[Layout('components.layouts.app')] class extends Component {}; ?>
                 <span class="text-xs text-orange-300 bg-orange-500/10 rounded-full px-2.5 py-1">Ver relatório</span>
             </div>
         </a>
+        <a href="{{ route('admin.reports.products') }}" wire:navigate data-report="products"
+           class="bg-zinc-900 border border-zinc-800 hover:border-orange-500/60 rounded-xl p-5 transition">
+            <div class="flex items-start gap-3 mb-3">
+                <div class="size-8 rounded-lg bg-orange-500/15 flex items-center justify-center shrink-0">
+                    <svg class="size-4 text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+                <h3 class="text-sm font-semibold text-white leading-tight pt-1">Itens mais pedidos e horários de pico</h3>
+            </div>
+            <p class="text-xs text-zinc-400 leading-relaxed">Ranking de produtos por quantidade e receita, e pedidos por hora do dia e dia da semana no período. Exporta CSV.</p>
+            <div class="mt-4">
+                <span class="text-xs text-orange-300 bg-orange-500/10 rounded-full px-2.5 py-1">Ver relatório</span>
+            </div>
+        </a>
         @endif
         @foreach([
-            ['title' => 'Itens mais pedidos',     'desc' => 'Ranking de produtos por volume de pedidos e receita gerada no período selecionado.',    'icon' => 'M4 6h16M4 10h16M4 14h16M4 18h16'],
-            ['title' => 'Horários de pico',       'desc' => 'Distribuição de pedidos por hora do dia e dia da semana para planejamento de equipe.', 'icon' => 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z'],
             ['title' => 'Tempo de preparo',       'desc' => 'Tempo médio da cozinha por produto, por categoria e por turno de trabalho.',            'icon' => 'M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z'],
             ['title' => 'Desempenho do salão',    'desc' => 'Taxa de ocupação das mesas, tempo médio de permanência e rotatividade por turno.',     'icon' => 'M3 10h18M3 14h18M10 3v18M14 3v18'],
             ['title' => 'Cancelamentos e perdas', 'desc' => 'Pedidos cancelados, motivos declarados e impacto financeiro por período.',              'icon' => 'M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z'],

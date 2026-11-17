@@ -364,8 +364,8 @@ class SalesReportTest extends TestCase
             ->assertOk()
             ->assertDontSee(route('admin.reports.sales'), false);
 
-        // The sales card is no longer a "coming soon" one.
+        // The sales card is no longer a "coming soon" one (nor, since EF-48, top products and peak hours).
         $html = $this->actingAs($this->admin)->get(route('admin.reports.index'))->getContent();
-        $this->assertSame(5, substr_count($html, 'Em desenvolvimento'));
+        $this->assertSame(3, substr_count($html, 'Em desenvolvimento'));
     }
 }
