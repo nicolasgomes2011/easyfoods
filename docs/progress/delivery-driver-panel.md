@@ -1,6 +1,7 @@
 # Delivery Driver Panel
 
-**Status:** 🔴 Not Started
+**Status:** 🟡 In Progress
+**Current state (2026-11-18):** Ready orders are offered to available drivers, who accept or decline (EF-36), pause and resume offers (EF-37) and have call/map links (EF-38); only the driver who accepted delivers. Open: EF-60 (payment / change on the card), EF-76 (delivery ETA). See [ROADMAP](ROADMAP.md).
 **Phase:** 6 — Delivery Driver
 
 ## Description

@@ -61,21 +61,25 @@ Development is active and moves fast — the authoritative, continuously-updated
 picture as of this writing:
 
 - **Phase 0 (cleanup)** — done: demo seeders removed, panel reflects only real data.
-- **Phase 1 (foundation)** — auth/roles/schema/layout in place; multi-tenant query scoping is
-  applied explicitly per-query (not a global scope yet) — safe for a single restaurant.
-- **Phase 2 (backoffice)** — catalog, categories, addons, dining tables, employee management, and
-  settings are largely wired to real persistence; a handful of gaps (category reorder, product
-  variants UI, image upload, dashboard widgets, waitlist queue) are being closed out.
+- **Phase 1 (foundation)** — auth, per-role access matrix, schema and layouts in place; the panel
+  is multi-tenant (staff belong to a restaurant, global tenant scope, policies by restaurant). CI
+  runs the suite on SQLite and MySQL.
+- **Phase 2 (backoffice)** — catalog, ingredients and waste log, dining tables with QR codes and the
+  table tab, employee management, settings and the dashboard are wired to real persistence.
 - **Phase 3 (customer ordering)** and **Phase 4 (kitchen & order flow)** — storefront, cart,
-  checkout, order placement, and kitchen/order status transitions are implemented and covered by
-  real-HTTP tests (`app/Actions/Orders/TransitionOrderStatus`, `PlaceOrder`).
-- **Phase 6 (delivery driver)** — driver panel with pickup/deliver actions implemented.
-- **Phases 5, 7, 8, 9** (customer tracking polish, ETA intelligence, table-tab splitting,
-  realtime/reports) — not yet started.
+  checkout with payment method, table QR / kiosk mode, order placement, kitchen checklist and
+  order status transitions are implemented and covered by real-HTTP tests
+  (`app/Actions/Orders/TransitionOrderStatus`, `PlaceOrder`).
+- **Phase 6 (delivery driver)** — drivers accept or decline offers, pause and resume, pick up and
+  deliver.
+- **Phase 7 (ETA)** — prep time learned from kitchen history; delivery transit time is next.
+- **Phases 5, 8, 9** — tracking is live by polling; table tab has people and items per person
+  (split options pending); sales, top products, peak hours and waste reports are live; broadcasting
+  is not started.
 
 ## Architecture
 
-**Stack:** Laravel 12 (PHP 8.2+) · Livewire 3 + Volt (single-file components) · Alpine.js (UI
+**Stack:** Laravel 12 (PHP 8.4+ with `ext-gd`) · Livewire 4 + Volt (single-file components) · Alpine.js (UI
 interactivity only, never business logic) · Tailwind CSS 4 · SQLite (dev) / MySQL (prod target) ·
 Vite.
 
@@ -91,11 +95,10 @@ app/
 resources/views/livewire/   Volt single-file components (kitchen, orders, dining, store, driver, settings, ...)
 routes/
   default_routes_web.php    actual web entry point loaded by bootstrap/app.php
-  admin.php, customer.php, auth.php
-  web.php                   legacy/unused — do not add routes here
+  admin.php, customer.php, auth.php   (there is no routes/web.php)
 
-database/migrations/        schema (36+ migrations)
-tests/Feature/, tests/Unit/ PHPUnit — Auth, Catalog, Dining, Driver, Order, Settings, Store
+database/migrations/        schema (55+ migrations)
+tests/Feature/, tests/Unit/ PHPUnit — Auth, Catalog, Dining, Driver, Order, Reports, Settings, Store, Waste, tenant isolation
 docs/
   scope/     product scope by actor/module — what the platform promises to deliver
   progress/  ROADMAP.md (live status) + ADJUSTMENTS.md + TESTING_ROADMAP.md

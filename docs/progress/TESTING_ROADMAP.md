@@ -7,90 +7,106 @@
 - `[~]` partial
 - `[ ]` pending
 
+Last checked against `main` on **2026-11-18** (`de95d97`): **758 tests**, all passing (`php artisan test`), on SQLite and MySQL 8 in CI.
+
 ---
 
-## 1. Current baseline (Pest)
+## 1. Current baseline (PHPUnit)
 
 Already in the suite (`tests/`):
 
-- `Feature/Auth/*` — login, register, password reset, email verification, password confirmation, 2FA (Fortify defaults)
+- `Feature/Auth/*` — login, registration disabled, password reset (and its Portuguese screens), email verification, password confirmation, 2FA challenge, per-role access matrix (`RoleAccessTest`: menu links, 200/403 per role, home screen per role, disabled accounts)
 - `Feature/Settings/*` — profile, password update, 2FA management
-- `Feature/DashboardTest.php` — basic dashboard reachability (needs review after the route fix in commit `05912aa`)
-- `Feature/Order/OrderModelTest.php` — Order model behavior
-- `Unit/OrderStatusTest.php` — `OrderStatus` enum
-- `Unit/PaymentStatusTest.php` — `PaymentStatus` enum
-- `Unit/UserRoleTest.php` — `UserRole` enum
-- `Unit/ProductAvailabilityStatusTest.php` — availability enum
+- `Feature/DashboardTest.php`, `DashboardBlocksTest.php`, `DashboardPrepTimeTest.php` — dashboard on the real route + Livewire blocks (tables snapshot, deliveries, quick actions, comparison badges, average prep time, tenant scope)
+- `Feature/Catalog/*` — product form (variants, images), lifecycle (archive, delete guard), addons, category reorder and unique names, ingredients, tenant scoping
+- `Feature/Dining/*` — table sessions and server re-checks, waitlist, table QR codes, table tab and people at the table
+- `Feature/Driver/*` — accept / decline, pause / resume, pick up / delivered, active drivers on the dashboard, call/map links
+- `Feature/Order/*` — `TransitionOrderStatus`, numbering, milestones, kitchen actions / checklist / type filter / item details, order detail actions, item edits on open orders, "Marcar como pago", new-order alert, auto-expiry, ready-at estimate and learned prep time, `Order` model
+- `Feature/Store/*` — storefront → cart → checkout → `PlaceOrder` flow, menu (sections, open status, search, unavailable, most ordered), cart (selection, quantities, notes, clear), checkout (payment, customer by phone, closed store, zones, dine-in table, default type, address length), table QR mode, order tracking
+- `Feature/Reports/*`, `Feature/Waste/*` — sales, top products / peak hours and waste reports with CSV, waste log
+- `Feature/TenantLeakTest.php`, `TenantIsolationByIdTest.php`, `RestaurantScopeTest.php`, `CurrentRestaurantTest.php`, `StaffRestaurantTest.php` — two-restaurant isolation on every screen and id lookup
+- `Feature/LivePollingTest.php`, `LocaleAndTimezoneTest.php`, `DeadRoutesTest.php` — polling cadence, pt-BR / Brasília time, removed routes stay gone
+- `Unit/*` — `OrderStatus`, `PaymentStatus`, `UserRole`, `ProductAvailabilityStatus` enums; file-size ceiling
 
-Gap: nothing covers the implemented Livewire components (Dashboard KPIs, kitchen queue, orders index, customers, dining tables, product CRUD).
+Gaps: dashboard KPI computations one by one, orders index filters, settings screens persistence, cart update/remove, browser-level smoke tests.
 
 ---
 
 ## 2. Test infrastructure (foundation)
 
 - [ ] Confirm `RefreshDatabase` / `DatabaseTransactions` trait usage is consistent
-- [ ] Factories for every model (audit `database/factories/`): `Restaurant`, `Category`, `Product`, `AddonGroup`, `AddonOption`, `Customer`, `Order`, `OrderItem`, `Payment`, `DiningTable`, `User`
-- [ ] Helper trait or Pest preset to spin up a logged-in user per role (`actingAsAdmin()`, `actingAsKitchen()`, etc.)
-- [ ] CI job (GitHub Actions) running `php artisan test` on every push
-- [ ] Update `DashboardTest.php` to assert the Livewire component renders (use `Livewire::test(Dashboard::class)`) AND a full HTTP `get('/dashboard')->assertOk()` — both layers (regression for the route fix in commit `05912aa`)
+- [~] Factories for every model — exist for `Restaurant`, `Customer`, `Ingredient`, `Order`, `TableSession`, `User`, `WaitlistEntry`, `WasteEntry`; missing for `Category`, `Product`, `AddonGroup`, `AddonOption`, `OrderItem`, `Payment`, `DiningTable`
+- [ ] Helper trait or preset to spin up a logged-in user per role (`actingAsAdmin()`, `actingAsKitchen()`, etc.)
+- [x] CI job (GitHub Actions) running `php artisan test` on every pull request and push to `main`, on SQLite and MySQL 8 (EF-11)
+- [x] Dashboard covered on both layers: real HTTP route + `Livewire::test(Dashboard::class)` (`DashboardBlocksTest`)
 
 ---
 
 ## 3. Phase 1 — Foundation tests
 
 ### 3.1 Authentication & Roles
-- [ ] Unauthenticated request to `/dashboard` redirects to `/login`
-- [ ] Unauthenticated request to `/admin/*` redirects to `/login`
-- [ ] Each role middleware blocks routes outside its scope:
-  - [ ] Kitchen user cannot reach `/admin/catalog/products`
-  - [ ] Attendant cannot reach `/admin/settings/*`
-  - [ ] Delivery cannot reach `/admin/orders` (or whatever the contract is — verify and lock)
-- [ ] Admin can reach every admin route
-- [ ] Logout invalidates the session
+- [x] Unauthenticated request to `/dashboard` redirects to `/login`
+- [x] Unauthenticated request to `/admin/*` redirects to `/login`
+- [x] Each role is blocked outside its scope — every forbidden menu area answers 403 (`RoleAccessTest`)
+- [x] Admin can reach every admin route linked from the menu (`RoleAccessTest`)
+- [x] Logout invalidates the session
+- [x] A disabled account cannot log in and an open session is logged out (`RoleAccessTest`)
 
 ### 3.2 Models & enums
 - [x] `OrderStatus`, `PaymentStatus`, `UserRole`, `ProductAvailabilityStatus` enum coverage
-- [ ] `DeliveryType` enum coverage
+- [~] `DeliveryType` enum coverage — delivery / pickup detection on `Order`, labels on panel screens
 - [ ] `DiningTableStatus` enum coverage
-- [ ] `Order` total recomputation (subtotal + delivery_fee − discount)
-- [ ] `Order::byStatus` scope returns the expected rows
+- [x] `Order` total recomputation (subtotal + delivery_fee − discount)
+- [x] `Order::byStatus` scope returns the expected rows
 - [ ] `Product` price coercion / decimals
 - [ ] Cascade rules: deleting a `Category` with products is blocked or scoped per spec
+
+### 3.3 Multi-tenant
+- [x] Every panel screen shows only the panel restaurant's rows (`TenantLeakTest`)
+- [x] Ids of another restaurant answer 404 / are refused by the policies (`TenantIsolationByIdTest`)
+- [x] Global scope and the current restaurant follow the logged-in user (`RestaurantScopeTest`, `CurrentRestaurantTest`, `StaffRestaurantTest`)
 
 ---
 
 ## 4. Phase 2 — Restaurant Backoffice tests
 
 ### 4.1 Dashboard (`App\Livewire\Dashboard`)
-- [ ] `openCount`, `inPreparationCount`, `readyCount` return DB counts
+- [~] `openCount`, `inPreparationCount`, `readyCount` return DB counts — open and in-preparation asserted per restaurant (`StaffRestaurantTest`)
 - [ ] `todayOrderCount` excludes `canceled` and `draft`
-- [ ] `avgPrepMinutes` returns `null` when no orders are ready today
+- [x] `avgPrepMinutes` returns `null` when there is no kitchen data, and counts only kitchen time (`DashboardPrepTimeTest`)
 - [ ] `todayRevenue` only sums `delivered` + `completed` for today
-- [ ] `kitchenQueue` aggregates by product across in-preparation orders
-- [ ] `alerts` returns the delayed-order alert for orders with `updated_at > 30min`
+- [~] `kitchenQueue` aggregates by product across in-preparation orders — minutes display asserted (`OperationalMinutesTest`)
+- [~] `alerts` returns the delayed-order alert — minutes display asserted (`OperationalMinutesTest`)
 - [ ] `alerts` returns the kitchen-overload alert when `inPreparationCount >= 5`
-- [ ] Empty DB: page renders with zeros and `—`, no exceptions
+- [x] Tables snapshot, deliveries en route, active drivers and comparison badges (incl. no-baseline guard)
+- [x] Blocks scoped to the panel restaurant
 
 ### 4.2 Product Catalog (`App\Livewire\Catalog\ProductList`, `ProductForm`)
-- [ ] Create product: required fields validated
+- [~] Create product: required fields validated — variant rows validated; base fields not covered
 - [ ] Create product: prep time must be a positive integer
-- [ ] Edit product: changes persist
+- [x] Edit product: changes persist (variants sync, image replacement)
 - [ ] List paginates and filters by name / category
-- [ ] Addon groups linked to a product
-- [ ] Addon options: min/max selections respected
+- [x] Addon groups linked to a product
+- [x] Addon options: min/max selections respected
+- [x] Archive / unarchive, delete guard with open orders, foreign-record rejection
+- [x] Category names unique per restaurant; ingredients registry
 
-### 4.3 Dining (Volt `dining.tables`, `dining.queue`)
+### 4.3 Dining (Volt `dining.tables`, `dining.queue`, `dining.tab`)
 - [ ] Create table: `number` and `capacity` required
 - [ ] Edit table: persists
-- [ ] Delete blocked when there is an active session (once sessions exist)
+- [x] Delete blocked when there is an active session
 - [ ] Counters (`free`, `occupied`, `reserved`) match DB state
-- [ ] Waitlist add / seat / remove actions
+- [x] Waitlist add / seat / remove actions (FIFO, tenant-scoped); seating refuses a table that is no longer free
+- [x] Session close blocked while an order is active; frees the table when all orders are final
+- [x] Status change refuses free / reserved while a tab is open, and unknown values
+- [x] QR code per table: page, PNG/SVG download, print page, link opens `/mesa/{uuid}`
+- [x] Table tab: orders, totals, people and item-to-person
 
 ### 4.4 Orders index / show
 - [ ] Index filters by status, type, date, search term
 - [ ] Pagination works
-- [ ] Show view returns 404 on a non-existent order
-- [ ] Show view displays items, addons, totals, status history, payment
+- [~] Show view returns 404 — covered for an order of another restaurant (`TenantIsolationByIdTest`), not for a non-existent id
+- [~] Show view — actions, items with addon names, item edits and payment asserted; totals and history not
 
 ### 4.5 Settings
 - [ ] Store info form save persists
@@ -103,32 +119,33 @@ Gap: nothing covers the implemented Livewire components (Dashboard KPIs, kitchen
 ## 5. Phase 4 — Kitchen & Order Flow tests
 
 ### 5.1 Kitchen panel
-- [ ] Queue lists only `confirmed` and `in_preparation`
-- [ ] Counters match DB
-- [ ] Polling does not break component state
-- [ ] Mark `in_preparation` action transitions status and writes history
-- [ ] Mark `ready` action transitions status and writes history
-- [ ] Cannot mark `ready` if items checklist is incomplete (once item-level exists)
+- [~] Queue lists only `confirmed` and `in_preparation` — the real route renders the start button for a confirmed order
+- [x] Counters match DB and follow the type filter (`KitchenTypeFilterTest`)
+- [~] Polling — cadence asserted (`LivePollingTest`); state across polls not asserted
+- [x] Mark `in_preparation` action transitions status and writes history
+- [x] Mark `ready` action transitions status and writes history
+- [x] Cannot mark `ready` if the item checklist is incomplete (`KitchenItemChecklistTest`)
+- [x] Item addons, notes and removed items on the card; new-order sound alert
 
 ### 5.2 Order actions
-- [ ] Confirm: `pending_confirmation` → `confirmed`, history row created
-- [ ] Cancel: requires reason, status → `canceled`, history row stores reason
-- [ ] Reject: requires reason
-- [ ] Mark completed: requires `delivered` or `ready_for_pickup` previous status
-- [ ] Backward transitions are rejected (e.g. `ready` → `in_preparation`)
+- [x] Confirm: `pending_confirmation` → `confirmed`, history row created
+- [x] Cancel: requires reason, status → `canceled`, history row stores reason
+- [x] Reject: requires reason
+- [x] Mark completed: requires `delivered` or `ready_for_pickup` previous status
+- [x] Backward transitions are rejected (e.g. `confirmed` → `draft`)
+- [x] Auto-expiry of unconfirmed orders; add / remove items on open dine-in orders; "Marcar como pago" keeps the order status
 
 ---
 
 ## 6. Phase 3 / 5 / 6 — Customer & Delivery tests
 
-To be written when those phases land. Placeholders so they are not forgotten:
-
-- [ ] Storefront menu listing (guest + authenticated)
-- [ ] Cart add / update / remove
-- [ ] Checkout server-side total recalc cannot be bypassed by client
-- [ ] Order placement creates `pending_confirmation` and notifies restaurant
-- [ ] Customer tracking shows real-time status
-- [ ] Driver accept / decline / status updates flow
+- [x] Storefront menu listing (public pages render), sections, open status, search, unavailable products
+- [~] Cart add / update / remove — add (with variants/addons), quantity limits, notes and clear covered; update/remove of one line not asserted
+- [x] Checkout server-side total recalc cannot be bypassed by client (snapshots, foreign variants/addons rejected, zone fee on the server)
+- [x] Order placement creates `pending_confirmation` with frozen snapshot and history; the counter and kitchen are alerted (`NewOrderAlertTest`)
+- [x] Checkout payment (pending `Payment`, change), customer by phone, closed store, table QR / kiosk mode
+- [x] Customer tracking — polling while active / stops when final; steps per order type with their times (`OrderTrackingTest`)
+- [x] Driver flow — accept / decline, pause / resume, pick up / delivered
 
 ---
 
@@ -143,9 +160,8 @@ To be written when those phases land. Placeholders so they are not forgotten:
 
 ## 8. Quality gates
 
-Once the foundation is in place:
-
-- [ ] CI fails on test regression
-- [ ] CI runs `php artisan view:clear` then the test suite (stale compiled blades have already burned us once)
+- [x] CI fails on test regression (EF-11)
+- [x] CI runs `php artisan view:clear` then the test suite (EF-11)
 - [ ] Coverage report — target ≥ 70% on `app/Livewire/**`, `app/Models/**`, `app/Enums/**`
-- [ ] Pre-commit hook: forbid `dd(`, `dump(`, `var_dump(` in committed files
+- [x] Forbid `dd(`, `dump(`, `var_dump(` in committed files — CI `guard` job (EF-11)
+- [x] File-size ceiling: `tests/Unit/FileSizeCeilingTest.php` keeps files under the line limit

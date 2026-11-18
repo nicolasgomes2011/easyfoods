@@ -1,6 +1,7 @@
 # Restaurant Dashboard
 
-**Status:** 🔴 Not Started
+**Status:** 🟢 Completed
+**Current state (2026-11-18):** KPIs, recent orders, kitchen snippet, top items, alerts, tables snapshot, active drivers (EF-38), quick actions and the today-vs-baseline badges are on `main`. See [ROADMAP](ROADMAP.md).
 **Phase:** 2 — Restaurant Backoffice
 
 ## Description

@@ -1,6 +1,7 @@
 # Kitchen Panel
 
-**Status:** 🔴 Not Started
+**Status:** 🟢 Completed
+**Current state (2026-11-18):** Queue grouped by status with type filter and touch layout (EF-42), item checklist with "ready" only when every item is ticked (EF-43), prep timer (EF-15), new-order sound alert (EF-19), item addons/notes/removals on the card (EF-72, EF-73) and the waste log (EF-40) are on `main`. See [ROADMAP](ROADMAP.md).
 **Phase:** 4 — Kitchen & Order Flow
 
 ## Description

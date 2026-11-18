@@ -1,6 +1,7 @@
 # Customer Storefront & Menu
 
-**Status:** 🔴 Not Started
+**Status:** 🟢 Completed
+**Current state (2026-11-18):** Public menu at `/store/menu` with category sections (EF-56), open/closed header (EF-54), unavailable products greyed out (EF-55), quick search (EF-57), most ordered (EF-31) and the table QR / kiosk mode at `/mesa/{uuid}` (EF-34) is on `main`. Open: EF-18 (call waiter). See [ROADMAP](ROADMAP.md).
 **Phase:** 3 — Customer Ordering
 
 ## Description

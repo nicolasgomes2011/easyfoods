@@ -1,6 +1,7 @@
 # Cart & Checkout
 
-**Status:** 🔴 Not Started
+**Status:** 🟢 Completed
+**Current state (2026-11-18):** Session cart with server-side quantity checks and clear cart (EF-58), checkout for dine-in / delivery / pickup, payment method with a pending `Payment` (EF-4), store-open check (EF-5), zone fee on the server (EF-51), occupied tables selectable (EF-6) and the customer registered by phone (EF-9) are on `main`. See [ROADMAP](ROADMAP.md).
 **Phase:** 3 — Customer Ordering
 
 ## Description

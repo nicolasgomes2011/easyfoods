@@ -1,6 +1,7 @@
 # Order Tracking (Customer)
 
-**Status:** 🔴 Not Started
+**Status:** 🟡 In Progress
+**Current state (2026-11-18):** Tracking by `orders.token` with steps per order type and their times (EF-16), "Pronto às HH:MM" with the delay message (EF-15, EF-26) and 10s polling is on `main`. Broadcasting instead of polling: EF-29. See [ROADMAP](ROADMAP.md).
 **Phase:** 5 — Order Tracking
 
 ## Description

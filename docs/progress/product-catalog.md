@@ -1,6 +1,7 @@
 # Product Catalog
 
-**Status:** 🔴 Not Started
+**Status:** 🟢 Completed
+**Current state (2026-11-18):** Products, categories (with reorder and unique names — EF-69), addon groups, variants, image upload, archive, availability toggle, base prep time (EF-15) and the ingredients registry (EF-39) are on `main`. See [ROADMAP](ROADMAP.md).
 **Phase:** 2 — Restaurant Backoffice
 
 ## Description
