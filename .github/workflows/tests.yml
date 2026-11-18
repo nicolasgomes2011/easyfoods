@@ -29,10 +29,11 @@ jobs:
             exit 1
           fi
 
-      - name: No private project memory or .env in the repository
+      - name: No private project memory, .env or local Claude settings in the repository
         run: |
-          # Any .env or .env.* file (.env.testing, .env.staging, ...) except .env.example.
-          files=$(git ls-files | grep -E '^docs/memory/|(^|/)\.env(\..+)?$' | grep -vE '(^|/)\.env\.example$' || true)
+          # Any .env or .env.* file (.env.testing, .env.staging, ...) except .env.example,
+          # and the per-machine .claude/settings.local.json (permissions, local paths).
+          files=$(git ls-files | grep -E '^docs/memory/|(^|/)\.env(\..+)?$|^\.claude/settings\.local\.json$' | grep -vE '(^|/)\.env\.example$' || true)
           if [ -n "$files" ]; then
             echo "::error::Private files are tracked and must be removed:"
             echo "$files"
