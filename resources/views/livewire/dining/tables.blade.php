@@ -7,9 +7,14 @@ use App\Enums\TableSessionStatus;
 use App\Models\DiningTable;
 use App\Actions\Dining\SetDiningTableStatus;
 use App\Support\CurrentRestaurant;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 
+/*
+ * Tables of the dining room. Attendants run the room (status, close the tab);
+ * only admin and manager create, edit or delete a table (DiningTablePolicy).
+ */
 new #[Layout('components.layouts.app')] class extends Component {
 
     public bool   $showForm    = false;
@@ -57,6 +62,8 @@ new #[Layout('components.layouts.app')] class extends Component {
 
     public function openCreate(): void
     {
+        Gate::authorize('create', DiningTable::class);
+
         $this->reset('number', 'capacity', 'editingId');
         $this->capacity  = 4;
         $this->showForm  = true;
@@ -66,6 +73,8 @@ new #[Layout('components.layouts.app')] class extends Component {
     {
         $table = $this->findTable($tableId);
 
+        Gate::authorize('update', $table);
+
         $this->number    = $table->number;
         $this->capacity  = $table->capacity;
         $this->editingId = (string) $table->id;
@@ -74,10 +83,15 @@ new #[Layout('components.layouts.app')] class extends Component {
 
     public function save(): void
     {
+        // Checked before validation: a role that cannot manage tables gets 403, not field errors.
+        $table = $this->editingId ? $this->findTable((int) $this->editingId) : null;
+
+        Gate::authorize($table ? 'update' : 'create', $table ?? DiningTable::class);
+
         $this->validate();
 
-        if ($this->editingId) {
-            $this->findTable((int) $this->editingId)->update([
+        if ($table) {
+            $table->update([
                 'number'   => $this->number,
                 'capacity' => $this->capacity,
             ]);
@@ -98,6 +112,8 @@ new #[Layout('components.layouts.app')] class extends Component {
     /** The screen can be stale, so the server re-checks: known status only, and an open tab only leaves via "Fechar mesa". */
     public function setStatus(int $tableId, string $status): void
     {
+        Gate::authorize('operate', DiningTable::class); // the action below fences the table to this restaurant
+
         $this->resetErrorBag('status');
 
         $validated = Validator::make(
@@ -122,6 +138,9 @@ new #[Layout('components.layouts.app')] class extends Component {
     public function closeSession(int $tableId): void
     {
         $table = $this->findTable($tableId);
+
+        Gate::authorize('operate', $table);
+
         $session = $table->openSession;
 
         if (! $session) {
@@ -142,6 +161,8 @@ new #[Layout('components.layouts.app')] class extends Component {
     public function delete(int $tableId): void
     {
         $table = $this->findTable($tableId);
+
+        Gate::authorize('delete', $table);
 
         if ($table->openSession) {
             $this->addError('delete', "Não é possível excluir a mesa {$table->number}: há uma sessão aberta. Feche a mesa primeiro.");
@@ -175,10 +196,12 @@ new #[Layout('components.layouts.app')] class extends Component {
                class="text-sm text-zinc-300 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-lg px-3 py-1.5 transition">
                 Imprimir QR Codes
             </a>
+            @can('create', \App\Models\DiningTable::class)
             <button wire:click="openCreate"
                     class="text-sm text-white bg-orange-500 hover:bg-orange-600 rounded-lg px-3 py-1.5 transition">
                 + Nova mesa
             </button>
+            @endcan
         </div>
     </div>
 
@@ -258,10 +281,12 @@ new #[Layout('components.layouts.app')] class extends Component {
     @if($this->tables->isEmpty())
     <div class="bg-zinc-900 border border-zinc-800 border-dashed rounded-xl px-5 py-16 text-center">
         <p class="text-zinc-500 text-sm mb-3">Nenhuma mesa cadastrada ainda.</p>
+        @can('create', \App\Models\DiningTable::class)
         <button wire:click="openCreate"
                 class="text-sm text-orange-400 hover:text-orange-300 transition">
             + Adicionar primeira mesa
         </button>
+        @endcan
     </div>
     @else
     @php

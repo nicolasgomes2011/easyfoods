@@ -6,9 +6,15 @@ use App\Enums\OrderStatus;
 use App\Livewire\Concerns\AlertsNewOrders;
 use App\Models\Order;
 use App\Support\CurrentRestaurant;
+use Illuminate\Support\Facades\Gate;
 
 new #[Layout('components.layouts.app')] class extends Component {
     use AlertsNewOrders;
+
+    public function mount(): void
+    {
+        Gate::authorize('viewAny', Order::class);
+    }
 
     /** Counter alert: a new order waits for confirmation. */
     protected function alertStatus(): OrderStatus

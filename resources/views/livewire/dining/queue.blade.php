@@ -8,7 +8,9 @@ use App\Models\DiningTable;
 use App\Support\CurrentRestaurant;
 use App\Models\WaitlistEntry;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 
+/* Waitlist of the dining room: every action is for the roles that run the room (DiningTablePolicy::operate). */
 new #[Layout('components.layouts.app')] class extends Component {
 
     public string $partyName = '';
@@ -53,6 +55,8 @@ new #[Layout('components.layouts.app')] class extends Component {
 
     public function add(): void
     {
+        Gate::authorize('operate', DiningTable::class);
+
         $this->validate([
             'partyName' => 'required|string|max:100',
             'partySize' => 'required|integer|min:1|max:50',
@@ -72,6 +76,8 @@ new #[Layout('components.layouts.app')] class extends Component {
 
     public function openSeat(int $entryId): void
     {
+        Gate::authorize('operate', DiningTable::class);
+
         $this->findEntry($entryId); // fence before opening the picker
 
         $this->seatingId = $entryId;
@@ -92,6 +98,8 @@ new #[Layout('components.layouts.app')] class extends Component {
      */
     public function seat(int $entryId): void
     {
+        Gate::authorize('operate', DiningTable::class);
+
         $this->resetErrorBag('tableId');
 
         $rid = $this->rid();
@@ -137,6 +145,8 @@ new #[Layout('components.layouts.app')] class extends Component {
 
     public function remove(int $entryId): void
     {
+        Gate::authorize('operate', DiningTable::class);
+
         $entry = $this->findEntry($entryId);
         if (! $entry->isWaiting()) {
             return;

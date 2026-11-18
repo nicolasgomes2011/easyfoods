@@ -80,11 +80,18 @@ class MarkPaymentAsPaidTest extends TestCase
     {
         $order = $this->orderWithPendingPayment();
 
-        $this->actingAs(User::factory()->create(['role' => UserRole::Kitchen]));
+        $kitchen = User::factory()->create(['role' => UserRole::Kitchen]);
 
-        Volt::test('orders.show', ['order' => $order])
-            ->call('markAsPaid')
-            ->assertForbidden();
+        // The screen itself refuses the kitchen role (EF-63)...
+        $this->actingAs($kitchen);
+        Volt::test('orders.show', ['order' => $order])->assertForbidden();
+
+        // ...and the action is still checked when the role changes with the page open.
+        $this->actingAs($this->manager());
+        $screen = Volt::test('orders.show', ['order' => $order]);
+
+        $this->actingAs($kitchen);
+        $screen->call('markAsPaid')->assertForbidden();
 
         $this->assertSame(PaymentStatus::Pending, $order->payment()->first()->status);
     }

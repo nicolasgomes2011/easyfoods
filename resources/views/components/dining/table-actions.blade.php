@@ -33,13 +33,18 @@
        class="text-xs text-zinc-400 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-lg px-2.5 py-1.5 transition">
         QR Code
     </a>
+    {{-- Edit / delete: admin and manager only (DiningTablePolicy) --}}
+    @can('update', $table)
     <button wire:click="openEdit({{ $table->id }})"
             class="text-xs text-zinc-400 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-lg px-2.5 py-1.5 transition">
         Editar
     </button>
+    @endcan
+    @can('delete', $table)
     <button wire:click="delete({{ $table->id }})"
             wire:confirm="Excluir a mesa {{ $table->number }}?"
             class="text-xs text-red-400/70 hover:text-red-400 bg-zinc-800 hover:bg-red-400/10 rounded-lg px-2.5 py-1.5 transition">
         Excluir
     </button>
+    @endcan
 </div>
