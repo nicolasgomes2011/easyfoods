@@ -6,10 +6,11 @@ use App\Enums\ProductAvailabilityStatus;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\ProductVariant;
-use App\Models\Restaurant;
+use App\Rules\UniqueCategoryName;
+use App\Support\CurrentRestaurant;
+use App\Support\ReadyEstimate;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Enum as EnumRule;
 use Livewire\Attributes\Computed;
@@ -26,6 +27,7 @@ class ProductForm extends Component
     public string $description = '';
     public string $newCategoryName = '';
     public string $price = '';
+    public int $prep_minutes = ReadyEstimate::DEFAULT_PREP_MINUTES;
     public string $category_id = '';
     public string $availability_status = '';
     public bool $is_featured = false;
@@ -50,6 +52,7 @@ class ProductForm extends Component
         $this->name = $product->name;
         $this->description = $product->description ?? '';
         $this->price = (string) $product->price;
+        $this->prep_minutes = $product->prep_minutes ?? ReadyEstimate::DEFAULT_PREP_MINUTES;
         $this->category_id = (string) $product->category_id;
         $this->availability_status = $product->availability_status->value;
         $this->is_featured = $product->is_featured;
@@ -98,7 +101,7 @@ class ProductForm extends Component
 
     private function rid(): ?int
     {
-        return Restaurant::query()->value('id');
+        return CurrentRestaurant::id();
     }
 
     #[Computed]
@@ -114,14 +117,14 @@ class ProductForm extends Component
 
     public function createCategory(): void
     {
-        $this->validate(['newCategoryName' => ['required', 'string', 'max:255']]);
-
         $restaurantId = $this->rid();
+
+        $this->validate(['newCategoryName' => ['required', 'string', 'max:255', new UniqueCategoryName($restaurantId)]]);
 
         $category = Category::create([
             'restaurant_id' => $restaurantId,
             'name'          => $this->newCategoryName,
-            'slug'          => Str::slug($this->newCategoryName),
+            'slug'          => UniqueCategoryName::slugFor($this->newCategoryName),
             'is_active'     => true,
             'sort_order'    => (int) Category::where('restaurant_id', $restaurantId)->max('sort_order') + 1,
         ]);
@@ -141,6 +144,7 @@ class ProductForm extends Component
             'name'                => ['required', 'string', 'max:255'],
             'description'         => ['nullable', 'string'],
             'price'               => ['required', 'numeric', 'min:0'],
+            'prep_minutes'        => ['required', 'integer', 'min:1', 'max:240'],
             // Category must belong to this restaurant — a raw exists: would accept
             // another restaurant's category id (cross-tenant write).
             'category_id'         => ['required', Rule::exists('categories', 'id')->where('restaurant_id', $restaurantId)],
@@ -155,7 +159,7 @@ class ProductForm extends Component
         ]);
 
         $productData = Arr::only($validated, [
-            'name', 'description', 'price', 'category_id',
+            'name', 'description', 'price', 'prep_minutes', 'category_id',
             'availability_status', 'is_featured', 'sort_order',
         ]);
 

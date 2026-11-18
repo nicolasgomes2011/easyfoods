@@ -168,6 +168,9 @@
 
     </div>
 
+    {{-- ── Entregadores ativos ─────────────────────────────────────────── --}}
+    <x-dashboard.active-drivers :drivers="$activeDrivers" class="mb-6" />
+
     {{-- ── Middle section ──────────────────────────────────────────────── --}}
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
 
@@ -206,7 +209,7 @@
                         <span class="text-xs font-mono text-zinc-500">#{{ $order->number }}</span>
                         <div>
                             <p class="text-sm font-medium text-white">
-                                {{ $order->delivery_type === \App\Enums\DeliveryType::Delivery ? 'Delivery' : 'Balcão' }}
+                                <x-orders.delivery-type :order="$order" />
                             </p>
                             <p class="text-xs text-zinc-500">{{ $order->created_at->diffForHumans() }}</p>
                         </div>
@@ -242,7 +245,7 @@
             <div class="px-5 py-4 space-y-1">
                 @foreach($kitchenQueue as $item)
                 @php
-                    $minutesAgo = \Carbon\Carbon::parse($item->oldest_at)->diffInMinutes(now());
+                    $minutesAgo = (int) \Carbon\Carbon::parse($item->oldest_at)->diffInMinutes(now());
                     $urgent     = $minutesAgo >= 20;
                 @endphp
                 <div class="flex items-center justify-between py-2.5 border-b border-zinc-800/60 last:border-0">

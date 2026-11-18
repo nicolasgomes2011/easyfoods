@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\TableSessionStatus;
+use App\Models\Concerns\BelongsToRestaurant;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class TableSession extends Model
 {
-    use HasFactory;
+    use BelongsToRestaurant, HasFactory;
 
     protected $fillable = [
         'restaurant_id',
@@ -39,6 +40,12 @@ class TableSession extends Model
     public function orders(): HasMany
     {
         return $this->hasMany(Order::class);
+    }
+
+    /** People at the table (comanda), in the order they were added. */
+    public function guests(): HasMany
+    {
+        return $this->hasMany(TableSessionGuest::class)->orderBy('id');
     }
 
     public function isOpen(): bool

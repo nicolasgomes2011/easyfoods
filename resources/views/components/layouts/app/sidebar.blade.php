@@ -21,7 +21,7 @@
             <flux:navlist variant="outline" class="space-y-0.5">
 
                 {{-- ── OPERAÇÃO ─────────────────────────────── --}}
-                @if($staff?->canAccess('dashboard') || $staff?->canAccess('orders') || $staff?->canAccess('dining') || $staff?->canAccess('kitchen') || $staff?->canAccess('driver'))
+                @if($staff?->canAccess('dashboard') || $staff?->canAccess('orders') || $staff?->canAccess('dining') || $staff?->canAccess('kitchen') || $staff?->canAccess('waste') || $staff?->canAccess('driver'))
                 <flux:navlist.group heading="Operação" class="grid">
 
                     @if($staff?->canAccess('dashboard'))
@@ -99,6 +99,17 @@
                     </flux:navlist.item>
                     @endif
 
+                    @if($staff?->canAccess('waste'))
+                    <flux:navlist.item
+                        icon="trash"
+                        :href="route('admin.waste.index')"
+                        :current="request()->routeIs('admin.waste.*')"
+                        wire:navigate
+                    >
+                        Desperdício
+                    </flux:navlist.item>
+                    @endif
+
                     @if($staff?->canAccess('driver'))
                     <flux:navlist.item
                         icon="truck"
@@ -143,6 +154,13 @@
                             wire:navigate
                         >
                             Complementos
+                        </flux:navlist.item>
+                        <flux:navlist.item
+                            :href="route('admin.catalog.ingredients')"
+                            :current="request()->routeIs('admin.catalog.ingredients')"
+                            wire:navigate
+                        >
+                            Insumos
                         </flux:navlist.item>
                     </flux:navlist.group>
                     @endif

@@ -30,17 +30,6 @@
                         <flux:icon.shopping-cart class="size-5" />
                         <span class="sr-only">Carrinho</span>
                     </a>
-
-                    {{-- Customer auth --}}
-                    @auth('customer')
-                        <a href="{{ route('account.orders') }}" class="text-sm font-medium text-zinc-700 hover:text-zinc-900" wire:navigate>
-                            Meus pedidos
-                        </a>
-                    @else
-                        <a href="{{ route('login') }}" class="text-sm font-medium text-zinc-700 hover:text-zinc-900" wire:navigate>
-                            Entrar
-                        </a>
-                    @endauth
                 </div>
 
             </div>

@@ -3,6 +3,7 @@
 namespace App\Actions\Cart;
 
 use App\Enums\DeliveryType;
+use App\Exceptions\CartItemNotAddable;
 use App\Models\Cart;
 use App\Models\CartItem;
 use App\Models\Product;
@@ -64,12 +65,30 @@ class AddItemToCart
     }
 
     /**
-     * Re-validates the selection itself, so nothing reaches the cart through a
-     * caller that skipped selectionError().
+     * Customer-facing reason the quantity can't be added, or null when it's
+     * valid (1 to CartItem::MAX_QUANTITY). The quantity comes from the client.
+     */
+    public function quantityError(int $quantity): ?string
+    {
+        if ($quantity < 1) {
+            return 'Escolha pelo menos 1 unidade.';
+        }
+
+        if ($quantity > CartItem::MAX_QUANTITY) {
+            return 'Máximo de '.CartItem::MAX_QUANTITY.' unidades por item.';
+        }
+
+        return null;
+    }
+
+    /**
+     * Re-validates the quantity and the selection itself, so nothing reaches
+     * the cart through a caller that skipped quantityError() / selectionError().
+     * Merging into an equal line only adds units, never past the ceiling.
      *
      * @param array<int,mixed> $selectedAddons groupId => optionId (single) | array of optionIds (multi)
      *
-     * @throws \RuntimeException when the product or the selection is not valid
+     * @throws CartItemNotAddable when the product, the quantity or the selection is not valid
      */
     public function handle(
         Restaurant $restaurant,
@@ -81,11 +100,15 @@ class AddItemToCart
         ?string $notes,
     ): CartItem {
         if ((int) $product->restaurant_id !== (int) $restaurant->id) {
-            throw new \RuntimeException('Produto não encontrado.');
+            throw new CartItemNotAddable('Produto não encontrado.');
+        }
+
+        if ($error = $this->quantityError($quantity)) {
+            throw new CartItemNotAddable($error);
         }
 
         if ($error = $this->selectionError($product, $variantId, $selectedAddons)) {
-            throw new \RuntimeException($error);
+            throw new CartItemNotAddable($error);
         }
 
         $addonOptionIds = collect($selectedAddons)
@@ -94,23 +117,36 @@ class AddItemToCart
             ->values()
             ->all();
 
+        $notes = $this->normalizeNotes($notes);
+
         $cart = Cart::firstOrCreate(
             ['session_id' => $sessionId, 'restaurant_id' => $restaurant->id],
             ['delivery_type' => DeliveryType::Delivery->value]
         );
 
-        // Merge only into a line with the exact same variant AND addon set.
+        // Merge only into a line with the exact same variant, addon set AND note:
+        // a different note is another line, so it reaches the order and the kitchen.
         $existing = CartItem::with('addons')
             ->where('cart_id', $cart->id)
             ->where('product_id', $product->id)
             ->where('product_variant_id', $variantId)
             ->get()
-            ->first(function (CartItem $item) use ($addonOptionIds) {
+            ->first(function (CartItem $item) use ($addonOptionIds, $notes) {
+                if ($this->normalizeNotes($item->notes) !== $notes) {
+                    return false;
+                }
+
                 $itemIds = $item->addons->pluck('addon_option_id')->map('intval')->sort()->values()->all();
                 return $itemIds === collect($addonOptionIds)->sort()->values()->all();
             });
 
         if ($existing) {
+            if ($existing->quantity + $quantity > CartItem::MAX_QUANTITY) {
+                throw new CartItemNotAddable(
+                    'Máximo de '.CartItem::MAX_QUANTITY.' unidades por item. Você já tem '.$existing->quantity.' no carrinho.'
+                );
+            }
+
             $existing->increment('quantity', $quantity);
 
             return $existing;
@@ -132,6 +168,14 @@ class AddItemToCart
         }
 
         return $item;
+    }
+
+    /** The note as stored and compared: trimmed, blank = null. */
+    private function normalizeNotes(?string $notes): ?string
+    {
+        $notes = trim((string) $notes);
+
+        return $notes === '' ? null : $notes;
     }
 
     /** @return int[] the non-empty, unique option ids of one group's selection */

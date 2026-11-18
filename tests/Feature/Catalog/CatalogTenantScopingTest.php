@@ -11,6 +11,7 @@ use App\Models\Category;
 use App\Models\Product;
 use App\Models\Restaurant;
 use App\Models\User;
+use App\Support\CurrentRestaurant;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Livewire\Volt\Volt;
@@ -26,16 +27,15 @@ class CatalogTenantScopingTest extends TestCase
     use RefreshDatabase;
 
     /**
-     * The panel scopes to Restaurant::query()->value('id'), which is
-     * planner-order-dependent, NOT first-created (BUG-007). Resolve which
-     * restaurant the panel will use and return [panel, foreign].
+     * The panel scopes to CurrentRestaurant::id(). Resolve through the same
+     * resolver and return [panel, foreign].
      */
     private function panelAndForeign(): array
     {
         $a = Restaurant::factory()->create();
         $b = Restaurant::factory()->create();
 
-        $panelId = Restaurant::query()->value('id');
+        $panelId = CurrentRestaurant::id();
 
         return $panelId === $a->id ? [$a, $b] : [$b, $a];
     }

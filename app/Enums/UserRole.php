@@ -32,6 +32,7 @@ enum UserRole: string
         return match ($area) {
             'dashboard', 'orders', 'dining', 'customers' => [self::Admin, self::Manager, self::Attendant],
             'kitchen'                        => [self::Admin, self::Manager, self::Attendant, self::Kitchen],
+            'waste'                          => [self::Admin, self::Manager, self::Kitchen],
             'driver'                         => [self::Admin, self::Manager, self::Delivery],
             'catalog', 'settings', 'reports' => [self::Admin, self::Manager],
             'users'                          => [self::Admin],
