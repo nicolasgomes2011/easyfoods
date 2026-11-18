@@ -13,6 +13,7 @@ class Customer extends Authenticatable
     use HasFactory, Notifiable, SoftDeletes;
 
     protected $fillable = [
+        'restaurant_id',
         'name',
         'email',
         'phone',

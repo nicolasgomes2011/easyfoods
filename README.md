@@ -151,6 +151,18 @@ DB-specific SQL (e.g. `HAVING` on non-aggregate queries works on MySQL but not S
 
 To wipe demo/seed data from an existing database: `php artisan demo:purge --force`.
 
+### Scheduler
+
+Some work runs on Laravel's scheduler (`routes/console.php`), e.g. canceling orders nobody
+confirmed within the restaurant's window (Settings › Store, "Cancelar pedido não confirmado
+após"). Keep it running:
+
+```bash
+php artisan schedule:work   # dev: runs the schedule every minute in the foreground
+```
+
+In production, add the usual cron entry: `* * * * * php /path/to/artisan schedule:run`.
+
 ## Testing
 
 ```bash
@@ -160,6 +172,10 @@ php artisan test
 Feature tests hit real HTTP routes (not just `Livewire::test()`) for anything route- or
 guard-sensitive — several real bugs (missing auth guards, IDOR via enumerable order numbers, SQLite
 `HAVING` incompatibility) only surfaced under a real request, not the Livewire test harness.
+
+CI (`.github/workflows/tests.yml`) runs on every pull request and on pushes to `main`: a guard job
+(no `dd()`/`dump()`/`var_dump()`, no `docs/memory/` or `.env` tracked), then the full suite twice —
+SQLite `:memory:` and MySQL 8 — after `composer install` and `npm run build`, on PHP 8.4.
 
 ## Documentation map
 

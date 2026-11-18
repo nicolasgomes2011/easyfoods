@@ -5,7 +5,10 @@ use Livewire\Volt\Component;
 use App\Enums\DiningTableStatus;
 use App\Enums\TableSessionStatus;
 use App\Models\DiningTable;
-use App\Models\Restaurant;
+use App\Actions\Dining\SetDiningTableStatus;
+use App\Support\CurrentRestaurant;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 
 new #[Layout('components.layouts.app')] class extends Component {
 
@@ -24,7 +27,7 @@ new #[Layout('components.layouts.app')] class extends Component {
 
     private function rid(): ?int
     {
-        return Restaurant::query()->value('id');
+        return CurrentRestaurant::id();
     }
 
     /** Table lookup fenced to this restaurant — a bare findOrFail would cross tenants. */
@@ -92,10 +95,22 @@ new #[Layout('components.layouts.app')] class extends Component {
         unset($this->tables, $this->counts);
     }
 
+    /** The screen can be stale, so the server re-checks: known status only, and an open tab only leaves via "Fechar mesa". */
     public function setStatus(int $tableId, string $status): void
     {
-        $this->findTable($tableId)->update(['status' => $status]);
-        unset($this->tables, $this->counts);
+        $this->resetErrorBag('status');
+
+        $validated = Validator::make(
+            ['status' => $status],
+            ['status' => ['required', Rule::enum(DiningTableStatus::class)]],
+            ['status.*' => 'Status de mesa inválido.'],
+        )->validate();
+
+        try {
+            app(SetDiningTableStatus::class)->execute($this->rid(), $tableId, DiningTableStatus::from($validated['status']));
+        } finally {
+            unset($this->tables, $this->counts);
+        }
     }
 
     /**
@@ -231,16 +246,13 @@ new #[Layout('components.layouts.app')] class extends Component {
         @endforeach
     </div>
 
-    @error('closeSession')
+    @foreach(['closeSession', 'delete', 'status'] as $errorKey)
+    @error($errorKey)
     <div class="mb-4 px-4 py-3 bg-red-500/10 border border-red-500/20 rounded-xl text-sm text-red-400">
         {{ $message }}
     </div>
     @enderror
-    @error('delete')
-    <div class="mb-4 px-4 py-3 bg-red-500/10 border border-red-500/20 rounded-xl text-sm text-red-400">
-        {{ $message }}
-    </div>
-    @enderror
+    @endforeach
 
     {{-- Table list --}}
     @if($this->tables->isEmpty())
@@ -275,6 +287,10 @@ new #[Layout('components.layouts.app')] class extends Component {
                 <tr class="hover:bg-zinc-800/30 transition">
                     <td class="px-5 py-3.5">
                         <span class="font-semibold text-white">Mesa {{ $table->number }}</span>
+                        @if($table->openSession && auth()->user()?->hasAnyRole(\App\Enums\UserRole::Admin, \App\Enums\UserRole::Manager, \App\Enums\UserRole::Attendant))
+                        <a href="{{ route('admin.dining.tab', $table->openSession) }}" wire:navigate data-tab-link="{{ $table->id }}"
+                           class="ml-2 text-xs text-orange-400 hover:text-orange-300">Comanda</a>
+                        @endif
                     </td>
                     <td class="px-4 py-3.5 text-center text-zinc-400">
                         {{ $table->capacity }} lug.
@@ -285,46 +301,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                         </span>
                     </td>
                     <td class="px-5 py-3.5">
-                        <div class="flex items-center justify-end gap-1">
-                            {{-- Status toggle — an open session (active tab) can only be cleared via "Fechar mesa" --}}
-                            @if($table->openSession)
-                            <button wire:click="closeSession({{ $table->id }})"
-                                    wire:confirm="Fechar a mesa {{ $table->number }}? Isso encerra a conta e libera a mesa."
-                                    class="text-xs text-teal-400 bg-teal-400/10 hover:bg-teal-400/20 rounded-lg px-2.5 py-1.5 transition">
-                                Fechar mesa
-                            </button>
-                            @elseif($table->status !== \App\Enums\DiningTableStatus::Free)
-                            <button wire:click="setStatus({{ $table->id }}, 'free')"
-                                    class="text-xs text-green-400 bg-green-400/10 hover:bg-green-400/20 rounded-lg px-2.5 py-1.5 transition">
-                                Liberar
-                            </button>
-                            @endif
-                            @if($table->status !== \App\Enums\DiningTableStatus::Occupied)
-                            <button wire:click="setStatus({{ $table->id }}, 'occupied')"
-                                    class="text-xs text-orange-400 bg-orange-400/10 hover:bg-orange-400/20 rounded-lg px-2.5 py-1.5 transition">
-                                Ocupar
-                            </button>
-                            @endif
-                            @if($table->status !== \App\Enums\DiningTableStatus::Reserved)
-                            <button wire:click="setStatus({{ $table->id }}, 'reserved')"
-                                    class="text-xs text-blue-400 bg-blue-400/10 hover:bg-blue-400/20 rounded-lg px-2.5 py-1.5 transition">
-                                Reservar
-                            </button>
-                            @endif
-                            <a href="{{ route('admin.dining.tables.qr', $table->id) }}" wire:navigate
-                               class="text-xs text-zinc-400 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-lg px-2.5 py-1.5 transition">
-                                QR Code
-                            </a>
-                            <button wire:click="openEdit({{ $table->id }})"
-                                    class="text-xs text-zinc-400 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded-lg px-2.5 py-1.5 transition">
-                                Editar
-                            </button>
-                            <button wire:click="delete({{ $table->id }})"
-                                    wire:confirm="Excluir a mesa {{ $table->number }}?"
-                                    class="text-xs text-red-400/70 hover:text-red-400 bg-zinc-800 hover:bg-red-400/10 rounded-lg px-2.5 py-1.5 transition">
-                                Excluir
-                            </button>
-                        </div>
+                        <x-dining.table-actions :table="$table" />
                     </td>
                 </tr>
                 @endforeach

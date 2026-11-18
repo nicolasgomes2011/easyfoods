@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\DiningTable;
-use App\Models\Restaurant;
+use App\Support\CurrentRestaurant;
 use App\Support\TableQrCode;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Response;
@@ -62,7 +62,7 @@ class DiningTableQrCodeController extends Controller
 
     private function restaurantId(): ?int
     {
-        return Restaurant::query()->value('id');
+        return CurrentRestaurant::id();
     }
 
     /** Table lookup fenced to this restaurant — a bare findOrFail would cross tenants. */

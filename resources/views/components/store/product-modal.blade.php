@@ -83,7 +83,7 @@
                         <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14" /></svg>
                     </button>
                     <span class="text-sm font-semibold text-zinc-800 w-4 text-center">{{ $qty }}</span>
-                    <button type="button" wire:click="$set('qty', {{ $qty + 1 }})"
+                    <button type="button" wire:click="$set('qty', {{ min(\App\Models\CartItem::MAX_QUANTITY, $qty + 1) }})"
                             class="size-8 flex items-center justify-center rounded-full border border-zinc-300 text-zinc-600 hover:bg-zinc-100 transition">
                         <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
                     </button>

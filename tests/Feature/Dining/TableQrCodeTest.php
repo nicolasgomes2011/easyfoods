@@ -22,24 +22,22 @@ class TableQrCodeTest extends TestCase
 {
     use RefreshDatabase;
 
+    private ?Restaurant $panel = null;
+
     /**
-     * The panel scopes to Restaurant::query()->value('id'), which is
-     * planner-order-dependent, NOT first-created. Resolve which restaurant
-     * the panel will use and return [panel, foreign].
+     * [panel, foreign]: the staff user of these tests works at the panel
+     * restaurant, so the panel (CurrentRestaurant) follows that user.
      */
     private function panelAndForeign(): array
     {
-        $a = Restaurant::factory()->create();
-        $b = Restaurant::factory()->create();
+        $this->panel = Restaurant::factory()->create();
 
-        $panelId = Restaurant::query()->value('id');
-
-        return $panelId === $a->id ? [$a, $b] : [$b, $a];
+        return [$this->panel, Restaurant::factory()->create()];
     }
 
     private function actAsStaff(UserRole $role = UserRole::Admin): void
     {
-        $this->actingAs(User::factory()->create(['role' => $role]));
+        $this->actingAs(User::factory()->create(['role' => $role, 'restaurant_id' => $this->panel?->id]));
     }
 
     private function table(Restaurant $restaurant, string $number): DiningTable
