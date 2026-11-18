@@ -9,6 +9,7 @@ use App\Enums\PaymentStatus;
 use App\Enums\UserRole;
 use App\Models\Order;
 use App\Models\Payment;
+use App\Models\Restaurant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Volt\Volt;
@@ -86,6 +87,16 @@ class MarkPaymentAsPaidTest extends TestCase
             ->assertForbidden();
 
         $this->assertSame(PaymentStatus::Pending, $order->payment()->first()->status);
+    }
+
+    public function test_staff_of_another_restaurant_cannot_mark_a_payment_as_paid(): void
+    {
+        $order = $this->orderWithPendingPayment();
+        $own = User::factory()->create(['role' => UserRole::Manager, 'restaurant_id' => $order->restaurant_id]);
+        $foreign = User::factory()->create(['role' => UserRole::Manager, 'restaurant_id' => Restaurant::factory()->create()->id]);
+
+        $this->assertTrue($own->can('markPaid', $order));
+        $this->assertFalse($foreign->can('markPaid', $order));
     }
 
     public function test_an_already_paid_payment_is_not_paid_again(): void

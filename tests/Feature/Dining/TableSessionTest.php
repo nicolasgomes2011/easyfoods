@@ -16,6 +16,7 @@ use App\Models\Product;
 use App\Models\Restaurant;
 use App\Models\TableSession;
 use App\Models\User;
+use App\Support\CurrentRestaurant;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Volt\Volt;
 use Tests\TestCase;
@@ -167,6 +168,7 @@ class TableSessionTest extends TestCase
         $transition = app(TransitionOrderStatus::class);
         $transition->execute($order->fresh(), OrderStatus::Confirmed, $actor);
         $transition->execute($order->fresh(), OrderStatus::InPreparation, $actor);
+        $order->items()->update(['prepared_at' => now()]); // the kitchen ticks every item
         $transition->execute($order->fresh(), OrderStatus::ReadyForPickup, $actor);
         $transition->execute($order->fresh(), OrderStatus::Completed, $actor);
 
@@ -206,11 +208,10 @@ class TableSessionTest extends TestCase
 
     public function test_close_session_and_delete_are_scoped_to_the_panel_restaurant(): void
     {
-        // Resolve which restaurant the panel scopes to (value('id') is
-        // planner-order-dependent, not first-created — BUG-007).
+        // Resolve which restaurant the panel scopes to.
         $x = Restaurant::factory()->create();
         $y = Restaurant::factory()->create();
-        $panelId = Restaurant::query()->value('id');
+        $panelId = CurrentRestaurant::id();
         [$panel, $foreign] = $panelId === $x->id ? [$x, $y] : [$y, $x];
 
         $foreignTable = $this->table($foreign, 1);
@@ -220,7 +221,11 @@ class TableSessionTest extends TestCase
 
         // Scoped findOrFail on a foreign id → 404.
         Volt::test('dining.tables')->call('closeSession', $foreignTable->id)->assertStatus(404);
-        $this->assertSame(TableSessionStatus::Open, $foreignTable->openSession->status);
+        // Read from the table: the panel's tenant scope hides the other restaurant's session.
+        $this->assertDatabaseHas('table_sessions', [
+            'dining_table_id' => $foreignTable->id,
+            'status'          => TableSessionStatus::Open->value,
+        ]);
 
         Volt::test('dining.tables')->call('delete', $foreignTable->id)->assertStatus(404);
         $this->assertDatabaseHas('dining_tables', ['id' => $foreignTable->id]);

@@ -6,6 +6,7 @@ use App\Actions\Orders\PlaceOrder;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
+use App\Exceptions\OrderNotPlaceable;
 use App\Models\Cart;
 use App\Models\Category;
 use App\Models\Order;
@@ -189,7 +190,7 @@ class CheckoutPaymentTest extends TestCase
                 'payment_method' => 'cash',
             ]);
             $this->fail('PlaceOrder should refuse a payment method that is not enabled.');
-        } catch (\RuntimeException $e) {
+        } catch (OrderNotPlaceable $e) {
             $this->assertStringContainsString('forma de pagamento', mb_strtolower($e->getMessage()));
         }
 
