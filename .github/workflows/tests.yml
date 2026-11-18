@@ -31,7 +31,8 @@ jobs:
 
       - name: No private project memory or .env in the repository
         run: |
-          files=$(git ls-files | grep -E '^docs/memory/|(^|/)\.env$|(^|/)\.env\.(local|production)$' || true)
+          # Any .env or .env.* file (.env.testing, .env.staging, ...) except .env.example.
+          files=$(git ls-files | grep -E '^docs/memory/|(^|/)\.env(\..+)?$' | grep -vE '(^|/)\.env\.example$' || true)
           if [ -n "$files" ]; then
             echo "::error::Private files are tracked and must be removed:"
             echo "$files"
