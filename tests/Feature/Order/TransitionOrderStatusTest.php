@@ -90,4 +90,42 @@ class TransitionOrderStatusTest extends TestCase
 
         $this->assertSame(0, OrderStatusHistory::where('order_id', $order->id)->count());
     }
+
+    public function test_start_of_preparation_and_departure_are_recorded_as_milestones(): void
+    {
+        $order = Order::factory()->confirmed()->create();
+        $actor = $this->actor();
+
+        $this->travelTo($prepStart = now()->startOfMinute());
+        $this->action()->execute($order, OrderStatus::InPreparation, $actor);
+
+        $this->travelTo(now()->addMinutes(12));
+        $this->action()->execute($order, OrderStatus::ReadyForPickup, $actor);
+
+        $this->travelTo($departure = now()->addMinutes(3));
+        $this->action()->execute($order, OrderStatus::OutForDelivery, $actor);
+
+        $order->refresh();
+        $this->assertTrue($order->preparation_started_at->equalTo($prepStart));
+        $this->assertTrue($order->out_for_delivery_at->equalTo($departure));
+    }
+
+    public function test_preparation_and_departure_milestones_are_set_only_once(): void
+    {
+        // Already filled (e.g. by the backfill): a later transition must not overwrite it.
+        $earlier = now()->subHour()->startOfMinute();
+        $actor = $this->actor();
+
+        $preparing = Order::factory()->confirmed()->create(['preparation_started_at' => $earlier]);
+        $this->action()->execute($preparing, OrderStatus::InPreparation, $actor);
+
+        $leaving = Order::factory()->create([
+            'status'              => OrderStatus::ReadyForPickup,
+            'out_for_delivery_at' => $earlier,
+        ]);
+        $this->action()->execute($leaving, OrderStatus::OutForDelivery, $actor);
+
+        $this->assertTrue($preparing->fresh()->preparation_started_at->equalTo($earlier));
+        $this->assertTrue($leaving->fresh()->out_for_delivery_at->equalTo($earlier));
+    }
 }

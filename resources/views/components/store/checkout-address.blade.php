@@ -33,24 +33,30 @@
         </div>
     </div>
     <div class="grid grid-cols-2 gap-3">
-        <input wire:model="complement" type="text" placeholder="Complemento"
-               class="w-full bg-zinc-50 border border-zinc-200 text-sm rounded-xl px-3 py-2.5 text-zinc-800 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-orange-400" />
-        <input wire:model="neighborhood" type="text" placeholder="Bairro"
-               class="w-full bg-zinc-50 border border-zinc-200 text-sm rounded-xl px-3 py-2.5 text-zinc-800 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-orange-400" />
+        <div>
+            <input wire:model="complement" type="text" placeholder="Complemento" maxlength="100"
+                   class="w-full bg-zinc-50 border border-zinc-200 text-sm rounded-xl px-3 py-2.5 text-zinc-800 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-orange-400" />
+            @error('complement') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
+        </div>
+        <div>
+            <input wire:model="neighborhood" type="text" placeholder="Bairro" maxlength="100"
+                   class="w-full bg-zinc-50 border border-zinc-200 text-sm rounded-xl px-3 py-2.5 text-zinc-800 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-orange-400" />
+            @error('neighborhood') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
+        </div>
     </div>
     <div class="grid grid-cols-5 gap-3">
         <div class="col-span-3">
-            <input wire:model="city" type="text" placeholder="Cidade *"
+            <input wire:model="city" type="text" placeholder="Cidade"
                    class="w-full bg-zinc-50 border border-zinc-200 text-sm rounded-xl px-3 py-2.5 text-zinc-800 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-orange-400" />
             @error('city') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
         </div>
         <div>
-            <input wire:model="state" type="text" placeholder="UF *" maxlength="2"
+            <input wire:model="state" type="text" placeholder="UF" maxlength="2"
                    class="w-full bg-zinc-50 border border-zinc-200 text-sm rounded-xl px-3 py-2.5 text-zinc-800 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-orange-400 uppercase" />
             @error('state') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
         </div>
         <div>
-            <input wire:model="zip" type="text" placeholder="CEP *"
+            <input wire:model="zip" type="text" placeholder="CEP" maxlength="9"
                    class="w-full bg-zinc-50 border border-zinc-200 text-sm rounded-xl px-3 py-2.5 text-zinc-800 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-orange-400" />
             @error('zip') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
         </div>

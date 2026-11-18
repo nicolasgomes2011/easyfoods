@@ -5,9 +5,8 @@ use Livewire\Attributes\Url;
 use Livewire\Volt\Component;
 use Livewire\WithPagination;
 use App\Enums\OrderStatus;
-use App\Enums\DeliveryType;
 use App\Models\Order;
-use App\Models\Restaurant;
+use App\Support\CurrentRestaurant;
 
 new #[Layout('components.layouts.app')] class extends Component {
     use WithPagination;
@@ -27,7 +26,7 @@ new #[Layout('components.layouts.app')] class extends Component {
     public function orders()
     {
         return Order::query()
-            ->where('restaurant_id', Restaurant::query()->value('id'))
+            ->where('restaurant_id', CurrentRestaurant::id())
             ->when($this->search, fn ($q) => $q->where(function ($q) {
                 $q->where('number', 'like', "%{$this->search}%")
                   ->orWhere('customer_name', 'like', "%{$this->search}%");
@@ -141,7 +140,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                             {{ $order->customer_name ?: '—' }}
                         </td>
                         <td class="px-4 py-3.5 text-zinc-400 text-xs">
-                            {{ $order->delivery_type === DeliveryType::Delivery ? 'Delivery' : 'Balcão' }}
+                            <x-orders.delivery-type :order="$order" />
                         </td>
                         <td class="px-4 py-3.5">
                             <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium {{ $statusColors[$order->status->color()] ?? 'bg-zinc-700 text-zinc-400' }}">
