@@ -4,6 +4,7 @@ namespace Database\Factories;
 
 use App\Enums\TableSessionStatus;
 use App\Models\Restaurant;
+use App\Support\CurrentRestaurant;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 class TableSessionFactory extends Factory
@@ -15,7 +16,7 @@ class TableSessionFactory extends Factory
     public function definition(): array
     {
         return [
-            'restaurant_id' => Restaurant::factory(),
+            'restaurant_id' => fn () => CurrentRestaurant::id() ?? Restaurant::factory(),
             'status'        => TableSessionStatus::Open,
             'opened_at'     => now(),
         ];

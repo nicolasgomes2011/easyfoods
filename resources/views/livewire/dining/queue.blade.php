@@ -5,7 +5,7 @@ use Livewire\Volt\Component;
 use App\Enums\DiningTableStatus;
 use App\Enums\WaitlistStatus;
 use App\Models\DiningTable;
-use App\Models\Restaurant;
+use App\Support\CurrentRestaurant;
 use App\Models\WaitlistEntry;
 use Illuminate\Support\Facades\DB;
 
@@ -21,7 +21,7 @@ new #[Layout('components.layouts.app')] class extends Component {
 
     private function rid(): ?int
     {
-        return Restaurant::query()->value('id');
+        return CurrentRestaurant::id();
     }
 
     #[Computed]

@@ -6,6 +6,7 @@ use Livewire\Volt\Component;
 use Livewire\WithPagination;
 use App\Enums\OrderStatus;
 use App\Models\Customer;
+use App\Support\CurrentRestaurant;
 
 new #[Layout('components.layouts.app')] class extends Component {
     use WithPagination;
@@ -18,7 +19,11 @@ new #[Layout('components.layouts.app')] class extends Component {
     #[Computed]
     public function customers()
     {
-        return Customer::withCount('orders as order_count')
+        // customers has no restaurant_id yet: a customer belongs to this
+        // restaurant when they ordered here. Counts and totals follow the
+        // orders' tenant scope (this restaurant's orders only).
+        return Customer::whereHas('orders', fn ($q) => $q->where('restaurant_id', CurrentRestaurant::id()))
+            ->withCount('orders as order_count')
             ->withSum(['orders as total_spent' => fn ($q) => $q->whereNotIn('status', [
                 OrderStatus::Canceled->value,
                 OrderStatus::Draft->value,
