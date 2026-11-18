@@ -5,30 +5,66 @@ namespace App\Actions\Orders;
 use App\Enums\DeliveryType;
 use App\Enums\DiningTableStatus;
 use App\Enums\OrderStatus;
+use App\Enums\PaymentMethod;
+use App\Enums\PaymentStatus;
 use App\Enums\TableSessionStatus;
+use App\Exceptions\OrderNotPlaceable;
 use App\Models\Cart;
 use App\Models\CartItem;
+use App\Models\DeliveryZone;
 use App\Models\DiningTable;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\OrderStatusHistory;
+use App\Models\Payment;
 use App\Models\Restaurant;
 use App\Models\TableSession;
+use App\Support\CurrentRestaurant;
 use Illuminate\Support\Facades\DB;
 
 class PlaceOrder
 {
+    /**
+     * The order is placed for the cart's restaurant: everything read and written
+     * here (hours, zones, tables, numbering) runs with that restaurant as the
+     * current one, so the tenant scope of the models follows the cart.
+     */
     public function handle(Cart $cart, array $data): Order
     {
+        return CurrentRestaurant::runAs($cart->restaurant_id, fn () => $this->place($cart, $data));
+    }
+
+    private function place(Cart $cart, array $data): Order
+    {
         return DB::transaction(function () use ($cart, $data) {
-            $restaurant = Restaurant::findOrFail($cart->restaurant_id);
+            $restaurant = Restaurant::with('operatingHours')->findOrFail($cart->restaurant_id);
             $deliveryType = DeliveryType::from($data['delivery_type']);
+
+            // Orders cannot be placed while the store is closed (same opening rule as
+            // the menu header) nor for an order type the store does not take.
+            if (! $restaurant->isOpenAt()) {
+                throw new OrderNotPlaceable('A loja está fechada agora. Confira o horário de funcionamento no cardápio.');
+            }
+
+            if (! $restaurant->accepts($deliveryType)) {
+                $type = mb_strtolower($deliveryType->label());
+                throw new OrderNotPlaceable("Esta loja não está aceitando pedidos de {$type} no momento.");
+            }
 
             // Build frozen snapshot of items
             $items = $cart->items()->with(['product', 'variant', 'addons.option.group'])->get();
 
             if ($items->isEmpty()) {
-                throw new \RuntimeException('O carrinho está vazio.');
+                throw new OrderNotPlaceable('O carrinho está vazio.');
+            }
+
+            // Last defense for carts already stored: a line below 1 unit would
+            // lower the frozen total (and reach the kitchen as "−10×").
+            foreach ($items as $cartItem) {
+                if ($cartItem->quantity < 1) {
+                    $name = $cartItem->product?->name ?? 'um dos itens';
+                    throw new OrderNotPlaceable("A quantidade de \"{$name}\" no carrinho não é válida. Ajuste o carrinho e tente de novo.");
+                }
             }
 
             $subtotal = $items->sum(function ($item) {
@@ -36,20 +72,22 @@ class PlaceOrder
             });
 
             $deliveryFee = $deliveryType === DeliveryType::Delivery
-                ? (float) ($data['delivery_fee'] ?? 0)
+                ? $this->deliveryFee($restaurant, $data['delivery_zone_id'] ?? null)
                 : 0.0;
 
             $total = $subtotal + $deliveryFee;
 
-            // Generate sequential order number
-            $lastNumber = (int) Order::where('restaurant_id', $restaurant->id)
+            // Generate sequential order number from the per-restaurant integer
+            // sequence (portable: no CAST, no max() over a string column).
+            $sequence = (int) Order::where('restaurant_id', $restaurant->id)
                 ->lockForUpdate()
-                ->max(DB::raw('CAST(number AS INTEGER)'));
+                ->max('sequence') + 1;
 
-            $number = str_pad($lastNumber + 1, 5, '0', STR_PAD_LEFT);
+            $number = str_pad((string) $sequence, 5, '0', STR_PAD_LEFT);
 
             $order = Order::create([
                 'number'          => $number,
+                'sequence'        => $sequence,
                 'restaurant_id'   => $restaurant->id,
                 'customer_id'     => $cart->customer_id,
                 'status'          => OrderStatus::PendingConfirmation,
@@ -83,13 +121,13 @@ class PlaceOrder
                 $product = $cartItem->product;
                 if (! $product || $product->isArchived() || ! $product->isAvailable()) {
                     $name = $product?->name ?? 'Um dos itens';
-                    throw new \RuntimeException("\"{$name}\" não está mais disponível no cardápio.");
+                    throw new OrderNotPlaceable("\"{$name}\" não está mais disponível no cardápio.");
                 }
 
                 // Same for the chosen variant / addons — and never freeze a price
                 // or name that doesn't belong to this product.
                 if ($error = $this->selectionError($cartItem)) {
-                    throw new \RuntimeException($error);
+                    throw new OrderNotPlaceable($error);
                 }
 
                 $unitPrice = $cartItem->unitPrice();
@@ -131,6 +169,13 @@ class PlaceOrder
                 'changed_at' => now(),
             ]);
 
+            // Payment intent: one pending Payment with the method the customer picked.
+            // Payment state lives on the Payment and never touches orders.status.
+            // Callers that don't choose a method (internal flows) get no Payment.
+            if (($data['payment_method'] ?? null) !== null) {
+                $this->createPayment($restaurant, $order, $data);
+            }
+
             // Dine-in: the table becomes occupied and joins the tab (table session)
             // the moment the order lands — opening one if this is the first order
             // of the sitting, or reusing the one already open. Dining-room state
@@ -166,6 +211,61 @@ class PlaceOrder
 
             return $order;
         });
+    }
+
+    /**
+     * Pending Payment for the whole order. The method must be enabled in
+     * Settings › Payments; for cash, the "change for" amount is kept so the
+     * counter/driver knows how much change to bring.
+     */
+    private function createPayment(Restaurant $restaurant, Order $order, array $data): void
+    {
+        $method = PaymentMethod::tryFrom((string) $data['payment_method']);
+
+        if (! $method || ! $restaurant->acceptsPaymentMethod($method)) {
+            throw new OrderNotPlaceable('A forma de pagamento escolhida não está disponível.');
+        }
+
+        $total = round((float) $order->total, 2);
+        $tendered = $method === PaymentMethod::Cash && ($data['cash_tendered'] ?? null) !== null
+            ? round((float) $data['cash_tendered'], 2)
+            : null;
+
+        if ($tendered !== null && $tendered < $total) {
+            throw new OrderNotPlaceable('O valor para troco precisa ser maior ou igual ao total do pedido.');
+        }
+
+        Payment::create([
+            'order_id'        => $order->id,
+            'method'          => $method,
+            'status'          => PaymentStatus::Pending,
+            'amount'          => $total,
+            'amount_tendered' => $tendered,
+            'change_due'      => $tendered !== null ? round($tendered - $total, 2) : null,
+        ]);
+    }
+
+    /**
+     * Delivery fee computed on the server from the chosen zone. While the
+     * restaurant has active zones, the zone must be one of them — an inactive,
+     * foreign or missing zone is refused instead of becoming free delivery.
+     * With no active zones configured, delivery is free (same rule as checkout).
+     */
+    private function deliveryFee(Restaurant $restaurant, mixed $zoneId): float
+    {
+        $zones = DeliveryZone::where('restaurant_id', $restaurant->id)->active();
+
+        if (! (clone $zones)->exists()) {
+            return 0.0;
+        }
+
+        $zone = $zoneId ? $zones->whereKey($zoneId)->first() : null;
+
+        if (! $zone) {
+            throw new OrderNotPlaceable('Escolha uma zona de entrega válida para este endereço.');
+        }
+
+        return (float) $zone->fee;
     }
 
     /**

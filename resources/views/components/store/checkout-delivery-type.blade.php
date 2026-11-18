@@ -13,6 +13,7 @@
     @endunless
 </div>
 @else
+{{-- Order type picker, only the types the store takes; wire:model targets the parent store.checkout component. --}}
 <div class="bg-white border border-zinc-200 rounded-2xl p-5">
     <h2 class="text-sm font-semibold text-zinc-700 mb-3">Como quer receber?</h2>
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">

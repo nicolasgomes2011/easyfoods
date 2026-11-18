@@ -4,13 +4,17 @@ use Livewire\Attributes\Computed;
 use Livewire\Attributes\Url;
 use Livewire\Volt\Component;
 use App\Actions\Cart\AddItemToCart;
+use App\Exceptions\CartItemNotAddable;
 use App\Models\Cart;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\Restaurant;
+use App\Support\CurrentRestaurant;
+use App\Support\MostOrderedProducts;
 
 new #[Layout('components.layouts.customer')] class extends Component {
 
+    /** Deep link (?category=slug): the whole menu opens scrolled to that category's section. */
     #[Url]
     public string $category = '';
 
@@ -28,16 +32,27 @@ new #[Layout('components.layouts.customer')] class extends Component {
     #[Computed]
     public function restaurant(): ?Restaurant
     {
-        return Restaurant::first();
+        return CurrentRestaurant::get();
+    }
+
+    /** "Mais pedidos": ranked products that can be ordered now (MostOrderedProducts); empty for a new restaurant. */
+    #[Computed]
+    public function mostOrdered()
+    {
+        if (! $this->restaurant) return collect();
+
+        return MostOrderedProducts::forMenu($this->restaurant->id, $this->products, $this->categories->pluck('id'));
     }
 
     #[Computed]
     public function categories()
     {
         if (! $this->restaurant) return collect();
+        // A tab and a section show while the category has any non-archived product:
+        // paused ones stay on the menu (greyed out), so the category stays too.
         return Category::where('restaurant_id', $this->restaurant->id)
             ->active()->ordered()
-            ->whereHas('products', fn ($q) => $q->where('availability_status', 'available')->whereNull('archived_at'))
+            ->whereHas('products', fn ($q) => $q->notArchived())
             ->get();
     }
 
@@ -46,17 +61,21 @@ new #[Layout('components.layouts.customer')] class extends Component {
     {
         if (! $this->restaurant) return collect();
 
+        // Paused / out-of-stock products are listed (greyed out, no add action);
+        // only archived ones are hidden. Ordering stays fenced by modalProduct().
         $query = Product::where('restaurant_id', $this->restaurant->id)
-            ->available()
             ->notArchived()
             ->with(['category', 'variants'])
             ->ordered();
 
-        if ($this->category) {
-            $query->whereHas('category', fn ($q) => $q->where('slug', $this->category));
-        }
-
         return $query->get();
+    }
+
+    /** Products of each category section, keyed by category id (one query for the whole menu). */
+    #[Computed]
+    public function productsByCategory()
+    {
+        return $this->products->groupBy('category_id');
     }
 
     #[Computed]
@@ -168,18 +187,27 @@ new #[Layout('components.layouts.customer')] class extends Component {
 
         $action = app(AddItemToCart::class);
 
-        $this->modalError = $action->selectionError($product, $this->selectedVariant, $this->selectedAddons);
+        // qty is client-controlled (the − / + buttons only limit it in the browser).
+        $this->modalError = $action->quantityError($this->qty)
+            ?? $action->selectionError($product, $this->selectedVariant, $this->selectedAddons);
         if ($this->modalError) return;
 
-        $action->handle(
-            $restaurant,
-            session()->getId(),
-            $product,
-            $this->selectedVariant,
-            $this->selectedAddons,
-            $this->qty,
-            $this->notes ?: null,
-        );
+        try {
+            $action->handle(
+                $restaurant,
+                session()->getId(),
+                $product,
+                $this->selectedVariant,
+                $this->selectedAddons,
+                $this->qty,
+                $this->notes ?: null,
+            );
+        } catch (CartItemNotAddable $e) {
+            // e.g. merging into the equal line would pass the ceiling
+            $this->modalError = $e->getMessage();
+
+            return;
+        }
 
         $this->closeProduct();
         $this->flashMessage = "'{$product->name}' adicionado ao carrinho.";
@@ -205,54 +233,78 @@ new #[Layout('components.layouts.customer')] class extends Component {
         <p class="text-sm text-zinc-500 mt-1">{{ $this->restaurant->description }}</p>
         @endif
 
-        <div class="flex flex-wrap gap-3 mt-3 text-xs text-zinc-500">
-            @if($this->seatedTable)
-            <span class="rounded-full bg-orange-100 px-2.5 py-0.5 text-sm font-semibold text-orange-700">
-                Mesa {{ $this->seatedTable->number }}
-            </span>
+        <x-store.order-type-badges :restaurant="$this->restaurant" :table="$this->seatedTable" />
+
+        {{-- Open / closed now + today's hours --}}
+        @php($todayHours = $this->restaurant->hoursOn())
+        <div class="flex flex-wrap items-center gap-2 mt-2 text-xs">
+            @if($this->restaurant->isOpenAt())
+            <span data-store-status="open" class="rounded-full bg-green-100 px-2.5 py-0.5 font-semibold text-green-700">Aberto</span>
+            @else
+            <span data-store-status="closed" class="rounded-full bg-zinc-200 px-2.5 py-0.5 font-semibold text-zinc-600">Fechado</span>
             @endif
-            @if($this->restaurant->accepts_delivery && ! $this->seatedTable)
-            <span class="flex items-center gap-1">
-                <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 0 0-3.213-9.193 2.056 2.056 0 0 0-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 0 0-10.026 0 1.106 1.106 0 0 0-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" /></svg>
-                Delivery
-            </span>
-            @endif
-            @if($this->restaurant->accepts_pickup && ! $this->seatedTable)
-            <span class="flex items-center gap-1">
-                <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5V6a3.75 3.75 0 1 0-7.5 0v4.5m11.356-1.993 1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 0 1-1.12-1.243l1.264-12A1.125 1.125 0 0 1 5.513 7.5h12.974c.576 0 1.059.435 1.119 1.007ZM8.625 10.5a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm7.5 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" /></svg>
-                Retirada
-            </span>
-            @endif
-            <span>{{ $this->restaurant->min_order_minutes }}–{{ $this->restaurant->max_order_minutes }} min</span>
+            <span class="text-zinc-500">{{ $todayHours?->isOpenDay() ? 'Hoje: '.$todayHours->rangeLabel() : 'Fechado hoje' }}</span>
         </div>
     </div>
 
-    {{-- Category tabs --}}
-    @if($this->categories->isNotEmpty())
-    <div class="flex gap-2 mb-5 overflow-x-auto pb-1 scrollbar-hide">
-        <button wire:click="$set('category', '')"
-                class="shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium transition {{ !$category ? 'bg-orange-500 text-white' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200' }}">
-            Tudo
-        </button>
-        @foreach($this->categories as $cat)
-        <button wire:click="$set('category', '{{ $cat->slug }}')"
-                class="shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium transition {{ $category === $cat->slug ? 'bg-orange-500 text-white' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200' }}">
-            {{ $cat->name }}
-        </button>
-        @endforeach
-    </div>
-    @endif
-
-    {{-- Product grid --}}
-    @if($this->products->isEmpty())
+    @if($this->categories->isEmpty())
     <div class="py-16 text-center text-zinc-400 text-sm">
         Nenhum produto disponível no momento.
     </div>
     @else
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        @foreach($this->products as $product)
-        <x-store.product-card :product="$product" />
+    {{-- One page, a section per category: the tabs scroll to it in the browser (no server request)
+         and the tab of the section in view is highlighted. The quick search (q) filters products,
+         sections and tabs in the browser too, against each product's accent-free data-search. --}}
+    <div x-data="{
+            active: @js($this->categories->first()->slug),
+            q: '',
+            go(slug) {
+                this.active = slug;
+                document.getElementById('cat-' + slug)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            },
+            get term() {
+                return this.q.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+            },
+            matches(text) { return ! this.term || (text ?? '').includes(this.term); },
+            anyMatch(el) { return ! this.term || [...(el?.querySelectorAll('[data-search]') ?? [])].some(p => this.matches(p.dataset.search)); },
+         }"
+         x-init="
+            const spy = new IntersectionObserver(entries => entries.forEach(e => { if (e.isIntersecting) active = e.target.dataset.category }), { rootMargin: '-120px 0px -60% 0px' });
+            $el.querySelectorAll('[data-category]').forEach(section => spy.observe(section));
+            if ($el.dataset.scrollTo) $nextTick(() => go($el.dataset.scrollTo));
+         "
+         @if($category) data-scroll-to="{{ $category }}" @endif>
+        <x-store.menu-search />
+
+        <div class="sticky top-14 z-40 -mx-4 px-4 py-2 mb-5 bg-zinc-50 flex gap-2 overflow-x-auto scrollbar-hide">
+            @foreach($this->categories as $cat)
+            <button type="button" data-category-tab="{{ $cat->slug }}" @click="go(@js($cat->slug))"
+                    x-show="anyMatch(document.getElementById(@js('cat-'.$cat->slug)))"
+                    :class="active === @js($cat->slug) ? 'bg-orange-500 text-white' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'"
+                    class="shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium transition">
+                {{ $cat->name }}
+            </button>
+            @endforeach
+        </div>
+
+        <x-store.most-ordered :products="$this->mostOrdered" />
+
+        @foreach($this->categories as $cat)
+        <section id="cat-{{ $cat->slug }}" data-category="{{ $cat->slug }}" x-show="anyMatch($el)" class="mb-8 scroll-mt-32">
+            <h2 class="text-lg font-semibold text-zinc-800 mb-3">{{ $cat->name }}</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                @foreach($this->productsByCategory->get($cat->id, collect()) as $product)
+                <div data-search="{{ $product->searchText() }}" x-show="matches($el.dataset.search)">
+                    <x-store.product-card :product="$product" :most-ordered="$this->mostOrdered->contains('id', $product->id)" />
+                </div>
+                @endforeach
+            </div>
+        </section>
         @endforeach
+
+        <p x-show="! anyMatch($root)" style="display: none" class="py-16 text-center text-zinc-400 text-sm">
+            Nenhum produto encontrado.
+        </p>
     </div>
     @endif
 

@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToRestaurant;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class OperatingHour extends Model
 {
-    use HasFactory;
+    use BelongsToRestaurant, HasFactory;
 
     protected $fillable = [
         'restaurant_id',
@@ -40,5 +41,29 @@ class OperatingHour extends Model
             6 => 'Sábado',
             default => '?',
         };
+    }
+
+    /** Whether the store opens on this day: not marked closed and with both times set. */
+    public function isOpenDay(): bool
+    {
+        return ! $this->is_closed && filled($this->opens_at) && filled($this->closes_at);
+    }
+
+    /** Opening time as HH:MM (the time column comes back as HH:MM or HH:MM:SS depending on the driver). */
+    public function opensAt(): ?string
+    {
+        return filled($this->opens_at) ? substr($this->opens_at, 0, 5) : null;
+    }
+
+    /** Closing time as HH:MM. */
+    public function closesAt(): ?string
+    {
+        return filled($this->closes_at) ? substr($this->closes_at, 0, 5) : null;
+    }
+
+    /** "HH:MM–HH:MM", as shown in the menu header. */
+    public function rangeLabel(): string
+    {
+        return $this->opensAt().'–'.$this->closesAt();
     }
 }

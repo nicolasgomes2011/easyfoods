@@ -6,6 +6,7 @@ use App\Enums\OrderStatus;
 use App\Models\Order;
 use App\Models\OrderStatusHistory;
 use App\Models\User;
+use App\Support\ReadyEstimate;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
@@ -22,13 +23,19 @@ class TransitionOrderStatus
     /** Target status => milestone column on `orders`. Statuses without a column are omitted. */
     private const MILESTONES = [
         OrderStatus::Confirmed->value => 'confirmed_at',
+        OrderStatus::InPreparation->value => 'preparation_started_at',
         OrderStatus::ReadyForPickup->value => 'ready_at',
+        OrderStatus::OutForDelivery->value => 'out_for_delivery_at',
         OrderStatus::Delivered->value => 'delivered_at',
         OrderStatus::Completed->value => 'completed_at',
         OrderStatus::Canceled->value => 'canceled_at',
     ];
 
-    public function execute(Order $order, OrderStatus $to, User $actor, ?string $notes = null): Order
+    /**
+     * @param  User|null  $actor  Who made the change; null for the system (e.g. the scheduler
+     *                            expiring an unconfirmed order), stored as changed_by = null.
+     */
+    public function execute(Order $order, OrderStatus $to, ?User $actor, ?string $notes = null): Order
     {
         if ($to === OrderStatus::Canceled && blank($notes)) {
             throw new InvalidArgumentException('A cancellation requires a reason.');
@@ -49,6 +56,15 @@ class TransitionOrderStatus
                 ]);
             }
 
+            // Ready only with every item prepared (kitchen checklist). Checked here,
+            // under the order lock, so an item added at the same moment (AddOrderItem
+            // locks the same row) can't reach "Pronto" without being prepared.
+            if ($to === OrderStatus::ReadyForPickup && $order->items()->whereNull('prepared_at')->exists()) {
+                throw ValidationException::withMessages([
+                    'status' => self::itemsNotPreparedMessage($order),
+                ]);
+            }
+
             $order->status = $to;
 
             $milestone = self::MILESTONES[$to->value] ?? null;
@@ -56,18 +72,34 @@ class TransitionOrderStatus
                 $order->{$milestone} = now();
             }
 
+            // The customer's "Pronto às HH:MM" starts at the confirmation (set once).
+            if ($to === OrderStatus::Confirmed) {
+                ReadyEstimate::start($order, now());
+            }
+
             $order->save();
+
+            // Real prep time of each product feeds the learned ETA (append-only history).
+            if ($to === OrderStatus::ReadyForPickup) {
+                app(RecordPrepSamples::class)->execute($order);
+            }
 
             OrderStatusHistory::create([
                 'order_id' => $order->id,
                 'from_status' => $from,
                 'to_status' => $to,
-                'changed_by' => $actor->id,
+                'changed_by' => $actor?->id,
                 'notes' => $notes,
                 'changed_at' => now(),
             ]);
 
             return $order;
         });
+    }
+
+    /** Message shown when "Pronto" is refused because an item is not ticked yet. */
+    public static function itemsNotPreparedMessage(Order $order): string
+    {
+        return "Marque todos os itens do pedido #{$order->number} antes de marcar pronto.";
     }
 }

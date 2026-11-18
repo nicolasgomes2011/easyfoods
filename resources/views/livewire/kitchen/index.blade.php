@@ -1,45 +1,106 @@
 <?php
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Computed;
+use Livewire\Attributes\Session;
 use Livewire\Volt\Component;
-use App\Enums\OrderStatus;
 use App\Enums\DeliveryType;
+use App\Enums\OrderItemChangeType;
+use App\Enums\OrderStatus;
 use App\Enums\WaiterCallStatus;
+use App\Livewire\Concerns\AlertsNewOrders;
 use App\Models\Order;
-use App\Models\Restaurant;
+use App\Models\OrderItem;
+use App\Support\CurrentRestaurant;
 use App\Models\WaiterCall;
+use App\Actions\Orders\ToggleOrderItemPrepared;
 use App\Actions\Orders\TransitionOrderStatus;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\ValidationException;
 
 new #[Layout('components.layouts.app')] class extends Component {
+    use AlertsNewOrders;
+
+    /** Kitchen alert: a confirmed order waits for preparation. */
+    protected function alertStatus(): OrderStatus
+    {
+        return OrderStatus::Confirmed;
+    }
+
+    /** Order type shown on the queue ('all' or a DeliveryType value); kept in the user's session. */
+    #[Session]
+    public string $typeFilter = 'all';
+
+    /** Filter buttons: value => label. */
+    #[Computed]
+    public function filters(): array
+    {
+        return ['all' => 'Todos', 'dine_in' => 'Mesa', 'delivery' => 'Delivery', 'pickup' => 'Retirada'];
+    }
+
+    public function filterBy(string $type): void
+    {
+        $this->typeFilter = DeliveryType::tryFrom($type)?->value ?? 'all';
+        unset($this->queueOrders, $this->waitingCount, $this->inPreparationCount, $this->readyCount, $this->hiddenByFilterCount);
+    }
+
+    /** Queue orders of other types while a filter is on: shown as a notice, never hidden silently. */
+    #[Computed]
+    public function hiddenByFilterCount(): int
+    {
+        $type = DeliveryType::tryFrom($this->typeFilter);
+
+        if ($type === null) {
+            return 0;
+        }
+
+        return Order::where('restaurant_id', CurrentRestaurant::id())
+            ->whereIn('status', [OrderStatus::Confirmed->value, OrderStatus::InPreparation->value])
+            ->where('delivery_type', '!=', $type->value)
+            ->count();
+    }
+
+    /** This restaurant's orders of the selected type: the queue and the counters. */
+    private function kitchenOrders()
+    {
+        return Order::where('restaurant_id', CurrentRestaurant::id())
+            ->when(
+                DeliveryType::tryFrom($this->typeFilter),
+                fn ($query, DeliveryType $type) => $query->where('delivery_type', $type->value)
+            );
+    }
 
     #[Computed]
     public function waitingCount(): int
     {
-        return Order::byStatus(OrderStatus::Confirmed)->count();
+        return $this->kitchenOrders()->byStatus(OrderStatus::Confirmed)->count();
     }
 
     #[Computed]
     public function inPreparationCount(): int
     {
-        return Order::byStatus(OrderStatus::InPreparation)->count();
+        return $this->kitchenOrders()->byStatus(OrderStatus::InPreparation)->count();
     }
 
     #[Computed]
     public function readyCount(): int
     {
-        return Order::byStatus(OrderStatus::ReadyForPickup)->count();
+        return $this->kitchenOrders()->byStatus(OrderStatus::ReadyForPickup)->count();
     }
 
     #[Computed]
     public function queueOrders()
     {
-        return Order::whereIn('status', [
-            OrderStatus::Confirmed->value,
-            OrderStatus::InPreparation->value,
-        ])
-            ->where('restaurant_id', Restaurant::query()->value('id'))
-            ->with('items')
+        return $this->kitchenOrders()
+            ->whereIn('status', [
+                OrderStatus::Confirmed->value,
+                OrderStatus::InPreparation->value,
+            ])
+            // Addons come with the items: the card lists them under each line.
+            // Removals too: the card keeps a removed item struck through.
+            ->with([
+                'items.addons',
+                'itemChanges' => fn ($query) => $query->where('type', OrderItemChangeType::Removed->value),
+            ])
             ->orderBy('created_at')
             ->get();
     }
@@ -49,26 +110,87 @@ new #[Layout('components.layouts.app')] class extends Component {
         $this->applyTransition($orderId, OrderStatus::InPreparation);
     }
 
+    /** Shown when "Marcar pronto" was refused because items are still to tick. */
+    public ?string $readyNotice = null;
+
+    /**
+     * Kitchen checklist: tick an item off (or back on) while its order is in preparation.
+     * The status check and the write run under the order lock (ToggleOrderItemPrepared),
+     * so an order another screen has just marked "Pronto" keeps its items ticked.
+     */
+    public function toggleItemPrepared(int $itemId): void
+    {
+        // Restaurant-fenced: another restaurant's item is a 404.
+        $item = OrderItem::whereHas('order', fn ($query) => $query->where('restaurant_id', CurrentRestaurant::id()))
+            ->with('order')
+            ->findOrFail($itemId);
+
+        Gate::authorize('transitionInKitchen', $item->order);
+
+        if (! app(ToggleOrderItemPrepared::class)->execute($item)) {
+            return; // the order is no longer in preparation (or the item left it)
+        }
+
+        $this->readyNotice = null;
+        unset($this->queueOrders);
+    }
+
+    /**
+     * Ready only with every item ticked. This check is the quick UX path; the
+     * rule itself is enforced by TransitionOrderStatus under the order lock
+     * (an item added at the same moment is refused there).
+     */
     public function markReady(int $orderId): void
     {
-        $this->applyTransition($orderId, OrderStatus::ReadyForPickup);
+        $order = Order::where('restaurant_id', CurrentRestaurant::id())->findOrFail($orderId);
+
+        Gate::authorize('transitionInKitchen', $order);
+
+        if ($order->items()->whereNull('prepared_at')->exists()) {
+            $this->refuseReady($order);
+
+            return;
+        }
+
+        $this->readyNotice = null;
+
+        try {
+            $this->applyTransition($order->id, OrderStatus::ReadyForPickup);
+        } catch (ValidationException $e) {
+            // An item came in between the check above and the locked transition.
+            if (! $order->items()->whereNull('prepared_at')->exists()) {
+                throw $e;
+            }
+
+            $this->refuseReady($order);
+        }
+    }
+
+    private function refuseReady(Order $order): void
+    {
+        $this->readyNotice = TransitionOrderStatus::itemsNotPreparedMessage($order);
+        unset($this->queueOrders);
     }
 
     private function applyTransition(int $orderId, OrderStatus $to): void
     {
-        $order = Order::findOrFail($orderId);
+        // Restaurant-fenced: another restaurant's order is a 404.
+        $order = Order::where('restaurant_id', CurrentRestaurant::id())->findOrFail($orderId);
 
         Gate::authorize('transitionInKitchen', $order);
 
         app(TransitionOrderStatus::class)->execute($order, $to, auth()->user());
 
-        unset($this->queueOrders, $this->waitingCount, $this->inPreparationCount, $this->readyCount);
+        unset($this->queueOrders, $this->waitingCount, $this->inPreparationCount, $this->readyCount, $this->hiddenByFilterCount);
+
+        // Keep the tab title count in step with the queue right away, not on the next poll.
+        $this->checkNewOrders();
     }
 
     #[Computed]
     public function pendingWaiterCalls()
     {
-        $restaurant = Restaurant::first();
+        $restaurant = CurrentRestaurant::get();
         if (! $restaurant) return collect();
         return WaiterCall::with('diningTable')
             ->where('restaurant_id', $restaurant->id)
@@ -79,15 +201,20 @@ new #[Layout('components.layouts.app')] class extends Component {
 
     public function acknowledgeWaiterCall(int $callId): void
     {
-        WaiterCall::where('id', $callId)->update([
-            'status'          => WaiterCallStatus::Acknowledged->value,
+        // Restaurant-fenced (404) and checked by the policy, like the order actions.
+        $call = WaiterCall::where('restaurant_id', CurrentRestaurant::id())->findOrFail($callId);
+
+        Gate::authorize('acknowledge', $call);
+
+        $call->update([
+            'status'          => WaiterCallStatus::Acknowledged,
             'acknowledged_at' => now(),
         ]);
         unset($this->pendingWaiterCalls);
     }
 }; ?>
 
-<div wire:poll.30s>
+<div wire:poll.30s.keep-alive="checkNewOrders">
     {{-- Waiter call alerts --}}
     @if($this->pendingWaiterCalls->isNotEmpty())
     <div class="mb-5 space-y-2">
@@ -101,7 +228,7 @@ new #[Layout('components.layouts.app')] class extends Component {
                 <span class="text-xs text-yellow-500">{{ $call->called_at->diffForHumans() }}</span>
             </div>
             <button wire:click="acknowledgeWaiterCall({{ $call->id }})"
-                    class="text-xs text-yellow-400 hover:text-yellow-300 bg-yellow-400/10 hover:bg-yellow-400/20 rounded-lg px-2.5 py-1.5 transition">
+                    class="min-h-12 text-sm font-semibold text-yellow-300 hover:text-yellow-200 bg-yellow-400/10 hover:bg-yellow-400/20 rounded-xl px-4 transition">
                 Atender
             </button>
         </div>
@@ -116,6 +243,7 @@ new #[Layout('components.layouts.app')] class extends Component {
             <p class="text-sm text-zinc-400 mt-0.5">Fila de preparo em tempo real</p>
         </div>
         <div class="flex items-center gap-2">
+            <x-orders.new-order-alert :count="$alertCount" />
             <span class="inline-flex items-center gap-1.5 text-xs text-orange-400 bg-orange-400/10 border border-orange-400/20 rounded-lg px-3 py-1.5">
                 <span class="size-1.5 rounded-full bg-orange-400 animate-pulse"></span>
                 Em andamento · atualiza a cada 30s
@@ -123,92 +251,82 @@ new #[Layout('components.layouts.app')] class extends Component {
         </div>
     </div>
 
-    {{-- Status summary --}}
+    {{-- Order type filter (kept in the session) --}}
+    <div class="flex flex-wrap gap-2 mb-4" role="group" aria-label="Filtrar a fila por tipo de pedido">
+        @foreach($this->filters as $value => $label)
+        <button type="button"
+                data-kitchen-filter="{{ $value }}"
+                wire:click="filterBy('{{ $value }}')"
+                aria-pressed="{{ $typeFilter === $value ? 'true' : 'false' }}"
+                class="min-h-12 min-w-24 rounded-xl border px-4 text-base font-semibold transition {{ $typeFilter === $value ? 'border-orange-500 bg-orange-500/15 text-white' : 'border-zinc-700 bg-zinc-900 text-zinc-300 hover:border-zinc-500' }}">
+            {{ $label }}
+        </button>
+        @endforeach
+    </div>
+    @if($this->hiddenByFilterCount > 0)
+    <div data-kitchen-hidden class="flex items-center justify-between gap-3 mb-4 rounded-xl border border-yellow-400/30 bg-yellow-400/10 px-4 py-2">
+        <span class="text-sm text-yellow-200">
+            {{ $this->hiddenByFilterCount }} {{ $this->hiddenByFilterCount === 1 ? 'pedido de outro tipo' : 'pedidos de outros tipos' }} na fila
+        </span>
+        <button type="button" wire:click="filterBy('all')"
+                class="min-h-12 text-sm font-semibold text-yellow-200 hover:text-white rounded-xl px-4 transition">
+            Ver todos
+        </button>
+    </div>
+    @endif
+
+    {{-- Status summary: this restaurant, selected type --}}
     <div class="grid grid-cols-3 gap-3 mb-6">
         @foreach([
-            ['label' => 'Aguardando preparo', 'value' => $this->waitingCount],
-            ['label' => 'Em preparo',          'value' => $this->inPreparationCount],
-            ['label' => 'Prontos',             'value' => $this->readyCount],
+            ['key' => 'waiting',        'label' => 'Aguardando preparo', 'value' => $this->waitingCount],
+            ['key' => 'in_preparation', 'label' => 'Em preparo',          'value' => $this->inPreparationCount],
+            ['key' => 'ready',          'label' => 'Prontos',             'value' => $this->readyCount],
         ] as $stat)
-        <div class="bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-center">
-            <p class="text-2xl font-bold text-white tabular-nums">{{ $stat['value'] }}</p>
-            <p class="text-xs text-zinc-400 mt-1">{{ $stat['label'] }}</p>
+        <div data-kitchen-count="{{ $stat['key'] }}" class="bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-center">
+            <p class="text-3xl font-bold text-white tabular-nums">{{ $stat['value'] }}</p>
+            <p class="text-sm text-zinc-400 mt-1">{{ $stat['label'] }}</p>
         </div>
         @endforeach
     </div>
 
-    {{-- Queue cards --}}
+    @if($readyNotice)
+    <div data-kitchen-ready-notice role="alert" class="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-base font-medium text-red-300">
+        {{ $readyNotice }}
+    </div>
+    @endif
+
+    {{-- Queue: waiting first, then in preparation --}}
     @if($this->queueOrders->isEmpty())
     <div class="bg-zinc-900 border border-zinc-800 rounded-xl px-5 py-12 text-center">
-        <p class="text-zinc-500 text-sm">Fila vazia. Nenhum pedido aguardando preparo.</p>
+        <p class="text-zinc-500 text-base">
+            @if($typeFilter === 'all')
+            Fila vazia. Nenhum pedido aguardando preparo.
+            @else
+            Nenhum pedido de {{ mb_strtolower($this->filters[$typeFilter]) }} na fila.
+            @endif
+        </p>
     </div>
     @else
-    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-        @foreach($this->queueOrders as $order)
-        @php
-            $inPrep  = $order->status === OrderStatus::InPreparation;
-            $minutes = $order->created_at->diffInMinutes(now());
-            $urgent  = $inPrep && $minutes >= 20;
-        @endphp
-        <div class="bg-zinc-900 border {{ $inPrep || $urgent ? 'border-orange-500/50' : 'border-zinc-800' }} rounded-xl overflow-hidden">
-            <div class="flex items-center justify-between px-4 py-3 border-b {{ $inPrep || $urgent ? 'border-orange-500/30 bg-orange-500/5' : 'border-zinc-800' }}">
-                <div class="flex items-center gap-2">
-                    <span class="text-sm font-bold font-mono {{ $inPrep || $urgent ? 'text-orange-400' : 'text-white' }}">
-                        #{{ $order->number }}
-                    </span>
-                    <span class="text-xs text-zinc-400">
-                        {{ $order->delivery_type === DeliveryType::Delivery ? 'Delivery' : 'Balcão' }}
-                    </span>
-                    @if($inPrep)
-                    <span class="text-[10px] font-semibold text-orange-400 bg-orange-400/10 border border-orange-400/20 rounded-full px-1.5 py-0.5">
-                        Em preparo
-                    </span>
-                    @else
-                    <span class="text-[10px] font-semibold text-yellow-400 bg-yellow-400/10 border border-yellow-400/20 rounded-full px-1.5 py-0.5">
-                        Aguardando
-                    </span>
-                    @endif
-                </div>
-                <div class="flex items-center gap-1.5 text-xs {{ $urgent ? 'text-red-400' : 'text-zinc-400' }}">
-                    <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                    </svg>
-                    {{ $minutes }} min
-                </div>
-            </div>
-            <div class="px-4 py-3 space-y-1.5">
-                @foreach($order->items as $item)
-                <div class="flex items-center gap-2">
-                    <span class="size-1.5 rounded-full bg-zinc-600 shrink-0"></span>
-                    <span class="text-sm text-zinc-300">{{ $item->displayName() }} ×{{ $item->quantity }}</span>
-                </div>
+    <div class="space-y-6">
+        @foreach([
+            ['status' => OrderStatus::Confirmed,     'label' => 'Aguardando preparo', 'empty' => 'Nenhum pedido aguardando preparo.'],
+            ['status' => OrderStatus::InPreparation, 'label' => 'Em preparo',         'empty' => 'Nenhum pedido em preparo.'],
+        ] as $group)
+        @php $groupOrders = $this->queueOrders->filter(fn ($order) => $order->status === $group['status']); @endphp
+        <section data-kitchen-group="{{ $group['status']->value }}">
+            <h2 class="text-base font-semibold text-zinc-200 mb-3">
+                {{ $group['label'] }} <span class="text-zinc-500 tabular-nums">· {{ $groupOrders->count() }}</span>
+            </h2>
+            @if($groupOrders->isEmpty())
+            <p class="text-sm text-zinc-500 bg-zinc-900 border border-dashed border-zinc-800 rounded-xl px-4 py-4">{{ $group['empty'] }}</p>
+            @else
+            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                @foreach($groupOrders as $order)
+                <x-kitchen.order-card :order="$order" wire:key="kitchen-order-{{ $order->id }}" />
                 @endforeach
             </div>
-            <div class="px-4 py-3 border-t border-zinc-800 flex items-center justify-between">
-                <span class="text-xs text-zinc-500 tabular-nums">
-                    R$ {{ number_format($order->total, 2, ',', '.') }}
-                </span>
-                @can('transitionInKitchen', $order)
-                    @if($order->status === OrderStatus::Confirmed)
-                    <button
-                        wire:click="startPreparing({{ $order->id }})"
-                        wire:loading.attr="disabled"
-                        wire:target="startPreparing({{ $order->id }})"
-                        class="inline-flex items-center gap-1.5 text-xs font-semibold text-orange-400 bg-orange-400/10 hover:bg-orange-400/15 border border-orange-400/20 rounded-lg px-3 py-1.5 transition disabled:opacity-50">
-                        Iniciar preparo
-                    </button>
-                    @elseif($order->status === OrderStatus::InPreparation)
-                    <button
-                        wire:click="markReady({{ $order->id }})"
-                        wire:loading.attr="disabled"
-                        wire:target="markReady({{ $order->id }})"
-                        class="inline-flex items-center gap-1.5 text-xs font-semibold text-green-400 bg-green-400/10 hover:bg-green-400/15 border border-green-400/20 rounded-lg px-3 py-1.5 transition disabled:opacity-50">
-                        Marcar pronto
-                    </button>
-                    @endif
-                @endcan
-            </div>
-        </div>
+            @endif
+        </section>
         @endforeach
     </div>
     @endif
