@@ -14,6 +14,7 @@ use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\Restaurant;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Livewire\Volt\Volt;
 use Tests\TestCase;
 
@@ -214,6 +215,12 @@ class CartQuantityValidationTest extends TestCase
 
     public function test_place_order_refuses_a_stored_line_with_negative_quantity(): void
     {
+        if (DB::getDriverName() !== 'sqlite') {
+            // cart_items.quantity is unsigned: MySQL refuses to store -10, so this row cannot exist there.
+            // The zero-quantity test below covers the same PlaceOrder guard on every driver.
+            $this->markTestSkipped('A negative quantity can only be stored on SQLite, which ignores unsigned.');
+        }
+
         $this->addWithAction($this->burger, 2);
         $cart = Cart::firstOrFail();
         CartItem::create(['cart_id' => $cart->id, 'product_id' => $this->soda->id, 'quantity' => -10]);
