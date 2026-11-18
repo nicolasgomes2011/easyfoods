@@ -6,7 +6,7 @@ use App\Enums\OrderStatus;
 use App\Enums\ProductAvailabilityStatus;
 use App\Models\Category;
 use App\Models\Product;
-use App\Models\Restaurant;
+use App\Support\CurrentRestaurant;
 use Livewire\Attributes\Computed;
 use Livewire\Component;
 
@@ -19,7 +19,7 @@ class ProductList extends Component
 
     private function rid(): ?int
     {
-        return Restaurant::query()->value('id');
+        return CurrentRestaurant::id();
     }
 
     #[Computed]

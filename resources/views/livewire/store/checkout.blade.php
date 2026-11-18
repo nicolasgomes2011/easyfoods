@@ -2,14 +2,20 @@
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Computed;
 use Livewire\Volt\Component;
+use Illuminate\Validation\Rule;
 use App\Actions\Orders\PlaceOrder;
 use App\Enums\DeliveryType;
+use App\Enums\PaymentMethod;
+use App\Exceptions\OrderNotPlaceable;
 use App\Models\Cart;
 use App\Models\DeliveryZone;
 use App\Models\DiningTable;
 use App\Models\Restaurant;
+use App\Support\MoneyInput;
+use App\Support\CurrentRestaurant;
 
 new #[Layout('components.layouts.customer')] class extends Component {
+    use \App\Livewire\Concerns\ChecksOutAtTable; // table QR code mode (/mesa/{uuid})
 
     public string $deliveryType = 'delivery';
 
@@ -35,6 +41,7 @@ new #[Layout('components.layouts.customer')] class extends Component {
 
     // Payment
     public string $paymentMethod = 'cash';
+    public string $cashChangeFor = ''; // "Troco para quanto?" (cash only, optional)
 
     public ?string $error = null;
 
@@ -44,12 +51,19 @@ new #[Layout('components.layouts.customer')] class extends Component {
         if (! $cart || $cart->items()->count() === 0) {
             $this->redirect(route('store.cart'), navigate: true);
         }
+
+        // Pre-select an enabled method (cash may be disabled in Settings › Payments).
+        if (! array_key_exists($this->paymentMethod, $this->acceptedPayments)) {
+            $this->paymentMethod = (string) array_key_first($this->acceptedPayments);
+        }
+        // Start on the first order type the store takes, never on a hidden one.
+        $this->deliveryType = $this->restaurant?->defaultDeliveryType()?->value ?? $this->deliveryType;
     }
 
     #[Computed]
     public function restaurant(): ?Restaurant
     {
-        return Restaurant::first();
+        return CurrentRestaurant::get();
     }
 
     #[Computed]
@@ -66,7 +80,7 @@ new #[Layout('components.layouts.customer')] class extends Component {
     public function tables()
     {
         return DiningTable::where('restaurant_id', $this->restaurant?->id)
-            ->where('status', 'free')
+            ->whereIn('status', ['free', 'occupied']) // occupied = open tab, joins it; never reserved
             ->orderBy('number')
             ->get();
     }
@@ -114,37 +128,19 @@ new #[Layout('components.layouts.customer')] class extends Component {
         return $this->subtotal + $this->deliveryFee;
     }
 
+    /** Methods enabled in Settings › Payments, keyed by PaymentMethod value. */
     #[Computed]
     public function acceptedPayments(): array
     {
         $restaurant = $this->restaurant;
         if (! $restaurant) return [];
 
-        $restaurant->load('settings');
-        $map = [
-            'cash'        => 'payment_cash',
-            'pix'         => 'payment_pix',
-            'credit_card' => 'payment_credit_card',
-            'debit_card'  => 'payment_debit_card',
-            'meal_voucher'=> 'payment_meal_voucher',
-        ];
-
-        $labels = [
-            'cash'        => 'Dinheiro',
-            'pix'         => 'Pix',
-            'credit_card' => 'Cartão de crédito',
-            'debit_card'  => 'Cartão de débito',
-            'meal_voucher'=> 'Vale-refeição',
-        ];
-
         $active = [];
-        foreach ($map as $key => $settingKey) {
-            if ($restaurant->getSetting($settingKey, false)) {
-                $active[$key] = $labels[$key];
-            }
+        foreach ($restaurant->acceptedPaymentMethods() as $method) {
+            $active[$method->value] = $method->label();
         }
 
-        return $active ?: $labels;
+        return $active;
     }
 
     public function rules(): array
@@ -153,34 +149,56 @@ new #[Layout('components.layouts.customer')] class extends Component {
             'customerName'  => 'required|string|max:100',
             'customerPhone' => 'nullable|string|max:20',
             'deliveryType'  => 'required|in:delivery,pickup,dine_in',
-            'paymentMethod' => 'required|string',
+            'paymentMethod' => ['required', 'string', Rule::in(array_keys($this->acceptedPayments))],
             'notes'         => 'nullable|string|max:500',
         ];
+
+        if ($this->paymentMethod === PaymentMethod::Cash->value) {
+            $rules['cashChangeFor'] = 'nullable|numeric|min:' . round($this->total, 2);
+        }
 
         if ($this->deliveryType === 'delivery') {
             $rules['street']       = 'required|string|max:150';
             $rules['addressNumber']= 'required|string|max:20';
             $rules['city']         = 'nullable|string|max:100';
             $rules['state']        = 'nullable|string|max:2';
-            $rules['zip']          = 'nullable|string|max:10';
+            // Same lengths as the orders columns (zip is 9: "01234-567"); MySQL strict
+            // refuses a longer value, so it must be a field error here.
+            $rules['zip']          = 'nullable|string|max:9';
+            $rules['complement']   = 'nullable|string|max:100';
+            $rules['neighborhood'] = 'nullable|string|max:100';
 
             // When the restaurant configured delivery zones, the customer must pick one
             // (it drives the delivery fee). With no zones configured, delivery is free.
+            // Only an active zone of this restaurant counts — never free delivery by accident.
             if ($this->deliveryZones->isNotEmpty()) {
-                $rules['deliveryZoneId'] = 'required|exists:delivery_zones,id';
+                $rules['deliveryZoneId'] = ['required', Rule::exists('delivery_zones', 'id')
+                    ->where('restaurant_id', $this->restaurant?->id)
+                    ->where('is_active', true)];
             }
         }
 
         if ($this->deliveryType === 'dine_in') {
-            $rules['tableId'] = 'required|exists:dining_tables,id';
+            $rules['tableId'] = ['required', fn ($attribute, $value, $fail) => $this->tables->contains('id', (int) $value)
+                ? null : $fail('Essa mesa não está disponível. Escolha outra.')]; // only a table offered above
         }
 
         return $rules;
     }
 
+    public function messages(): array
+    {
+        return [
+            'paymentMethod.in'  => 'Esta forma de pagamento não está disponível.',
+            'cashChangeFor.numeric' => 'Informe o valor do troco em reais, ex.: 50,00.',
+            'cashChangeFor.min' => 'O valor para troco precisa ser maior ou igual ao total do pedido.',
+            'deliveryZoneId.exists' => 'Essa zona de entrega não está disponível. Escolha outra.',
+        ];
+    }
+
     private function currentCart(): ?Cart
     {
-        $restaurant = Restaurant::first();
+        $restaurant = CurrentRestaurant::get();
         if (! $restaurant) return null;
         return Cart::where('session_id', session()->getId())
             ->where('restaurant_id', $restaurant->id)
@@ -190,7 +208,18 @@ new #[Layout('components.layouts.customer')] class extends Component {
     public function placeOrder(): void
     {
         $this->error = null;
+
+        // Table mode first: a table reserved after the scan gets its own message,
+        // not the generic "mesa não disponível" of the tableId rule.
+        if ($reason = $this->pinSeatedTable()) { // table mode: reserved table / dine-in off
+            $this->error = $reason;
+            return;
+        }
+
+        $this->cashChangeFor = MoneyInput::normalize($this->cashChangeFor);
         $this->validate();
+
+        $paysCash = $this->paymentMethod === PaymentMethod::Cash->value;
 
         $cart = $this->currentCart();
         if (! $cart) {
@@ -199,7 +228,7 @@ new #[Layout('components.layouts.customer')] class extends Component {
         }
 
         $table = $this->deliveryType === 'dine_in'
-            ? DiningTable::find($this->tableId)
+            ? $this->tables->firstWhere('id', (int) $this->tableId)
             : null;
 
         try {
@@ -208,7 +237,8 @@ new #[Layout('components.layouts.customer')] class extends Component {
                 'customer_name'  => $this->customerName,
                 'customer_phone' => $this->customerPhone ?: null,
                 'notes'          => $this->notes ?: null,
-                'delivery_fee'   => $this->deliveryFee,
+                // The fee is computed by PlaceOrder from the zone, never taken from here.
+                'delivery_zone_id' => $this->deliveryZoneId ?: null,
                 'dining_table_id'=> $table?->id,
                 'table_number'   => $table?->number,
                 // Address
@@ -219,11 +249,14 @@ new #[Layout('components.layouts.customer')] class extends Component {
                 'city'           => $this->city ?: null,
                 'state'          => $this->state ?: null,
                 'zip'            => $this->zip ?: null,
+                // Payment
+                'payment_method' => $this->paymentMethod,
+                'cash_tendered'  => $paysCash && $this->cashChangeFor !== '' ? (float) $this->cashChangeFor : null,
             ]);
 
             $this->redirect(route('store.order.tracking', $order->token), navigate: true);
         } catch (\Throwable $e) {
-            $this->error = $e->getMessage();
+            $this->error = OrderNotPlaceable::messageFor($e); // only domain reasons reach the customer
         }
     }
 }; ?>
@@ -244,26 +277,9 @@ new #[Layout('components.layouts.customer')] class extends Component {
 
         <div class="lg:col-span-2 space-y-5">
 
-            {{-- Tipo de entrega --}}
-            <div class="bg-white border border-zinc-200 rounded-2xl p-5">
-                <h2 class="text-sm font-semibold text-zinc-700 mb-3">Como quer receber?</h2>
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    @foreach([
-                        ['value' => 'delivery', 'label' => 'Delivery',     'show' => $this->restaurant?->accepts_delivery],
-                        ['value' => 'pickup',   'label' => 'Retirada',     'show' => $this->restaurant?->accepts_pickup],
-                        ['value' => 'dine_in',  'label' => 'Mesa (salão)', 'show' => $this->restaurant?->accepts_dine_in],
-                    ] as $type)
-                    @if($type['show'])
-                    <label class="relative cursor-pointer">
-                        <input type="radio" wire:model.live="deliveryType" value="{{ $type['value'] }}" class="sr-only peer" />
-                        <div class="border-2 rounded-xl px-3 py-2.5 text-sm text-center transition peer-checked:border-orange-500 peer-checked:text-orange-600 peer-checked:bg-orange-50 border-zinc-200 text-zinc-600 hover:border-zinc-300">
-                            {{ $type['label'] }}
-                        </div>
-                    </label>
-                    @endif
-                    @endforeach
-                </div>
-            </div>
+            {{-- Tipo de entrega (ou mesa fixa no modo mesa do QR Code) --}}
+            <x-store.checkout-delivery-type :restaurant="$this->restaurant" :table="$this->seatedTable" :kiosk="$this->kiosk" />
+
 
             {{-- Endereço (delivery only) --}}
             @if($deliveryType === 'delivery')
@@ -271,11 +287,11 @@ new #[Layout('components.layouts.customer')] class extends Component {
             @endif
 
             {{-- Mesa (dine-in only) --}}
-            @if($deliveryType === 'dine_in')
+            @if($deliveryType === 'dine_in' && ! $this->seatedTable)
             <div class="bg-white border border-zinc-200 rounded-2xl p-5">
                 <h2 class="text-sm font-semibold text-zinc-700 mb-3">Selecione sua mesa</h2>
                 @if($this->tables->isEmpty())
-                <p class="text-sm text-zinc-500">Nenhuma mesa livre no momento.</p>
+                <p class="text-sm text-zinc-500">Nenhuma mesa disponível no momento.</p>
                 @else
                 <div class="grid grid-cols-4 sm:grid-cols-6 gap-2">
                     @foreach($this->tables as $table)
@@ -311,25 +327,13 @@ new #[Layout('components.layouts.customer')] class extends Component {
             </div>
 
             {{-- Pagamento --}}
-            <div class="bg-white border border-zinc-200 rounded-2xl p-5">
-                <h2 class="text-sm font-semibold text-zinc-700 mb-3">Forma de pagamento</h2>
-                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    @foreach($this->acceptedPayments as $key => $label)
-                    <label class="cursor-pointer">
-                        <input type="radio" wire:model="paymentMethod" value="{{ $key }}" class="sr-only peer" />
-                        <div class="border-2 rounded-xl px-2.5 py-2 text-sm text-center transition peer-checked:border-orange-500 peer-checked:bg-orange-50 peer-checked:text-orange-600 border-zinc-200 text-zinc-600">
-                            {{ $label }}
-                        </div>
-                    </label>
-                    @endforeach
-                </div>
-            </div>
+            <x-store.checkout-payment :methods="$this->acceptedPayments" :selected="$paymentMethod" />
         </div>
 
         {{-- Order summary sidebar --}}
         <div class="lg:col-span-1">
             <x-store.order-summary :cart="$this->cart" :subtotal="$this->subtotal"
-                                   :delivery-fee="$this->deliveryFee" :total="$this->total" />
+                                   :delivery-fee="$this->deliveryFee" :total="$this->total" :open="(bool) $this->restaurant?->isOpenAt()" />
         </div>
 
     </form>

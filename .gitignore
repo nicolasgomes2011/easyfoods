@@ -46,6 +46,8 @@ $RECYCLE.BIN/
 # Configuração local do Claude Code (skills são versionadas; o resto é local)
 /.claude/*
 !/.claude/skills/
+# Permissões locais de cada máquina: nunca versionar (mesmo se a regra acima mudar)
+/.claude/settings.local.json
 /.docs/
 
 # Memória de contexto do projeto (uso interno do Claude Code)

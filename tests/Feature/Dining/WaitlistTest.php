@@ -13,6 +13,7 @@ use App\Models\DiningTable;
 use App\Models\Product;
 use App\Models\Restaurant;
 use App\Models\User;
+use App\Support\CurrentRestaurant;
 use App\Models\WaitlistEntry;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Volt\Volt;
@@ -109,6 +110,36 @@ class WaitlistTest extends TestCase
         $this->assertSame(DiningTableStatus::Occupied, $table->fresh()->status);
     }
 
+    public function test_seating_at_a_table_that_is_no_longer_free_keeps_the_entry_waiting(): void
+    {
+        $restaurant = Restaurant::factory()->create();
+        $occupied = $this->table($restaurant, 11, DiningTableStatus::Occupied);
+        $reserved = $this->table($restaurant, 12, DiningTableStatus::Reserved);
+        $entry = WaitlistEntry::factory()->for($restaurant)->create();
+
+        $this->actAsStaff();
+
+        // The picker was opened while the tables were free; another attendant
+        // (or a dine-in order) took them before "Confirmar".
+        foreach ([$occupied, $reserved] as $table) {
+            Volt::test('dining.queue')
+                ->call('openSeat', $entry->id)
+                ->set('tableId', (string) $table->id)
+                ->call('seat', $entry->id)
+                ->assertHasErrors(['tableId'])
+                ->assertSet('seatingId', $entry->id)
+                ->assertSet('tableId', '');
+
+            $entry->refresh();
+            $this->assertSame(WaitlistStatus::Waiting, $entry->status);
+            $this->assertNull($entry->dining_table_id);
+            $this->assertNull($entry->seated_at);
+        }
+
+        $this->assertSame(DiningTableStatus::Occupied, $occupied->fresh()->status);
+        $this->assertSame(DiningTableStatus::Reserved, $reserved->fresh()->status);
+    }
+
     public function test_seating_without_a_table_just_marks_seated(): void
     {
         $restaurant = Restaurant::factory()->create();
@@ -141,11 +172,10 @@ class WaitlistTest extends TestCase
 
     public function test_waitlist_actions_are_scoped_to_the_panel_restaurant(): void
     {
-        // Resolve which restaurant the panel scopes to (value('id') is
-        // planner-order-dependent, not first-created — BUG-007).
+        // Resolve which restaurant the panel scopes to.
         $x = Restaurant::factory()->create();
         $y = Restaurant::factory()->create();
-        $panelId = Restaurant::query()->value('id');
+        $panelId = CurrentRestaurant::id();
         [$panel, $foreign] = $panelId === $x->id ? [$x, $y] : [$y, $x];
 
         $foreignEntry = WaitlistEntry::factory()->for($foreign)->create();

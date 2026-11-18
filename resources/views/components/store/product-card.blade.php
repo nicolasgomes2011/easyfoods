@@ -1,6 +1,13 @@
-@props(['product'])
+{{-- most-ordered: the product is in the menu's "Mais pedidos" ranking (badge on its card in the category). --}}
+@props(['product', 'mostOrdered' => false])
 
-<div class="bg-white border border-zinc-200 rounded-2xl overflow-hidden hover:shadow-md transition group">
+@php($orderable = $product->isAvailable())
+
+<div @class([
+    'bg-white border border-zinc-200 rounded-2xl overflow-hidden transition group',
+    'hover:shadow-md' => $orderable,
+    'opacity-60 grayscale' => ! $orderable,
+])>
     {{-- Image placeholder --}}
     <div class="h-36 bg-zinc-100 flex items-center justify-center">
         @if($product->image)
@@ -18,18 +25,35 @@
                 <p class="text-xs text-zinc-500 mt-0.5 line-clamp-2">{{ $product->description }}</p>
                 @endif
             </div>
-            @if($product->is_featured)
-            <span class="shrink-0 text-[10px] font-semibold text-orange-500 bg-orange-50 rounded-full px-1.5 py-0.5">destaque</span>
+            @if(! $orderable)
+            <span class="shrink-0 text-[10px] font-semibold text-zinc-600 bg-zinc-100 rounded-full px-1.5 py-0.5">Indisponível no momento</span>
+            @elseif($mostOrdered || $product->is_featured)
+            <div class="shrink-0 flex flex-col items-end gap-1">
+                @if($mostOrdered)
+                <span data-most-ordered-badge class="text-[10px] font-semibold text-white bg-orange-500 rounded-full px-1.5 py-0.5">Mais pedido</span>
+                @endif
+                @if($product->is_featured)
+                <span class="text-[10px] font-semibold text-orange-500 bg-orange-50 rounded-full px-1.5 py-0.5">destaque</span>
+                @endif
+            </div>
             @endif
         </div>
 
         <div class="flex items-center justify-between mt-3">
             <span class="font-bold text-zinc-800">R$ {{ number_format($product->price, 2, ',', '.') }}</span>
+            @if($orderable)
             <button wire:click="openProduct({{ $product->id }})"
                     class="flex items-center gap-1 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-xl px-3 py-1.5 transition">
                 <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
                 Adicionar
             </button>
+            @else
+            <button type="button" disabled aria-disabled="true"
+                    class="flex items-center gap-1 bg-zinc-200 text-zinc-500 text-sm font-medium rounded-xl px-3 py-1.5 cursor-not-allowed">
+                <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                Adicionar
+            </button>
+            @endif
         </div>
     </div>
 </div>

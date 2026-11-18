@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Store\TableEntryController;
 use Illuminate\Support\Facades\Route;
 use Livewire\Volt\Volt;
 
@@ -8,7 +9,6 @@ Route::prefix('store')->name('store.')->group(function () {
     Route::get('/',                      fn () => view('store.home'))->name('home');
     Volt::route('/menu',                 'store.menu')->name('menu');
     Volt::route('/menu/{category:slug}', 'store.menu')->name('menu.category');
-    Route::get('/product/{product:slug}', fn () => view('store.product'))->name('product');
     Volt::route('/cart',                 'store.cart')->name('cart');
 });
 
@@ -18,12 +18,6 @@ Route::prefix('store')->name('store.')->group(function () {
     Volt::route('/order/{order}',        'store.order-tracking')->name('order.tracking');
 });
 
-// Customer account area
-Route::middleware('auth:customer')
-    ->prefix('account')
-    ->name('account.')
-    ->group(function () {
-        Route::get('/orders',              fn () => view('store.account.orders'))->name('orders');
-        Route::get('/profile',             fn () => view('store.account.profile'))->name('profile');
-        Route::get('/addresses',           fn () => view('store.account.addresses'))->name('addresses');
-    });
+// Table QR code: binds the table to the browser session and opens the menu in
+// table mode (?kiosk=1 = tablet fixed on the table).
+Route::get('/mesa/{table:uuid}', TableEntryController::class)->name('store.table');

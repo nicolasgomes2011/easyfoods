@@ -1,7 +1,7 @@
 <?php
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
-use App\Models\Restaurant;
+use App\Support\CurrentRestaurant;
 use App\Models\StoreSetting;
 
 new #[Layout('components.layouts.app')] class extends Component {
@@ -24,7 +24,7 @@ new #[Layout('components.layouts.app')] class extends Component {
 
     public function mount(): void
     {
-        $restaurant = Restaurant::first();
+        $restaurant = CurrentRestaurant::get();
         if (! $restaurant) return;
 
         $settings = $restaurant->settings->keyBy('key');
@@ -36,7 +36,7 @@ new #[Layout('components.layouts.app')] class extends Component {
 
     public function save(): void
     {
-        $restaurant = Restaurant::first();
+        $restaurant = CurrentRestaurant::get();
         if (! $restaurant) return;
 
         foreach ($this->methodKeys as $prop => $key) {
