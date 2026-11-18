@@ -183,4 +183,12 @@ class TableQrCodeTest extends TestCase
 
         $this->get(route('admin.dining.tables.qr.download', [$table->id, 'png']))->assertRedirect(route('login'));
     }
+
+    public function test_the_encoded_link_opens_the_public_table_route(): void
+    {
+        [$panel] = $this->panelAndForeign();
+        $table = $this->table($panel, '7');
+
+        $this->get(app(TableQrCode::class)->url($table))->assertRedirect(route('store.menu'));
+    }
 }
