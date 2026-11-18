@@ -52,7 +52,7 @@ new #[Layout('components.layouts.auth')] class extends Component {
             RateLimiter::hit($this->throttleKey());
             
             throw ValidationException::withMessages([
-                'code' => __('The provided code is invalid.'),
+                'code' => 'O código informado é inválido.',
             ]);
         }
         
@@ -88,9 +88,7 @@ new #[Layout('components.layouts.auth')] class extends Component {
         $seconds = RateLimiter::availableIn($this->throttleKey());
         
         throw ValidationException::withMessages([
-            'code' => __('Too many attempts. Please try again in :seconds seconds.', [
-                'seconds' => $seconds,
-            ]),
+            'code' => "Muitas tentativas. Tente novamente em {$seconds} segundos.",
         ]);
     }
     
@@ -105,16 +103,16 @@ new #[Layout('components.layouts.auth')] class extends Component {
 }; ?>
 
 <div class="flex flex-col gap-6">
-    <x-auth-header 
-        title="Two-Factor Authentication" 
-        :description="$useRecoveryCode ? 'Enter one of your recovery codes' : 'Enter the code from your authenticator app'" 
+    <x-auth-header
+        title="Verificação em duas etapas"
+        :description="$useRecoveryCode ? 'Digite um dos seus códigos de recuperação.' : 'Digite o código de 6 dígitos do seu aplicativo autenticador.'"
     />
 
     <form wire:submit="verify" class="flex flex-col gap-6">
         <!-- Two-Factor Code -->
-        <flux:input 
-            wire:model="code" 
-            :label="$useRecoveryCode ? __('Recovery Code') : __('Authentication Code')" 
+        <flux:input
+            wire:model="code"
+            :label="$useRecoveryCode ? 'Código de recuperação' : 'Código de autenticação'"
             type="text" 
             name="code" 
             required 
@@ -124,7 +122,7 @@ new #[Layout('components.layouts.auth')] class extends Component {
         />
 
         <div class="flex items-center justify-end">
-            <flux:button variant="primary" type="submit" class="w-full">{{ __('Verify') }}</flux:button>
+            <flux:button variant="primary" type="submit" class="w-full">Verificar</flux:button>
         </div>
     </form>
     
@@ -134,11 +132,11 @@ new #[Layout('components.layouts.auth')] class extends Component {
             wire:click="toggleRecoveryCode"
             class="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 underline"
         >
-            {{ $useRecoveryCode ? __('Use authentication code') : __('Use a recovery code') }}
+            {{ $useRecoveryCode ? 'Usar o código do aplicativo autenticador' : 'Usar um código de recuperação' }}
         </button>
     </div>
 
     <div class="space-x-1 text-center text-sm text-zinc-600 dark:text-zinc-400">
-        <x-text-link href="{{ route('login') }}">Back to login</x-text-link>
+        <x-text-link href="{{ route('login') }}">Voltar para o login</x-text-link>
     </div>
 </div>
