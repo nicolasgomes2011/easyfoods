@@ -5,7 +5,7 @@ use Livewire\Volt\Component;
 use App\Enums\DiningTableStatus;
 use App\Enums\TableSessionStatus;
 use App\Models\DiningTable;
-use App\Models\Restaurant;
+use App\Support\CurrentRestaurant;
 
 new #[Layout('components.layouts.app')] class extends Component {
 
@@ -24,7 +24,7 @@ new #[Layout('components.layouts.app')] class extends Component {
 
     private function rid(): ?int
     {
-        return Restaurant::query()->value('id');
+        return CurrentRestaurant::id();
     }
 
     /** Table lookup fenced to this restaurant — a bare findOrFail would cross tenants. */
@@ -271,6 +271,10 @@ new #[Layout('components.layouts.app')] class extends Component {
                 <tr class="hover:bg-zinc-800/30 transition">
                     <td class="px-5 py-3.5">
                         <span class="font-semibold text-white">Mesa {{ $table->number }}</span>
+                        @if($table->openSession && auth()->user()?->hasAnyRole(\App\Enums\UserRole::Admin, \App\Enums\UserRole::Manager, \App\Enums\UserRole::Attendant))
+                        <a href="{{ route('admin.dining.tab', $table->openSession) }}" wire:navigate data-tab-link="{{ $table->id }}"
+                           class="ml-2 text-xs text-orange-400 hover:text-orange-300">Comanda</a>
+                        @endif
                     </td>
                     <td class="px-4 py-3.5 text-center text-zinc-400">
                         {{ $table->capacity }} lug.

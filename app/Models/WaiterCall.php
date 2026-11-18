@@ -3,11 +3,14 @@
 namespace App\Models;
 
 use App\Enums\WaiterCallStatus;
+use App\Models\Concerns\BelongsToRestaurant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class WaiterCall extends Model
 {
+    use BelongsToRestaurant;
+
     protected $fillable = [
         'restaurant_id',
         'dining_table_id',
