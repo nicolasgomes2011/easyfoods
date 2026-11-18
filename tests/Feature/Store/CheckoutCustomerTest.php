@@ -10,6 +10,7 @@ use App\Models\Order;
 use App\Models\Product;
 use App\Models\Restaurant;
 use App\Models\User;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Volt\Volt;
 use Tests\TestCase;
@@ -142,17 +143,51 @@ class CheckoutCustomerTest extends TestCase
     public function test_customers_screen_lists_only_the_panel_restaurant_customers(): void
     {
         $other = Restaurant::factory()->create();
-        $panelId = Restaurant::query()->value('id');
-        $foreign = $panelId === $this->restaurant->id ? $other : $this->restaurant;
 
-        Customer::create(['restaurant_id' => $panelId, 'name' => 'Cliente Daqui', 'phone' => '11911112222']);
-        Customer::create(['restaurant_id' => $foreign->id, 'name' => 'Cliente De Fora', 'phone' => '11933334444']);
+        Customer::create(['restaurant_id' => $this->restaurant->id, 'name' => 'Cliente Daqui', 'phone' => '11911112222']);
+        Customer::create(['restaurant_id' => $other->id, 'name' => 'Cliente De Fora', 'phone' => '11933334444']);
 
-        $this->actAsAdmin();
+        $this->actingAs(User::factory()->create(['role' => UserRole::Admin, 'restaurant_id' => $this->restaurant->id]));
 
         $this->get(route('admin.customers.index'))
             ->assertOk()
             ->assertSee('Cliente Daqui')
-            ->assertDontSee('Cliente De Fora');
+            ->assertDontSee('Cliente De Fora')
+            ->assertDontSee('Undefined');
+    }
+
+    public function test_a_customer_without_restaurant_shows_where_they_ordered(): void
+    {
+        $other = Restaurant::factory()->create();
+        $legacy = Customer::create(['name' => 'Cliente Antigo', 'phone' => '11955556666']);
+        Order::factory()->create(['restaurant_id' => $this->restaurant->id, 'customer_id' => $legacy->id]);
+
+        $this->actingAs(User::factory()->create(['role' => UserRole::Admin, 'restaurant_id' => $this->restaurant->id]));
+        $this->get(route('admin.customers.index'))->assertOk()->assertSee('Cliente Antigo');
+
+        $this->actingAs(User::factory()->create(['role' => UserRole::Admin, 'restaurant_id' => $other->id]));
+        $this->get(route('admin.customers.index'))->assertOk()->assertDontSee('Cliente Antigo');
+    }
+
+    public function test_the_database_refuses_a_second_customer_with_the_same_phone_in_a_restaurant(): void
+    {
+        Customer::create(['restaurant_id' => $this->restaurant->id, 'name' => 'Ana', 'phone' => '11900001111']);
+
+        $this->expectException(UniqueConstraintViolationException::class);
+
+        Customer::create(['restaurant_id' => $this->restaurant->id, 'name' => 'Ana de novo', 'phone' => '11900001111']);
+    }
+
+    public function test_a_deleted_customer_who_orders_again_is_brought_back(): void
+    {
+        $customer = Customer::create(['restaurant_id' => $this->restaurant->id, 'name' => 'Ana', 'phone' => '11900001111']);
+        $customer->delete();
+
+        $resolved = app(ResolveCheckoutCustomer::class)->handle($this->restaurant, 'Ana Paula', '(11) 90000-1111');
+
+        $this->assertSame($customer->id, $resolved->id);
+        $this->assertFalse($resolved->fresh()->trashed());
+        $this->assertSame('Ana Paula', $resolved->fresh()->name);
+        $this->assertSame(1, Customer::withTrashed()->count());
     }
 }

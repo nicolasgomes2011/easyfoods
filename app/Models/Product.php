@@ -3,14 +3,16 @@
 namespace App\Models;
 
 use App\Enums\ProductAvailabilityStatus;
+use App\Models\Concerns\BelongsToRestaurant;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Str;
 
 class Product extends Model
 {
-    use HasFactory;
+    use BelongsToRestaurant, HasFactory;
 
     protected $fillable = [
         'restaurant_id',
@@ -19,6 +21,7 @@ class Product extends Model
         'description',
         'image',
         'price',
+        'prep_minutes',
         'availability_status',
         'archived_at',
         'sort_order',
@@ -27,6 +30,7 @@ class Product extends Model
 
     protected $casts = [
         'price'               => 'decimal:2',
+        'prep_minutes'        => 'integer',
         'availability_status' => ProductAvailabilityStatus::class,
         'archived_at'         => 'datetime',
         'sort_order'          => 'integer',
@@ -66,6 +70,12 @@ class Product extends Model
     public function isArchived(): bool
     {
         return $this->archived_at !== null;
+    }
+
+    /** Name + description without accents, lower case and single-spaced: what the menu quick search matches. */
+    public function searchText(): string
+    {
+        return (string) Str::of($this->name.' '.$this->description)->ascii()->lower()->squish();
     }
 
     public function scopeAvailable($query)

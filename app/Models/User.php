@@ -4,7 +4,9 @@ namespace App\Models;
 
 use App\Enums\UserRole;
 use App\Models\Concerns\HasTwoFactorAuthentication;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Str;
@@ -20,10 +22,19 @@ class User extends Authenticatable
         'password',
         'role',
         'is_active',
+        'is_available',
         'two_factor_secret',
         'two_factor_recovery_codes',
         'two_factor_enabled',
     ];
+
+    /** Same default as the column, so a fresh model knows it before being reloaded. */
+    protected $attributes = [
+        'is_available' => true,
+    ];
+
+    /** effectiveRestaurantId() cache. false = not read yet (null is valid: no restaurant at all). */
+    private int|false|null $defaultRestaurantIdMemo = false;
 
     protected $hidden = [
         'password',
@@ -39,8 +50,62 @@ class User extends Authenticatable
             'password'           => 'hashed',
             'two_factor_enabled' => 'boolean',
             'is_active'          => 'boolean',
+            // Driver panel: false = on pause, gets no delivery offers.
+            'is_available'       => 'boolean',
             'role'               => UserRole::class,
+            // Tenant: the restaurant this staff member works in (never mass-assigned).
+            'restaurant_id'      => 'integer',
         ];
+    }
+
+    public function restaurant(): BelongsTo
+    {
+        return $this->belongsTo(Restaurant::class);
+    }
+
+    /**
+     * The restaurant this staff member works in. Staff not assigned to one yet
+     * (restaurant_id null) work in the default restaurant — the lowest id, the
+     * same fallback CurrentRestaurant uses for them.
+     */
+    public function effectiveRestaurantId(): ?int
+    {
+        if ($this->restaurant_id !== null) {
+            return $this->restaurant_id;
+        }
+
+        // Read once per instance: the policies ask for it on every row of a list.
+        if ($this->defaultRestaurantIdMemo === false) {
+            $this->defaultRestaurantIdMemo = self::defaultRestaurantId();
+        }
+
+        return $this->defaultRestaurantIdMemo;
+    }
+
+    /** Whether a row of $restaurantId belongs to this staff member's restaurant. */
+    public function worksAt(int|string|null $restaurantId): bool
+    {
+        $mine = $this->effectiveRestaurantId();
+
+        return $mine !== null && $restaurantId !== null && (int) $restaurantId === $mine;
+    }
+
+    /** Staff of a restaurant, including not-yet-assigned staff when it is the default one. */
+    public function scopeOfRestaurant(Builder $query, ?int $restaurantId): Builder
+    {
+        $isDefault = $restaurantId !== null && $restaurantId === self::defaultRestaurantId();
+
+        return $query->where(function (Builder $query) use ($restaurantId, $isDefault) {
+            $query->where('restaurant_id', $restaurantId)
+                ->when($isDefault, fn (Builder $query) => $query->orWhereNull('restaurant_id'));
+        });
+    }
+
+    private static function defaultRestaurantId(): ?int
+    {
+        $id = Restaurant::query()->orderBy('id')->value('id');
+
+        return $id === null ? null : (int) $id;
     }
 
     public function hasRole(UserRole $role): bool

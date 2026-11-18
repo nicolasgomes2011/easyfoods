@@ -20,12 +20,22 @@ class ResolveCheckoutCustomer
             return null;
         }
 
-        $customer = Customer::firstOrNew([
-            'restaurant_id' => $restaurant->id,
-            'phone'         => $digits,
-        ]);
+        $name = trim((string) $name) ?: 'Cliente';
 
-        $customer->name = trim((string) $name) ?: 'Cliente';
+        // (restaurant_id, phone) is unique: when two checkouts with the same phone
+        // race, firstOrCreate falls back to createOrFirst and both end on one row.
+        // withTrashed: a deleted customer who orders again is brought back, instead
+        // of a new row hitting the unique index.
+        $customer = Customer::withTrashed()->firstOrCreate(
+            ['restaurant_id' => $restaurant->id, 'phone' => $digits],
+            ['name' => $name],
+        );
+
+        if ($customer->trashed()) {
+            $customer->restore();
+        }
+
+        $customer->name = $name;
         $customer->save();
 
         return $customer;

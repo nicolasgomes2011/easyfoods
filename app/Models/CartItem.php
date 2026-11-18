@@ -11,6 +11,9 @@ class CartItem extends Model
 {
     use HasFactory;
 
+    /** Most units of one cart line (the menu modal, merges and the cart page stop here). */
+    public const MAX_QUANTITY = 99;
+
     protected $fillable = [
         'cart_id',
         'product_id',

@@ -8,6 +8,10 @@ use Illuminate\Support\Facades\Schema;
  * Customers created by the guest checkout belong to one restaurant: the phone
  * identifies a returning customer of that restaurant only. Nullable so rows
  * that predate it (and a future cross-restaurant customer login) stay valid.
+ *
+ * (restaurant_id, phone) is unique so two checkouts with the same phone at the
+ * same moment cannot create two customers. NULLs never collide, so older rows
+ * without restaurant_id are not affected.
  */
 return new class extends Migration
 {
@@ -15,15 +19,17 @@ return new class extends Migration
     {
         Schema::table('customers', function (Blueprint $table) {
             $table->foreignId('restaurant_id')->nullable()->after('id')->constrained()->cascadeOnDelete();
-            $table->index(['restaurant_id', 'phone']);
+            $table->unique(['restaurant_id', 'phone']);
         });
     }
 
     public function down(): void
     {
         Schema::table('customers', function (Blueprint $table) {
-            $table->dropIndex(['restaurant_id', 'phone']);
-            $table->dropConstrainedForeignId('restaurant_id');
+            // Foreign key first: on MySQL the unique index may be the one backing it.
+            $table->dropForeign(['restaurant_id']);
+            $table->dropUnique(['restaurant_id', 'phone']);
+            $table->dropColumn('restaurant_id');
         });
     }
 };
