@@ -19,10 +19,14 @@ new #[Layout('components.layouts.app')] class extends Component {
     #[Computed]
     public function customers()
     {
-        // customers has no restaurant_id yet: a customer belongs to this
-        // restaurant when they ordered here. Counts and totals follow the
-        // orders' tenant scope (this restaurant's orders only).
-        return Customer::whereHas('orders', fn ($q) => $q->where('restaurant_id', CurrentRestaurant::id()))
+        // Customers belong to one restaurant (created by its checkout). Older rows
+        // without restaurant_id show where they ordered. Counts and totals follow
+        // the orders' tenant scope (this restaurant's orders only).
+        $rid = CurrentRestaurant::id();
+
+        return Customer::where(fn ($q) => $q->where('restaurant_id', $rid)
+                ->orWhere(fn ($q) => $q->whereNull('restaurant_id')
+                    ->whereHas('orders', fn ($q) => $q->where('restaurant_id', $rid))))
             ->withCount('orders as order_count')
             ->withSum(['orders as total_spent' => fn ($q) => $q->whereNotIn('status', [
                 OrderStatus::Canceled->value,
