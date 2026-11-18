@@ -5,6 +5,8 @@ namespace App\Actions\Orders;
 use App\Enums\DeliveryType;
 use App\Enums\DiningTableStatus;
 use App\Enums\OrderStatus;
+use App\Enums\PaymentMethod;
+use App\Enums\PaymentStatus;
 use App\Enums\TableSessionStatus;
 use App\Exceptions\OrderNotPlaceable;
 use App\Models\Cart;
@@ -14,6 +16,7 @@ use App\Models\DiningTable;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\OrderStatusHistory;
+use App\Models\Payment;
 use App\Models\Restaurant;
 use App\Models\TableSession;
 use App\Support\CurrentRestaurant;
@@ -166,6 +169,13 @@ class PlaceOrder
                 'changed_at' => now(),
             ]);
 
+            // Payment intent: one pending Payment with the method the customer picked.
+            // Payment state lives on the Payment and never touches orders.status.
+            // Callers that don't choose a method (internal flows) get no Payment.
+            if (($data['payment_method'] ?? null) !== null) {
+                $this->createPayment($restaurant, $order, $data);
+            }
+
             // Dine-in: the table becomes occupied and joins the tab (table session)
             // the moment the order lands — opening one if this is the first order
             // of the sitting, or reusing the one already open. Dining-room state
@@ -201,6 +211,38 @@ class PlaceOrder
 
             return $order;
         });
+    }
+
+    /**
+     * Pending Payment for the whole order. The method must be enabled in
+     * Settings › Payments; for cash, the "change for" amount is kept so the
+     * counter/driver knows how much change to bring.
+     */
+    private function createPayment(Restaurant $restaurant, Order $order, array $data): void
+    {
+        $method = PaymentMethod::tryFrom((string) $data['payment_method']);
+
+        if (! $method || ! $restaurant->acceptsPaymentMethod($method)) {
+            throw new OrderNotPlaceable('A forma de pagamento escolhida não está disponível.');
+        }
+
+        $total = round((float) $order->total, 2);
+        $tendered = $method === PaymentMethod::Cash && ($data['cash_tendered'] ?? null) !== null
+            ? round((float) $data['cash_tendered'], 2)
+            : null;
+
+        if ($tendered !== null && $tendered < $total) {
+            throw new OrderNotPlaceable('O valor para troco precisa ser maior ou igual ao total do pedido.');
+        }
+
+        Payment::create([
+            'order_id'        => $order->id,
+            'method'          => $method,
+            'status'          => PaymentStatus::Pending,
+            'amount'          => $total,
+            'amount_tendered' => $tendered,
+            'change_due'      => $tendered !== null ? round($tendered - $total, 2) : null,
+        ]);
     }
 
     /**
