@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\DiningTableQrCodeController;
 use App\Models\Product;
 use Illuminate\Support\Facades\Route;
 use Livewire\Volt\Volt;
@@ -43,6 +44,13 @@ Route::middleware(['auth', 'role:admin,manager,attendant,kitchen,delivery'])
             Volt::route('/queue',  'dining.queue')->name('queue');
             // Comanda da mesa: shows money, so dining room staff only.
             Volt::route('/sessions/{tableSession}', 'dining.tab')->middleware('role:admin,manager,attendant')->name('tab');
+
+            // QR Code de cada mesa (aponta para /mesa/{uuid})
+            Route::get('/tables/qr/print', [DiningTableQrCodeController::class, 'print'])->name('tables.qr.print');
+            Route::get('/tables/{table}/qr', [DiningTableQrCodeController::class, 'show'])
+                ->whereNumber('table')->name('tables.qr');
+            Route::get('/tables/{table}/qr.{format}', [DiningTableQrCodeController::class, 'download'])
+                ->whereNumber('table')->whereIn('format', ['png', 'svg'])->name('tables.qr.download');
         });
 
         // ── CARDÁPIO — admin/manager only ─────────────────────────────────────
