@@ -1,7 +1,8 @@
 {{--
-    One delivery on the driver panel: number, customer, total, optional items
+    One delivery on the driver panel: number, customer, total, payment, optional items
     summary and the address. Actions go in the default slot, a status tag in `badge`.
     `contact` adds "Ligar para o cliente" / "Abrir no mapa" (the driver's own deliveries).
+    Expects `payment` eager loaded on the list.
 --}}
 @props(['order', 'accent' => 'border-zinc-800', 'items' => false, 'contact' => false])
 
@@ -21,6 +22,9 @@
             R$ {{ number_format($order->total, 2, ',', '.') }}
         </p>
     </div>
+
+    {{-- How the customer pays and the change to bring (EF-60) --}}
+    <x-orders.payment-summary :payment="$order->payment" class="mb-3" />
 
     @if($items)
     {{-- Items summary --}}

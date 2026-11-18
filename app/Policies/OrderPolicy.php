@@ -41,11 +41,23 @@ class OrderPolicy
         return $user->hasAnyRole(UserRole::Admin, UserRole::Manager, UserRole::Attendant);
     }
 
-    /** Register the customer's payment (front-of-house roles only). */
+    /**
+     * Register the customer's payment: front-of-house roles, and the driver
+     * who collects at the door, only on a delivery assigned to them.
+     */
     public function markPaid(User $user, Order $order): bool
     {
-        return $user->worksAt($order->restaurant_id)
-            && $user->hasAnyRole(UserRole::Admin, UserRole::Manager, UserRole::Attendant);
+        if (! $user->worksAt($order->restaurant_id)) {
+            return false;
+        }
+
+        if ($user->hasRole(UserRole::Delivery)) {
+            return $order->isDelivery()
+                && $order->driver_id !== null
+                && (int) $order->driver_id === (int) $user->id;
+        }
+
+        return $user->hasAnyRole(UserRole::Admin, UserRole::Manager, UserRole::Attendant);
     }
 
     public function transitionInKitchen(User $user, Order $order): bool

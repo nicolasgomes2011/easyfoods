@@ -100,6 +100,7 @@ new #[Layout('components.layouts.app')] class extends Component {
             ->with([
                 'items.addons',
                 'itemChanges' => fn ($query) => $query->where('type', OrderItemChangeType::Removed->value),
+                'payment',
             ])
             ->orderBy('created_at')
             ->get();

@@ -5,16 +5,20 @@ use Livewire\Volt\Component;
 use App\Actions\Delivery\AcceptDelivery;
 use App\Actions\Delivery\DeclineDelivery;
 use App\Actions\Orders\TransitionOrderStatus;
+use App\Actions\Payments\MarkPaymentAsPaid;
 use App\Enums\DeliveryType;
 use App\Enums\OrderStatus;
+use App\Enums\PaymentStatus;
 use App\Models\Order;
 use App\Support\CurrentRestaurant;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 
 /*
  * Driver panel. A delivery ready to leave is under "Disponíveis" until a driver
  * accepts it (orders.driver_id); from then on it is under that driver's
- * "Minhas entregas", and only that driver picks it up and marks it delivered.
+ * "Minhas entregas", and only that driver picks it up, records the payment at
+ * the door and marks it delivered.
  */
 new #[Layout('components.layouts.app')] class extends Component {
 
@@ -39,7 +43,7 @@ new #[Layout('components.layouts.app')] class extends Component {
     public function myPickups()
     {
         return $this->mine(OrderStatus::ReadyForPickup)
-            ->with('items')
+            ->with(['items', 'payment'])
             ->orderBy('ready_at')
             ->get();
     }
@@ -48,6 +52,7 @@ new #[Layout('components.layouts.app')] class extends Component {
     public function myEnRoute()
     {
         return $this->mine(OrderStatus::OutForDelivery)
+            ->with('payment')
             ->orderBy('out_for_delivery_at') // left first, listed first
             ->orderBy('updated_at')          // tie-break for orders without the milestone
             ->get();
@@ -79,7 +84,7 @@ new #[Layout('components.layouts.app')] class extends Component {
 
         return Order::availableForDelivery($this->rid())
             ->whereDoesntHave('deliveryDeclines', fn ($query) => $query->where('user_id', auth()->id()))
-            ->with('items')
+            ->with(['items', 'payment'])
             ->orderBy('ready_at')
             ->get();
     }
@@ -104,6 +109,30 @@ new #[Layout('components.layouts.app')] class extends Component {
     {
         $this->act(fn () => app(TransitionOrderStatus::class)
             ->execute($this->ownOrder($orderId), OrderStatus::Delivered, auth()->user()));
+    }
+
+    /** Cash or card machine at the door: records the payment only, never the order status. */
+    public function markPaid(int $orderId): void
+    {
+        $this->act(function () use ($orderId) {
+            $order = $this->ownOrder($orderId);
+
+            if (Gate::denies('markPaid', $order)) {
+                throw ValidationException::withMessages([
+                    'order' => 'Você não pode registrar o pagamento deste pedido.',
+                ]);
+            }
+
+            $payment = $order->payment;
+
+            if ($payment === null || ! $payment->status->canTransitionTo(PaymentStatus::Paid)) {
+                throw ValidationException::withMessages([
+                    'payment' => 'Este pedido não tem pagamento pendente.',
+                ]);
+            }
+
+            app(MarkPaymentAsPaid::class)->execute($payment);
+        });
     }
 
     /** Only the driver who accepted the delivery may move it (same restaurant). */
@@ -187,6 +216,17 @@ new #[Layout('components.layouts.app')] class extends Component {
                 <x-slot:badge>
                     <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-indigo-400/10 text-indigo-400">Em rota</span>
                 </x-slot:badge>
+
+                @if($order->payment?->status->canTransitionTo(PaymentStatus::Paid) && auth()->user()->can('markPaid', $order))
+                {{-- Collected at the door: payment only, the delivery is still confirmed below --}}
+                <button wire:click="markPaid({{ $order->id }})"
+                        wire:confirm="Confirmar que recebeu R$ {{ number_format($order->payment->amount, 2, ',', '.') }} do pedido #{{ $order->number }}?"
+                        wire:loading.attr="disabled"
+                        class="w-full mb-2 py-2.5 text-green-400 bg-green-400/10 hover:bg-green-400/15 border border-green-400/20 text-sm font-semibold rounded-xl transition disabled:opacity-50">
+                    <span wire:loading.remove wire:target="markPaid({{ $order->id }})">Marcar como pago</span>
+                    <span wire:loading wire:target="markPaid({{ $order->id }})">Registrando…</span>
+                </button>
+                @endif
 
                 <button wire:click="markDelivered({{ $order->id }})"
                         wire:confirm="Confirmar entrega do pedido #{{ $order->number }}?"

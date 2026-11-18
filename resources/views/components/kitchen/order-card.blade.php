@@ -3,7 +3,7 @@
     order type / table and notes stand out, action buttons are at least 48px tall
     (wired to the kitchen component: startPreparing, toggleItemPrepared, markReady).
     In preparation, each item has a checklist box; "Marcar pronto" is enabled only
-    when every item is ticked. Expects `items.addons` and the removed `itemChanges` loaded.
+    when every item is ticked. Expects `items.addons`, the removed `itemChanges` and `payment` loaded.
 --}}
 @props(['order'])
 
@@ -112,9 +112,13 @@
         @endforeach
     </div>
     <div class="px-4 py-3 border-t border-zinc-800 flex items-center justify-between gap-3">
-        <span class="text-xs text-zinc-500 tabular-nums">
-            R$ {{ number_format($order->total, 2, ',', '.') }}
-        </span>
+        <div class="min-w-0 space-y-1">
+            <span class="block text-xs text-zinc-500 tabular-nums">
+                R$ {{ number_format($order->total, 2, ',', '.') }}
+            </span>
+            {{-- How the customer pays (EF-60) --}}
+            <x-orders.payment-summary :payment="$order->payment" />
+        </div>
         @if($canAct)
             @if($order->status === \App\Enums\OrderStatus::Confirmed)
             <button
