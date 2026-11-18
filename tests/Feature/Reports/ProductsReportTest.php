@@ -359,9 +359,9 @@ class ProductsReportTest extends TestCase
                 ->assertSeeHtml('data-report="products"');
         }
 
+        // Reports area is admin/manager only (role access matrix, EF-10).
         $this->actingAs(User::factory()->create(['role' => UserRole::Kitchen]))
             ->get(route('admin.reports.index'))
-            ->assertOk()
-            ->assertDontSee(route('admin.reports.products'), false);
+            ->assertForbidden();
     }
 }

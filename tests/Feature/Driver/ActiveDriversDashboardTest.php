@@ -79,7 +79,7 @@ class ActiveDriversDashboardTest extends TestCase
         $pickup = $this->delivery($diego, OrderStatus::ReadyForPickup);
 
         $this->actingAs($this->manager())
-            ->get('/dashboard')
+            ->get(route('admin.dashboard'))
             ->assertOk()
             ->assertDontSee('Undefined')
             ->assertSee('Entregadores ativos')
@@ -136,7 +136,7 @@ class ActiveDriversDashboardTest extends TestCase
 
         $this->assertSame(['Carla Rota' => ['state' => 'available', 'orders' => []]], $this->activeDrivers());
 
-        $this->get('/dashboard')
+        $this->get(route('admin.dashboard'))
             ->assertOk()
             ->assertDontSeeHtml('data-driver-order="'.$foreignOrder->id.'"');
     }
@@ -144,7 +144,7 @@ class ActiveDriversDashboardTest extends TestCase
     public function test_no_drivers_shows_the_empty_message(): void
     {
         $this->actingAs($this->manager())
-            ->get('/dashboard')
+            ->get(route('admin.dashboard'))
             ->assertOk()
             ->assertSee('Entregadores ativos')
             ->assertSee('Nenhum entregador cadastrado.');
@@ -158,7 +158,7 @@ class ActiveDriversDashboardTest extends TestCase
         $queriesFor = function () use ($manager): int {
             DB::flushQueryLog();
             DB::enableQueryLog();
-            $this->actingAs($manager)->get('/dashboard')->assertOk();
+            $this->actingAs($manager)->get(route('admin.dashboard'))->assertOk();
             $count = count(DB::getQueryLog());
             DB::disableQueryLog();
 

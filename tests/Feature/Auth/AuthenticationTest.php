@@ -26,7 +26,7 @@ class AuthenticationTest extends TestCase
             ->set('password', 'password')
             ->call('login')
             ->assertHasNoErrors()
-            ->assertRedirect(route('dashboard', absolute: false));
+            ->assertRedirect(route('admin.dashboard', absolute: false));
 
         $this->assertAuthenticated();
     }

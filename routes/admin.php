@@ -5,16 +5,17 @@ use App\Models\Product;
 use Illuminate\Support\Facades\Route;
 use Livewire\Volt\Volt;
 
+// Acesso por área: matriz única em \App\Enums\UserRole::allowedFor() (também usada pelo menu).
 Route::middleware(['auth', 'role:admin,manager,attendant,kitchen,delivery'])
     ->prefix('admin')
     ->name('admin.')
     ->group(function () {
 
-        Route::get('/', fn () => redirect()->route('admin.dashboard'));
-        Route::get('/dashboard', \App\Livewire\Dashboard::class)->name('dashboard');
+        Route::get('/', fn () => redirect()->route(auth()->user()->homeRoute()));
+        Route::get('/dashboard', \App\Livewire\Dashboard::class)->middleware(\App\Enums\UserRole::middleware('dashboard'))->name('dashboard');
 
         // ── PEDIDOS ──────────────────────────────────────────────────────────
-        Route::prefix('orders')->name('orders.')->group(function () {
+        Route::middleware(\App\Enums\UserRole::middleware('orders'))->prefix('orders')->name('orders.')->group(function () {
             Volt::route('/',            'orders.index')->name('index');
             Volt::route('/in-progress', 'orders.in-progress')->name('in-progress');
             Volt::route('/history',     'orders.history')->name('history');
@@ -22,22 +23,22 @@ Route::middleware(['auth', 'role:admin,manager,attendant,kitchen,delivery'])
         });
 
         // ── COZINHA ───────────────────────────────────────────────────────────
-        Route::prefix('kitchen')->name('kitchen.')->group(function () {
+        Route::middleware(\App\Enums\UserRole::middleware('kitchen'))->prefix('kitchen')->name('kitchen.')->group(function () {
             Volt::route('/', 'kitchen.index')->name('index');
         });
 
         // ── DESPERDÍCIO — kitchen records, admin/manager follow up ───────────
-        Route::middleware('role:admin,manager,kitchen')->prefix('waste')->name('waste.')->group(function () {
+        Route::middleware(\App\Enums\UserRole::middleware('waste'))->prefix('waste')->name('waste.')->group(function () {
             Volt::route('/', 'waste.index')->name('index');
         });
 
         // ── ENTREGAS ─────────────────────────────────────────────────────────
-        Route::middleware('role:admin,manager,delivery')->prefix('driver')->name('driver.')->group(function () {
+        Route::middleware(\App\Enums\UserRole::middleware('driver'))->prefix('driver')->name('driver.')->group(function () {
             Volt::route('/', 'driver.index')->name('index');
         });
 
         // ── SALÃO ─────────────────────────────────────────────────────────────
-        Route::prefix('dining')->name('dining.')->group(function () {
+        Route::middleware(\App\Enums\UserRole::middleware('dining'))->prefix('dining')->name('dining.')->group(function () {
             Route::get('/', fn () => redirect()->route('admin.dining.tables'));
             Volt::route('/tables', 'dining.tables')->name('tables');
             Volt::route('/queue',  'dining.queue')->name('queue');
@@ -53,7 +54,7 @@ Route::middleware(['auth', 'role:admin,manager,attendant,kitchen,delivery'])
         });
 
         // ── CARDÁPIO — admin/manager only ─────────────────────────────────────
-        Route::middleware('role:admin,manager')->prefix('catalog')->name('catalog.')->group(function () {
+        Route::middleware(\App\Enums\UserRole::middleware('catalog'))->prefix('catalog')->name('catalog.')->group(function () {
             Route::get('/products',                  fn () => view('admin.catalog.products'))->name('products');
             Route::get('/products/create',           fn () => view('admin.catalog.product-create'))->name('products.create');
             Route::get('/products/{product}',        fn (Product $product) => view('admin.catalog.product-edit', compact('product')))->name('products.edit');
@@ -63,12 +64,12 @@ Route::middleware(['auth', 'role:admin,manager,attendant,kitchen,delivery'])
         });
 
         // ── CLIENTES ─────────────────────────────────────────────────────────
-        Route::prefix('customers')->name('customers.')->group(function () {
+        Route::middleware(\App\Enums\UserRole::middleware('customers'))->prefix('customers')->name('customers.')->group(function () {
             Volt::route('/', 'customers.index')->name('index');
         });
 
         // ── RELATÓRIOS ───────────────────────────────────────────────────────
-        Route::prefix('reports')->name('reports.')->group(function () {
+        Route::middleware(\App\Enums\UserRole::middleware('reports'))->prefix('reports')->name('reports.')->group(function () {
             Volt::route('/', 'reports.index')->name('index');
             Volt::route('/waste', 'reports.waste')->middleware('role:admin,manager')->name('waste');
             Volt::route('/sales', 'reports.sales')->middleware('role:admin,manager')->name('sales');
@@ -76,7 +77,7 @@ Route::middleware(['auth', 'role:admin,manager,attendant,kitchen,delivery'])
         });
 
         // ── CONFIGURAÇÕES — admin/manager only ───────────────────────────────
-        Route::middleware('role:admin,manager')->prefix('settings')->name('settings.')->group(function () {
+        Route::middleware(\App\Enums\UserRole::middleware('settings'))->prefix('settings')->name('settings.')->group(function () {
             Route::get('/', fn () => redirect()->route('admin.settings.store'))->name('index');
             Volt::route('/store',    'settings.store')->name('store');
             Volt::route('/hours',    'settings.hours')->name('hours');
@@ -85,7 +86,7 @@ Route::middleware(['auth', 'role:admin,manager,attendant,kitchen,delivery'])
         });
 
         // ── USUÁRIOS — admin only ─────────────────────────────────────────────
-        Route::middleware('role:admin')->prefix('users')->name('users.')->group(function () {
+        Route::middleware(\App\Enums\UserRole::middleware('users'))->prefix('users')->name('users.')->group(function () {
             Volt::route('/', 'users.index')->name('index');
         });
 

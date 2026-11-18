@@ -67,7 +67,7 @@ class StaffRestaurantTest extends TestCase
         $this->assertSame(0, $dashboard->inPreparationCount);
         $this->assertSame(1, $dashboard->todayOrderCount);
 
-        $this->get('/dashboard')->assertOk()->assertDontSee('Undefined');
+        $this->get(route('admin.dashboard'))->assertOk()->assertDontSee('Undefined');
     }
 
     public function test_an_invited_staff_member_starts_in_the_restaurant_of_who_invited(): void

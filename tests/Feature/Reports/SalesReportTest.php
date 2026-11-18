@@ -359,10 +359,10 @@ class SalesReportTest extends TestCase
                 ->assertSeeHtml('data-report="sales"');
         }
 
+        // Reports area is admin/manager only (role access matrix, EF-10).
         $this->actingAs(User::factory()->create(['role' => UserRole::Kitchen]))
             ->get(route('admin.reports.index'))
-            ->assertOk()
-            ->assertDontSee(route('admin.reports.sales'), false);
+            ->assertForbidden();
 
         // The sales card is no longer a "coming soon" one (nor, since EF-48, top products and peak hours).
         $html = $this->actingAs($this->admin)->get(route('admin.reports.index'))->getContent();

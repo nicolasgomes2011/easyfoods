@@ -7,6 +7,9 @@
 
         <flux:sidebar sticky stashable class="border-r border-zinc-800 bg-zinc-900">
 
+            {{-- Links filtrados pela matriz de acesso (UserRole::allowedFor), a mesma das rotas. --}}
+            @php($staff = auth()->user())
+
             {{-- Brand --}}
             <div class="flex items-center px-1 py-1 mb-2">
                 <flux:sidebar.toggle class="lg:hidden mr-2" icon="x-mark" />
@@ -18,17 +21,21 @@
             <flux:navlist variant="outline" class="space-y-0.5">
 
                 {{-- ── OPERAÇÃO ─────────────────────────────── --}}
+                @if($staff?->canAccess('dashboard') || $staff?->canAccess('orders') || $staff?->canAccess('dining') || $staff?->canAccess('kitchen') || $staff?->canAccess('waste') || $staff?->canAccess('driver'))
                 <flux:navlist.group heading="Operação" class="grid">
 
+                    @if($staff?->canAccess('dashboard'))
                     <flux:navlist.item
                         icon="home"
-                        :href="route('dashboard')"
-                        :current="request()->routeIs('dashboard')"
+                        :href="route('admin.dashboard')"
+                        :current="request()->routeIs('admin.dashboard')"
                         wire:navigate
                     >
                         Dashboard
                     </flux:navlist.item>
+                    @endif
 
+                    @if($staff?->canAccess('orders'))
                     <flux:navlist.group
                         heading="Pedidos"
                         expandable
@@ -56,7 +63,9 @@
                             Histórico
                         </flux:navlist.item>
                     </flux:navlist.group>
+                    @endif
 
+                    @if($staff?->canAccess('dining'))
                     <flux:navlist.group
                         heading="Salão"
                         expandable
@@ -77,7 +86,9 @@
                             Fila de espera
                         </flux:navlist.item>
                     </flux:navlist.group>
+                    @endif
 
+                    @if($staff?->canAccess('kitchen'))
                     <flux:navlist.item
                         icon="fire"
                         :href="route('admin.kitchen.index')"
@@ -86,8 +97,9 @@
                     >
                         Cozinha
                     </flux:navlist.item>
+                    @endif
 
-                    @if(auth()->user()?->hasAnyRole(\App\Enums\UserRole::Admin, \App\Enums\UserRole::Manager, \App\Enums\UserRole::Kitchen))
+                    @if($staff?->canAccess('waste'))
                     <flux:navlist.item
                         icon="trash"
                         :href="route('admin.waste.index')"
@@ -98,7 +110,7 @@
                     </flux:navlist.item>
                     @endif
 
-                    @if(auth()->user()?->hasAnyRole(\App\Enums\UserRole::Admin, \App\Enums\UserRole::Manager, \App\Enums\UserRole::Delivery))
+                    @if($staff?->canAccess('driver'))
                     <flux:navlist.item
                         icon="truck"
                         :href="route('admin.driver.index')"
@@ -110,10 +122,13 @@
                     @endif
 
                 </flux:navlist.group>
+                @endif
 
                 {{-- ── GESTÃO ───────────────────────────────── --}}
+                @if($staff?->canAccess('catalog') || $staff?->canAccess('customers') || $staff?->canAccess('reports'))
                 <flux:navlist.group heading="Gestão" class="grid">
 
+                    @if($staff?->canAccess('catalog'))
                     <flux:navlist.group
                         heading="Cardápio"
                         expandable
@@ -148,7 +163,9 @@
                             Insumos
                         </flux:navlist.item>
                     </flux:navlist.group>
+                    @endif
 
+                    @if($staff?->canAccess('customers'))
                     <flux:navlist.item
                         icon="users"
                         :href="route('admin.customers.index')"
@@ -157,7 +174,9 @@
                     >
                         Clientes
                     </flux:navlist.item>
+                    @endif
 
+                    @if($staff?->canAccess('reports'))
                     <flux:navlist.item
                         icon="chart-bar"
                         :href="route('admin.reports.index')"
@@ -166,12 +185,15 @@
                     >
                         Relatórios
                     </flux:navlist.item>
+                    @endif
 
                 </flux:navlist.group>
+                @endif
 
                 {{-- ── CONFIGURAÇÃO ─────────────────────────── --}}
                 <flux:navlist.group heading="Configuração" class="grid">
 
+                    @if($staff?->canAccess('settings'))
                     <flux:navlist.group
                         heading="Restaurante"
                         expandable
@@ -199,7 +221,9 @@
                             Entrega e taxas
                         </flux:navlist.item>
                     </flux:navlist.group>
+                    @endif
 
+                    @if($staff?->canAccess('users'))
                     <flux:navlist.item
                         icon="users"
                         :href="route('admin.users.index')"
@@ -208,6 +232,7 @@
                     >
                         Usuários e papéis
                     </flux:navlist.item>
+                    @endif
 
                     <flux:navlist.item
                         icon="cog"
