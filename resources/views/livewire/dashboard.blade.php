@@ -126,9 +126,11 @@
         <div class="bg-zinc-900 border border-zinc-800 rounded-xl">
             <div class="flex items-center justify-between px-5 py-4 border-b border-zinc-800">
                 <h2 class="text-sm font-semibold text-white">Entregas</h2>
+                @if(auth()->user()?->canAccess('driver'))
                 <a href="{{ route('admin.driver.index') }}" class="text-xs text-orange-400 hover:text-orange-300 transition" wire:navigate>
                     Painel do entregador →
                 </a>
+                @endif
             </div>
             <div class="px-5 py-5 flex items-center gap-4">
                 <p class="text-3xl font-bold text-indigo-400 tabular-nums">{{ $outForDeliveryCount }}</p>
@@ -272,9 +274,11 @@
         <div class="bg-zinc-900 border border-zinc-800 rounded-xl">
             <div class="flex items-center justify-between px-5 py-4 border-b border-zinc-800">
                 <h2 class="text-sm font-semibold text-white">Itens mais pedidos hoje</h2>
+                @if(auth()->user()?->canAccess('reports'))
                 <a href="{{ route('admin.reports.index') }}" class="text-xs text-orange-400 hover:text-orange-300 transition" wire:navigate>
                     Ver relatório →
                 </a>
+                @endif
             </div>
 
             @if($topItemsToday->isEmpty())

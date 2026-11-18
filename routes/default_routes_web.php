@@ -5,11 +5,12 @@ use Livewire\Volt\Volt;
 
 Route::redirect('/', '/login')->name('home');
 
-Route::get('dashboard', \App\Livewire\Dashboard::class)
-    ->middleware(['auth', 'verified'])
+// Endereço antigo do painel: leva cada papel à sua tela inicial (UserRole::homeRoute()).
+Route::get('dashboard', fn () => redirect()->route(auth()->user()->homeRoute()))
+    ->middleware(['auth', 'active', 'verified'])
     ->name('dashboard');
 
-Route::middleware(['auth'])->group(function () {
+Route::middleware(['auth', 'active'])->group(function () {
     Route::redirect('settings', 'settings/profile');
 
     Volt::route('settings/profile', 'settings.profile')->name('settings.profile');

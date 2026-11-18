@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Auth;
 
+use App\Models\User;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
@@ -29,11 +30,20 @@ class LoginForm extends Component
 
         $this->ensureIsNotRateLimited();
 
-        if (! Auth::attempt(['email' => $this->email, 'password' => $this->password], $this->remember)) {
+        // The callback only runs once the password matched, so "account
+        // disabled" is never shown for a wrong password.
+        $inactive = false;
+        $credentials = ['email' => $this->email, 'password' => $this->password];
+
+        if (! Auth::attemptWhen($credentials, function (User $user) use (&$inactive) {
+            $inactive = ! $user->isActive();
+
+            return ! $inactive;
+        }, $this->remember)) {
             RateLimiter::hit($this->throttleKey());
 
             throw ValidationException::withMessages([
-                'email' => __('auth.failed'),
+                'email' => $inactive ? 'Sua conta foi desativada.' : __('auth.failed'),
             ]);
         }
 
@@ -53,7 +63,7 @@ class LoginForm extends Component
 
         Session::regenerate();
 
-        $this->redirectIntended(default: route('dashboard', absolute: false), navigate: true);
+        $this->redirectIntended(default: route($user->homeRoute(), absolute: false), navigate: true);
     }
 
     protected function ensureIsNotRateLimited(): void

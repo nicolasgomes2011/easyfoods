@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Enums\OrderStatus;
+use App\Enums\UserRole;
 use App\Livewire\Dashboard;
 use App\Models\Order;
 use App\Models\Restaurant;
@@ -53,9 +54,9 @@ class DashboardPrepTimeTest extends TestCase
         $restaurant = Restaurant::factory()->create();
         $this->readyOrder($restaurant, createdAgo: 90, prepStartedAgo: null, readyAgo: 10);
 
-        $this->actingAs(User::factory()->create());
+        $this->actingAs(User::factory()->create(['role' => UserRole::Manager]));
 
         $this->assertNull(Livewire::test(Dashboard::class)->instance()->avgPrepMinutes);
-        $this->get('/dashboard')->assertOk()->assertDontSee('Undefined');
+        $this->get(route('admin.dashboard'))->assertOk()->assertDontSee('Undefined');
     }
 }

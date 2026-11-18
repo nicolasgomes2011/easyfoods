@@ -91,7 +91,7 @@ class OperationalMinutesTest extends TestCase
             'changed_at'  => now()->subMinutes(45),
         ]);
 
-        $this->get('/dashboard')
+        $this->get(route('admin.dashboard'))
             ->assertOk()
             ->assertSee('50 min')          // kitchen queue: oldest order of the item
             ->assertDontSee('50.583')

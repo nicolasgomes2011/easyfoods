@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\UserRole;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -16,12 +17,12 @@ class DashboardTest extends TestCase
         $response->assertRedirect('/login');
     }
 
-    public function test_authenticated_users_can_visit_the_dashboard(): void
+    public function test_authenticated_users_are_sent_to_the_admin_dashboard(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['role' => UserRole::Admin]);
         $this->actingAs($user);
 
-        $response = $this->get('/dashboard');
-        $response->assertStatus(200);
+        $this->get('/dashboard')->assertRedirect(route('admin.dashboard'));
+        $this->get(route('admin.dashboard'))->assertStatus(200);
     }
 }

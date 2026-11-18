@@ -308,6 +308,6 @@ class WasteReportTest extends TestCase
 
         $kitchen = User::factory()->create(['role' => UserRole::Kitchen]);
         $this->actingAs($kitchen)->get(route('admin.waste.index'))->assertOk()->assertDontSee(route('admin.reports.waste'), false);
-        $this->actingAs($kitchen)->get(route('admin.reports.index'))->assertOk()->assertDontSee(route('admin.reports.waste'), false);
+        $this->actingAs($kitchen)->get(route('admin.reports.index'))->assertForbidden(); // reports: admin/manager only (EF-10)
     }
 }
