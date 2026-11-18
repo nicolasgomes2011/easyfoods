@@ -1,7 +1,7 @@
 # Customer Storefront & Menu
 
-**Status:** 🟡 In Progress
-**Current state (2026-11-10):** Public menu at `/store/menu` with categories, product modal and cart is on `main`. Open cards: EF-54 (open/closed), EF-55 (unavailable greyed out), EF-56 (category scroll), EF-57 (search), EF-34 (table QR / kiosk). See [ROADMAP](ROADMAP.md).
+**Status:** 🟢 Completed
+**Current state (2026-11-18):** Public menu at `/store/menu` with category sections (EF-56), open/closed header (EF-54), unavailable products greyed out (EF-55), quick search (EF-57), most ordered (EF-31) and the table QR / kiosk mode at `/mesa/{uuid}` (EF-34) is on `main`. Open: EF-18 (call waiter). See [ROADMAP](ROADMAP.md).
 **Phase:** 3 — Customer Ordering
 
 ## Description

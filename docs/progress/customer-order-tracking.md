@@ -1,7 +1,7 @@
 # Order Tracking (Customer)
 
 **Status:** 🟡 In Progress
-**Current state (2026-11-10):** Tracking by `orders.token` with status steps and 10s polling is on `main`. Step timestamps (EF-16) and the live countdown (EF-15) are open. See [ROADMAP](ROADMAP.md).
+**Current state (2026-11-18):** Tracking by `orders.token` with steps per order type and their times (EF-16), "Pronto às HH:MM" with the delay message (EF-15, EF-26) and 10s polling is on `main`. Broadcasting instead of polling: EF-29. See [ROADMAP](ROADMAP.md).
 **Phase:** 5 — Order Tracking
 
 ## Description

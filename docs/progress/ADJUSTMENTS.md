@@ -2,7 +2,7 @@
 
 > **Mission:** the panel must display only data registered through the UI. No demo restaurant, no sample products, no fake orders, no demo users — only the admin account.
 >
-> Phase 0 of the [ROADMAP](ROADMAP.md) — completed in commit `2bf420a`. Last checked against `main` on **2026-11-10** (`a7778c0`).
+> Phase 0 of the [ROADMAP](ROADMAP.md) — completed in commit `2bf420a`. Last checked against `main` on **2026-11-18** (`de95d97`).
 > New cleanup work is tracked as `EF-x` cards in Linear, not in this file.
 
 ## Status legend
@@ -24,10 +24,10 @@ Files to modify or delete in `database/seeders/`:
 - [x] **`DatabaseSeeder.php`** — calls only `UserSeeder::class`.
 
 ### 1.2 Factories
-- [x] Audit `database/factories/` — the remaining factories (`Customer`, `Order`, `Restaurant`, `TableSession`, `User`, `WaitlistEntry`) all have a caller in the tests (`Customer` through `OrderFactory`).
+- [x] Audit `database/factories/` — the remaining factories (`Customer`, `Ingredient`, `Order`, `Restaurant`, `TableSession`, `User`, `WaitlistEntry`, `WasteEntry`) all have a caller in the tests.
 
 ### 1.3 Hardcoded sample data inside components/blades
-- [~] `resources/views/livewire/reports/index.blade.php` — kept as an explicit placeholder: the cards are marked "Em desenvolvimento" until the reports are real (Phase 9 of the ROADMAP).
+- [~] `resources/views/livewire/reports/index.blade.php` — sales (EF-47), top products and peak hours (EF-48) and waste (EF-41) are real reports; the 3 remaining cards stay marked "Em desenvolvimento" until they are built (Phase 9 of the ROADMAP).
 - [x] Sweep every Volt/Livewire `@php` block and component class for inline sample data (Phase 0).
 
 ### 1.4 Existing DB cleanup
@@ -37,13 +37,13 @@ Files to modify or delete in `database/seeders/`:
 ### 1.5 Empty-state verification (per screen)
 Every panel page was checked with an empty DB as part of Phase 0 (`2bf420a`):
 
-- [x] `/admin/dashboard` (the old `/dashboard` address still exists as an alias)
+- [x] `/admin/dashboard` (the old `/dashboard` address now redirects to the role's home screen — EF-10)
 - [x] `/admin/orders`, `/admin/orders/in-progress`, `/admin/orders/history`
 - [x] `/admin/kitchen`
 - [x] `/admin/dining/tables`, `/admin/dining/queue`
 - [x] `/admin/customers`
 - [x] `/admin/catalog/products`, `/admin/catalog/addons`
-- [x] `/admin/reports` — placeholder cards, see 1.3
+- [x] `/admin/reports` — see 1.3
 
 ---
 
@@ -70,8 +70,8 @@ Background: `bootstrap/app.php` loads `routes/default_routes_web.php`, `admin.ph
 ## 4. Known issues / TODOs picked up during the audit
 
 - [x] `App\Livewire\Dashboard::alerts()` keys off `order_status_histories.changed_at`, not `updated_at`.
-- [ ] Polling (`wire:poll`) should become broadcasting in Phase 9 of the ROADMAP.
-- [~] Multi-tenant scoping — tracked in Linear (EF-2, EF-8).
+- [ ] Polling (`wire:poll`) should become broadcasting in Phase 9 of the ROADMAP (EF-29).
+- [x] Multi-tenant scoping — staff per restaurant, global tenant scope, policies by restaurant and a leak test suite (EF-81 to EF-84).
 - [x] `/admin/dashboard` renders the `App\Livewire\Dashboard` component (no static `admin.dashboard` view).
 
 ---

@@ -1,7 +1,7 @@
 # Authentication & Roles
 
-**Status:** 🟡 In Progress
-**Current state (2026-11-10):** Login, password reset, email verification, 2FA and the role middleware are on `main`. Per-role access matrix (menu, routes, home screen) is EF-10. Customers order as guests (no customer accounts). See [ROADMAP](ROADMAP.md).
+**Status:** 🟢 Completed
+**Current state (2026-11-18):** Login, password reset, email verification, 2FA, the per-role access matrix with a home screen per role and the disabled-account block (EF-10) are on `main`, and the panel is scoped to the logged-in user's restaurant (EF-81 to EF-84). Customers order as guests (no customer accounts). Open: EF-63 (in-screen authorization), EF-67 (2FA challenge in Portuguese). See [ROADMAP](ROADMAP.md).
 **Phase:** 1 — Foundation
 
 ## Description

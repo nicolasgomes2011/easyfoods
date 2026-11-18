@@ -1,7 +1,7 @@
 # Bill & Tab Splitting
 
 **Status:** 🟡 In Progress
-**Current state (2026-11-10):** The per-table tab (`TableSession`) and the manual close ("Fechar mesa") are on `main`. Per-person items and split options are not started. See [ROADMAP](ROADMAP.md).
+**Current state (2026-11-18):** The per-table tab (`TableSession`), the tab screen with orders, total, paid and pending (EF-44), people at the table with item-to-person (EF-45) and the manual close ("Fechar mesa") are on `main`. Split options and partial payments: EF-46. See [ROADMAP](ROADMAP.md).
 **Phase:** 8 — Advanced
 
 ## Description

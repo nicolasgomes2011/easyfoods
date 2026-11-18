@@ -1,7 +1,7 @@
 # Employee Management
 
 **Status:** 🟡 In Progress
-**Current state (2026-11-10):** Invite by email, first-login password, deactivate/reactivate, role assignment and the staff directory are on `main`. Per-role access refinements are EF-10. See [ROADMAP](ROADMAP.md).
+**Current state (2026-11-18):** Invite by email, first-login password, deactivate/reactivate, role assignment, the staff directory and staff per restaurant (EF-81) are on `main`. Open: EF-24 (own invite e-mail), EF-63 (in-screen authorization). See [ROADMAP](ROADMAP.md).
 **Phase:** 2 — Restaurant Backoffice
 
 ## Description

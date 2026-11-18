@@ -20,35 +20,35 @@ Each file corresponds to one major feature and contains tasks, acceptance criter
 
 ## Feature Index
 
-Last synced with `main` on **2026-11-10** (`a7778c0`, 242 tests). The detailed checklist per phase is the
+Last synced with `main` on **2026-11-18** (`de95d97`, 758 tests). The detailed checklist per phase is the
 [ROADMAP](ROADMAP.md); open work is tracked as `EF-x` cards in Linear (team EasyFoods, project Roadmap EasyFoods).
 
 ### Restaurant Side
 | Feature | Status | Notes |
 |---------|--------|-------|
-| [Dashboard](restaurant-dashboard.md) | 🟡 | KPIs, recent orders, alerts, tables snapshot, quick actions and today-vs-baseline badges done. "Drivers active" is still a proxy. |
-| [Product Catalog](product-catalog.md) | 🟢 | Products, categories + reorder, addon groups, variants, images, archive and availability toggle done. |
-| [Employee Management](employee-management.md) | 🟡 | Invite, first-login password, deactivate/reactivate, roles and staff directory done. Access refinements: EF-10. |
-| [Table Management](table-management.md) | 🟢 | Tables CRUD, counters, waitlist, sessions, auto-occupy and delete guard done. Open: EF-35 (QR codes), EF-53. |
-| [Kitchen Panel](kitchen-panel.md) | 🟡 | Queue, counters, polling and start/ready actions done. Countdown (EF-15), item checklist, alerts, filters pending. |
-| [Order Management (Restaurant)](order-management-restaurant.md) | 🟡 | List/filters/show and confirm/reject/cancel/complete transitions done. Item edits, new-order alert, auto-expiry pending. |
+| [Dashboard](restaurant-dashboard.md) | 🟢 | KPIs, recent orders, alerts, tables snapshot, active drivers (EF-38), quick actions and today-vs-baseline badges done. |
+| [Product Catalog](product-catalog.md) | 🟢 | Products, categories + reorder, addon groups, variants, images, archive, availability toggle, base prep time (EF-15) and ingredients (EF-39) done. |
+| [Employee Management](employee-management.md) | 🟡 | Invite, first-login password, deactivate/reactivate, roles, staff directory and staff per restaurant (EF-81) done. Open: EF-24 (invite e-mail), EF-63 (in-screen authorization). |
+| [Table Management](table-management.md) | 🟢 | Tables CRUD, counters, waitlist, sessions, auto-occupy, delete guard, server re-checks (EF-53), QR codes (EF-35) and the table tab (EF-44, EF-45) done. Open: EF-18 (call waiter). |
+| [Kitchen Panel](kitchen-panel.md) | 🟢 | Queue grouped by status, type filter, touch layout (EF-42), item checklist (EF-43), prep timer (EF-15), new-order alert (EF-19) and waste log (EF-40) done. |
+| [Order Management (Restaurant)](order-management-restaurant.md) | 🟢 | List/filters/show, confirm/reject/cancel/complete, item edits (EF-21), new-order alert (EF-19), auto-expiry (EF-20) and "Marcar como pago" (EF-4) done. Open: EF-60, EF-65. |
 
 ### Customer Side
 | Feature | Status | Notes |
 |---------|--------|-------|
-| [Storefront & Menu](customer-storefront.md) | 🟡 | `/store/menu` with categories, product modal and cart done. Open: EF-34, EF-54, EF-55, EF-56, EF-57. |
-| [Cart & Checkout](customer-cart-checkout.md) | 🟡 | Session cart, checkout for the 3 order types and `PlaceOrder` done. Open: EF-4, EF-5, EF-6, EF-9, EF-51, EF-58. |
-| [Order Tracking](customer-order-tracking.md) | 🟡 | Tracking by token with status steps and 10s polling done. Open: EF-16 (step times), EF-15 (countdown). |
-| [Bill & Tab Splitting](bill-and-tab-splitting.md) | 🟡 | Per-table tab and manual close done. Per-person items and split options pending. |
+| [Storefront & Menu](customer-storefront.md) | 🟢 | `/store/menu` with category sections (EF-56), open/closed header (EF-54), greyed-out unavailable products (EF-55), quick search (EF-57), most ordered (EF-31) and table QR mode (EF-34) done. Open: EF-18. |
+| [Cart & Checkout](customer-cart-checkout.md) | 🟢 | Session cart, clear cart (EF-58), checkout for the 3 order types, payment method + pending payment (EF-4), store-open check (EF-5), zone fee (EF-51) and customer by phone (EF-9) done. |
+| [Order Tracking](customer-order-tracking.md) | 🟡 | Tracking by token with steps per order type, step times (EF-16), "Pronto às" and delay message (EF-15, EF-26) and 10s polling done. Broadcasting: EF-29. |
+| [Bill & Tab Splitting](bill-and-tab-splitting.md) | 🟡 | Per-table tab with totals (EF-44), people and item-to-person (EF-45) and manual close done. Split options and partial payments: EF-46. |
 
 ### Delivery Side
 | Feature | Status | Notes |
 |---------|--------|-------|
-| [Driver Panel](delivery-driver-panel.md) | 🟡 | Shared ready-for-pickup queue with pick up / delivered done. No per-driver assignment or availability. Open: EF-60. |
+| [Driver Panel](delivery-driver-panel.md) | 🟡 | Offers to available drivers with accept/decline (EF-36), pause/resume (EF-37), call/map links (EF-38) and delivered done. Open: EF-60, EF-76 (delivery ETA). |
 
 ### System & Infrastructure
 | Feature | Status | Notes |
 |---------|--------|-------|
-| [Authentication & Roles](authentication.md) | 🟡 | Login, password reset, email verification, 2FA and role middleware done. Per-role access matrix: EF-10. Multi-tenant: EF-2, EF-8. |
-| [ETA Engine](eta-engine.md) | 🔴 | Only static `min_order_minutes` / `max_order_minutes`. Milestones: EF-14; prep time + countdown: EF-15. |
-| [Realtime Notifications](realtime-notifications.md) | 🟡 | `wire:poll` only (30s on operational panels, 10s on tracking). No broadcasting yet. |
+| [Authentication & Roles](authentication.md) | 🟢 | Login, password reset, email verification, 2FA, per-role access matrix and home screen (EF-10) and multi-tenant scoping (EF-81 to EF-84) done. Open: EF-63, EF-67. |
+| [ETA Engine](eta-engine.md) | 🟡 | Milestones (EF-14), base prep time + ready-at estimate (EF-15) and learned prep time from history and load (EF-26) done. Delivery transit and recalculation: EF-76. |
+| [Realtime Notifications](realtime-notifications.md) | 🟡 | `wire:poll` (30s on operational panels, 10s on tracking) and the new-order sound alert (EF-19). No broadcasting yet (EF-29). |

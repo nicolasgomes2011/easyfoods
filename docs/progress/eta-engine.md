@@ -1,7 +1,7 @@
 # ETA Engine
 
-**Status:** 🔴 Not Started
-**Current state (2026-11-10):** Only the static `min_order_minutes` / `max_order_minutes` exist. Preparation and departure milestones are EF-14; base prep time per product + countdown is EF-15. See [ROADMAP](ROADMAP.md).
+**Status:** 🟡 In Progress
+**Current state (2026-11-18):** Preparation and departure milestones (EF-14), base prep time per product with the ready-at estimate and kitchen timer (EF-15) and the prep time learned from kitchen history and load (EF-26) are on `main`. Delivery transit time and recalculation: EF-76. See [ROADMAP](ROADMAP.md).
 **Phase:** 7 — ETA Intelligence
 
 ## Description
