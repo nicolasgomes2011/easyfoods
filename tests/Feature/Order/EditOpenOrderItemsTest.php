@@ -422,17 +422,22 @@ class EditOpenOrderItemsTest extends TestCase
         $order = $this->order(extraLines: [[$this->soda, 1, 6.00]]);
 
         foreach ([UserRole::Kitchen, UserRole::Delivery] as $role) {
-            $this->actingAs(User::factory()->create(['role' => $role]));
+            $user = User::factory()->create(['role' => $role]);
 
-            Volt::test('orders.show', ['order' => $order])
-                ->call('openAddItem')
-                ->assertForbidden();
+            // The screen itself refuses these roles (EF-63)...
+            $this->actingAs($user);
+            Volt::test('orders.show', ['order' => $order])->assertForbidden();
 
-            Volt::test('orders.show', ['order' => $order])
+            // ...and the item actions are still checked when the role changes with the page open.
+            $this->actingAs($this->attendant);
+            $openAdd = Volt::test('orders.show', ['order' => $order]);
+            $remove = Volt::test('orders.show', ['order' => $order])
                 ->set('removingItemId', $order->items()->first()->id)
-                ->set('removeReason', 'tentativa')
-                ->call('removeItem')
-                ->assertForbidden();
+                ->set('removeReason', 'tentativa');
+
+            $this->actingAs($user);
+            $openAdd->call('openAddItem')->assertForbidden();
+            $remove->call('removeItem')->assertForbidden();
         }
 
         $this->assertSame(2, $order->items()->count());
@@ -559,19 +564,21 @@ class EditOpenOrderItemsTest extends TestCase
         $ready = $this->order(OrderStatus::ReadyForPickup, extraLines: [[$this->soda, 1, 6.00]]);
 
         foreach ([UserRole::Kitchen, UserRole::Delivery] as $role) {
-            $this->actingAs(User::factory()->create(['role' => $role]));
+            $user = User::factory()->create(['role' => $role]);
 
             foreach ([$open, $ready] as $order) {
-                Volt::test('orders.show', ['order' => $order])
-                    ->set('newProductId', (string) $this->soda->id)
-                    ->call('addItem')
-                    ->assertForbidden();
-
-                Volt::test('orders.show', ['order' => $order])
+                // Screen opened by an attendant, then the role changes with the page open (EF-63
+                // makes the screen itself refuse these roles on mount).
+                $this->actingAs($this->attendant);
+                $add = Volt::test('orders.show', ['order' => $order])
+                    ->set('newProductId', (string) $this->soda->id);
+                $remove = Volt::test('orders.show', ['order' => $order])
                     ->set('removingItemId', $order->items()->first()->id)
-                    ->set('removeReason', 'tentativa')
-                    ->call('removeItem')
-                    ->assertForbidden();
+                    ->set('removeReason', 'tentativa');
+
+                $this->actingAs($user);
+                $add->call('addItem')->assertForbidden();
+                $remove->call('removeItem')->assertForbidden();
             }
         }
 

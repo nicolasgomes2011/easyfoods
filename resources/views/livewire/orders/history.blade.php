@@ -7,6 +7,7 @@ use Livewire\WithPagination;
 use App\Enums\OrderStatus;
 use App\Models\Order;
 use App\Support\CurrentRestaurant;
+use Illuminate\Support\Facades\Gate;
 
 new #[Layout('components.layouts.app')] class extends Component {
     use WithPagination;
@@ -15,6 +16,11 @@ new #[Layout('components.layouts.app')] class extends Component {
     public string $status = '';
     #[Url]
     public string $date   = '';
+
+    public function mount(): void
+    {
+        Gate::authorize('viewAny', Order::class);
+    }
 
     public function updatedStatus(): void { $this->resetPage(); }
     public function updatedDate():   void { $this->resetPage(); }

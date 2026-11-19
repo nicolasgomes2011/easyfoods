@@ -111,11 +111,16 @@ class OrderShowActionsTest extends TestCase
 
         $this->assertTrue(Gate::forUser($kitchen)->denies('updateStatus', $order));
 
+        // The screen itself refuses the kitchen role (EF-63)...
         $this->actingAs($kitchen);
+        Volt::test('orders.show', ['order' => $order])->assertForbidden();
 
-        Volt::test('orders.show', ['order' => $order])
-            ->call('confirm')
-            ->assertForbidden();
+        // ...and the action is still checked when the role changes with the page open.
+        $this->actingAs($this->manager());
+        $screen = Volt::test('orders.show', ['order' => $order]);
+
+        $this->actingAs($kitchen);
+        $screen->call('confirm')->assertForbidden();
 
         $this->assertSame(OrderStatus::PendingConfirmation, $order->fresh()->status);
     }
