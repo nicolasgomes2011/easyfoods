@@ -66,6 +66,7 @@ Route::middleware(['auth', 'role:admin,manager,attendant,kitchen,delivery'])
         // ── CLIENTES ─────────────────────────────────────────────────────────
         Route::middleware(\App\Enums\UserRole::middleware('customers'))->prefix('customers')->name('customers.')->group(function () {
             Volt::route('/', 'customers.index')->name('index');
+            Volt::route('/{customer}', 'customers.show')->name('show');
         });
 
         // ── RELATÓRIOS ───────────────────────────────────────────────────────
