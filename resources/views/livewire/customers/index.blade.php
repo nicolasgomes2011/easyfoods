@@ -24,9 +24,7 @@ new #[Layout('components.layouts.app')] class extends Component {
         // the orders' tenant scope (this restaurant's orders only).
         $rid = CurrentRestaurant::id();
 
-        return Customer::where(fn ($q) => $q->where('restaurant_id', $rid)
-                ->orWhere(fn ($q) => $q->whereNull('restaurant_id')
-                    ->whereHas('orders', fn ($q) => $q->where('restaurant_id', $rid))))
+        return Customer::ofRestaurant($rid)
             ->withCount('orders as order_count')
             ->withSum(['orders as total_spent' => fn ($q) => $q->whereNotIn('status', [
                 OrderStatus::Canceled->value,
@@ -95,10 +93,10 @@ new #[Layout('components.layouts.app')] class extends Component {
                     @foreach($this->customers as $customer)
                     <tr class="hover:bg-zinc-800/40 transition">
                         <td class="px-5 py-3.5">
-                            <div>
-                                <p class="font-medium text-white">{{ $customer->name }}</p>
+                            <a href="{{ route('admin.customers.show', $customer) }}" wire:navigate class="block group">
+                                <p class="font-medium text-white group-hover:text-orange-400 transition">{{ $customer->name }}</p>
                                 <p class="text-xs text-zinc-500">{{ $customer->email }}</p>
-                            </div>
+                            </a>
                         </td>
                         <td class="px-4 py-3.5 text-zinc-400 text-xs tabular-nums">
                             {{ $customer->phone ?: '—' }}
