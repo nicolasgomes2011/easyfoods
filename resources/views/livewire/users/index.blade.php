@@ -3,9 +3,11 @@ use Livewire\Attributes\Layout;
 use Livewire\Attributes\Computed;
 use Livewire\Volt\Component;
 use App\Actions\Users\InviteStaffMember;
+use App\Actions\Users\SendStaffInvitation;
 use App\Enums\UserRole;
 use App\Models\User;
 use App\Support\CurrentRestaurant;
+use Illuminate\Support\Facades\Gate;
 
 new #[Layout('components.layouts.app')] class extends Component {
 
@@ -16,6 +18,9 @@ new #[Layout('components.layouts.app')] class extends Component {
 
     public ?string $inviteSuccess = null;
     public ?string $inviteError   = null;
+
+    /** Feedback of the actions on the team list (e.g. "Reenviar convite"). */
+    public ?string $listNotice = null;
 
     public function rules(): array
     {
@@ -75,7 +80,7 @@ new #[Layout('components.layouts.app')] class extends Component {
 
             $this->inviteSuccess = $result['mail_sent']
                 ? "Convite enviado para {$this->inviteEmail}."
-                : "Conta criada para {$this->inviteEmail}. E-mail não configurado — envie o link de redefinição de senha manualmente.";
+                : "Conta criada para {$this->inviteEmail}, mas o e-mail não foi enviado. Confira a configuração de e-mail e use \"Reenviar convite\" na lista.";
 
             $this->reset('inviteName', 'inviteEmail', 'inviteRole');
             unset($this->staff);
@@ -88,6 +93,31 @@ new #[Layout('components.layouts.app')] class extends Component {
     {
         $this->showInvite = false;
         $this->reset('inviteName', 'inviteEmail', 'inviteRole', 'inviteSuccess', 'inviteError');
+    }
+
+    /** Send the invite e-mail again to a member who never logged in (at most once a minute). */
+    public function resendInvite(int $userId): void
+    {
+        $member = $this->member($userId);
+
+        Gate::authorize('update', $member);
+
+        $this->listNotice = null;
+
+        if (! $member->isInvitationPending()) {
+            return;
+        }
+
+        if ($member->invited_at->gt(now()->subMinute())) {
+            $this->listNotice = "Aguarde um minuto para reenviar o convite de {$member->name}.";
+            return;
+        }
+
+        $this->listNotice = app(SendStaffInvitation::class)->handle($member)
+            ? "Convite reenviado para {$member->email}."
+            : "Não foi possível enviar o e-mail para {$member->email}. Confira a configuração de e-mail.";
+
+        unset($this->staff);
     }
 
     public function toggleActive(int $userId): void
@@ -191,6 +221,12 @@ new #[Layout('components.layouts.app')] class extends Component {
     </div>
     @endif
 
+    @if($listNotice)
+    <div class="mb-4 px-4 py-3 bg-zinc-800/60 border border-zinc-700 rounded-xl text-sm text-zinc-300">
+        {{ $listNotice }}
+    </div>
+    @endif
+
     {{-- Staff list --}}
     @if($this->staff->isEmpty())
     <div class="bg-zinc-900 border border-zinc-800 border-dashed rounded-xl px-5 py-16 text-center">
@@ -245,13 +281,23 @@ new #[Layout('components.layouts.app')] class extends Component {
                         @endif
                     </td>
                     <td class="px-4 py-3.5">
-                        @if($member->is_active)
+                        @if($member->is_active && $member->isInvitationPending())
+                        <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-amber-400/10 text-amber-400"
+                              title="Convite enviado em {{ $member->invited_at->format('d/m/Y H:i') }}; ainda não entrou no painel">Convite pendente</span>
+                        @elseif($member->is_active)
                         <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-green-400/10 text-green-400">Ativo</span>
                         @else
                         <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-zinc-700 text-zinc-400">Inativo</span>
                         @endif
                     </td>
                     <td class="px-5 py-3.5 text-right">
+                        @if(! $isSelf && $member->is_active && $member->isInvitationPending())
+                        <button wire:click="resendInvite({{ $member->id }})"
+                                wire:loading.attr="disabled" wire:target="resendInvite({{ $member->id }})"
+                                class="text-xs text-amber-400/80 hover:text-amber-400 bg-zinc-800 hover:bg-amber-400/10 rounded-lg px-2.5 py-1.5 transition mr-1">
+                            Reenviar convite
+                        </button>
+                        @endif
                         @if(! $isSelf)
                         <button wire:click="toggleActive({{ $member->id }})"
                                 wire:confirm="{{ $member->is_active ? 'Desativar' : 'Reativar' }} a conta de {{ $member->name }}?"

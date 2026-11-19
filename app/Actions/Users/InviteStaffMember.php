@@ -5,18 +5,20 @@ namespace App\Actions\Users;
 use App\Enums\UserRole;
 use App\Models\User;
 use App\Support\CurrentRestaurant;
-use Illuminate\Support\Facades\Password;
 
 class InviteStaffMember
 {
+    public function __construct(private SendStaffInvitation $sendInvitation) {}
+
     /**
-     * Create an active staff account with a random password and send a
-     * password-set link, so the new member chooses their own password.
+     * Create an active staff account with a random password and send the
+     * invite e-mail (StaffInvitation), whose link lets the new member choose
+     * their own password.
      *
      * The new account belongs to the restaurant of who invites (the current
      * restaurant), set on the server — never taken from the form.
      *
-     * Returns the created user and whether the link e-mail was sent.
+     * Returns the created user and whether the invite e-mail was sent.
      */
     public function handle(string $name, string $email, UserRole $role): array
     {
@@ -29,11 +31,9 @@ class InviteStaffMember
         ]);
         $user->forceFill(['restaurant_id' => CurrentRestaurant::id()])->save();
 
-        $status = Password::sendResetLink(['email' => $email]);
-
         return [
-            'user'         => $user,
-            'mail_sent'    => $status === Password::RESET_LINK_SENT,
+            'user'      => $user,
+            'mail_sent' => $this->sendInvitation->handle($user),
         ];
     }
 }
