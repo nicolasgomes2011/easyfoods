@@ -55,7 +55,16 @@ class User extends Authenticatable
             'role'               => UserRole::class,
             // Tenant: the restaurant this staff member works in (never mass-assigned).
             'restaurant_id'      => 'integer',
+            // Staff invitation (never mass-assigned): last invite e-mail and last login.
+            'invited_at'         => 'datetime',
+            'last_login_at'      => 'datetime',
         ];
+    }
+
+    /** Invited from the team screen and never logged in yet. */
+    public function isInvitationPending(): bool
+    {
+        return $this->invited_at !== null && $this->last_login_at === null;
     }
 
     public function restaurant(): BelongsTo
